@@ -11,3 +11,464 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum LoaiBangDiem {
+  lop_10
+  lop_11
+  lop_12
+  tnTHPT
+
+  @@map("loai_bang_diem")
+}
+
+enum HangGiaiThuong {
+  giai_nhat
+  giai_nhi
+  giai_ba
+  khuyen_khich
+
+  @@map("hang_giai_thuong")
+}
+
+enum CapGiaiThuong {
+  toan_quoc
+  tinh
+  mien_bac
+  mien_nam
+
+  @@map("cap_giai_thuong")
+}
+
+enum MonHoc {
+  toan
+  van
+  anh
+  vat_ly
+  hoa_hoc
+  sinh_hoc
+  dia_ly
+  lich_su
+  gdcd
+  tin_hoc
+
+  @@map("mon_hoc_enum")
+}
+
+enum TrangThaiDuyet {
+  cho
+  hop_le
+  tu_choi
+
+  @@map("trang_thai_duyet")
+}
+
+enum VaiTroAdmin {
+  super_admin
+  chuyen_vien
+
+  @@map("vai_tro_admin")
+}
+
+enum NguonDuLieu {
+  tu_nop
+  dong_bo_bo
+
+  @@map("nguon_du_lieu")
+}
+
+// =====================================================================
+// NHÓM ADMIN
+// =====================================================================
+
+model Admin {
+  ma_admin  String      @id @default(uuid())
+  ho_ten    String
+  email     String      @unique
+  mat_khau  String // hash, KHÔNG lưu plain text
+  vai_tro   VaiTroAdmin
+  create_at DateTime    @default(now())
+
+  nganh_hoc          NganhHoc[]
+  chuong_trinh       ChuongTrinhDaoTao[]
+  lich_su_diem_chuan LichSuDiemChuan[]
+  nguyen_vong        NguyenVongSinhVien[]
+  tri_thuc_ai        TriThucAi[]
+  bai_viet           TrangNoiDung[]
+  lo_trinh           LoTrinhTuyenSinh[]
+
+  @@map("admin")
+}
+
+// =====================================================================
+// NHÓM THÍ SINH
+// =====================================================================
+
+model ThiSinh {
+  cccd                  String   @id @db.VarChar(12)
+  ho_ten                String
+  so_dien_thoai         String   @unique
+  khu_vuc               String?
+  doi_tuong_uu_tien     String?
+  diem_uu_tien_he_thong Float?   @default(0)
+  create_at             DateTime @default(now())
+
+  nguyen_vong NguyenVongSinhVien[]
+  bang_diem   BangDiem[]
+  giai_thuong GiaiThuong[]
+  chung_chi   ChungChi[]
+  diem_to_hop DiemToHop[]
+  trac_nghiem KetQuaTracNghiem[]
+
+  @@map("thi_sinh")
+}
+
+model GiaiThuong {
+  ma_giai_thuong   String         @id @default(uuid())
+  cccd             String         @db.VarChar(12)
+  giai_thuong      HangGiaiThuong
+  loai_giai_thuong CapGiaiThuong
+  mon_hoc          MonHoc
+
+  thi_sinh ThiSinh @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+
+  @@index([cccd])
+  @@map("giai_thuong")
+}
+
+model ChungChi {
+  ma_chung_chi     String         @id @default(uuid())
+  cccd             String         @db.VarChar(12)
+  loai_chung_chi   String // IELTS / TOEFL / Tin học / Nghề...
+  diem_hoac_hang   String
+  ngay_cap         DateTime?      @db.Date
+  ngay_het_han     DateTime?      @db.Date
+  file_dinh_kem    String // đường dẫn file scan (Supabase Storage)
+  trang_thai_duyet TrangThaiDuyet @default(cho)
+  create_at        DateTime       @default(now())
+
+  thi_sinh ThiSinh @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+
+  @@index([cccd])
+  @@map("chung_chi")
+}
+
+// =====================================================================
+// NHÓM ĐIỂM
+// =====================================================================
+
+model DanhMucMonHoc {
+  ma_mon  String @id // TOAN, VAN, TIN...
+  ten_mon String
+
+  diem_chi_tiet DiemChiTiet[]
+  to_hop_mon_1  ToHopXetTuyen[] @relation("ToHopMon1")
+  to_hop_mon_2  ToHopXetTuyen[] @relation("ToHopMon2")
+  to_hop_mon_3  ToHopXetTuyen[] @relation("ToHopMon3")
+
+  @@map("danh_muc_mon_hoc")
+}
+
+model BangDiem {
+  ma_bang_diem String       @id @default(uuid())
+  cccd         String       @db.VarChar(12)
+  loai_diem    LoaiBangDiem
+  nam_hoc      Int
+
+  thi_sinh      ThiSinh       @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  diem_chi_tiet DiemChiTiet[]
+  diem_to_hop   DiemToHop[]
+
+  @@index([cccd])
+  @@map("bang_diem")
+}
+
+model DiemChiTiet {
+  ma_chi_tiet  String @id @default(uuid())
+  ma_bang_diem String
+  ma_mon       String
+  diem_so      Float? // cho phép chưa có điểm
+
+  bang_diem BangDiem      @relation(fields: [ma_bang_diem], references: [ma_bang_diem], onDelete: Cascade)
+  mon_hoc   DanhMucMonHoc @relation(fields: [ma_mon], references: [ma_mon])
+
+  @@unique([ma_bang_diem, ma_mon])
+  @@map("diem_chi_tiet")
+}
+
+model ToHopXetTuyen {
+  ma_to_hop String @id // A00, A01, D01...
+  ma_mon_1  String
+  ma_mon_2  String
+  ma_mon_3  String
+
+  mon_1 DanhMucMonHoc @relation("ToHopMon1", fields: [ma_mon_1], references: [ma_mon])
+  mon_2 DanhMucMonHoc @relation("ToHopMon2", fields: [ma_mon_2], references: [ma_mon])
+  mon_3 DanhMucMonHoc @relation("ToHopMon3", fields: [ma_mon_3], references: [ma_mon])
+
+  ctdt_to_hop CtdtToHop[]
+  diem_to_hop DiemToHop[]
+  nguyen_vong NguyenVongSinhVien[]
+
+  @@map("to_hop_xet_tuyen")
+}
+
+model DiemToHop {
+  ma_diem_to_hop String   @id @default(uuid())
+  cccd           String   @db.VarChar(12)
+  ma_bang_diem   String
+  ma_to_hop      String
+  tong_diem_goc  Float
+  create_at      DateTime @default(now())
+
+  thi_sinh  ThiSinh       @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  bang_diem BangDiem      @relation(fields: [ma_bang_diem], references: [ma_bang_diem], onDelete: Cascade)
+  to_hop    ToHopXetTuyen @relation(fields: [ma_to_hop], references: [ma_to_hop])
+
+  @@unique([ma_bang_diem, ma_to_hop])
+  @@index([cccd])
+  @@map("diem_to_hop")
+}
+
+// =====================================================================
+// NHÓM NGÀNH / CHƯƠNG TRÌNH ĐÀO TẠO
+// =====================================================================
+
+model NganhHoc {
+  ma_nganh         String   @id
+  ten_nganh        String
+  khoi_kien_thuc   String?
+  ma_admin_quan_ly String
+  create_at        DateTime @default(now())
+
+  admin        Admin               @relation(fields: [ma_admin_quan_ly], references: [ma_admin])
+  chuong_trinh ChuongTrinhDaoTao[]
+
+  @@map("nganh_hoc")
+}
+
+model ChuongTrinhDaoTao {
+  ma_chuong_trinh  String   @id @default(uuid())
+  ma_nganh         String
+  ten_chuong_trinh String
+  de_cuong         String?  @db.Text
+  chuan_dau_ra     String?  @db.Text
+  ma_admin_quan_ly String
+  create_at        DateTime @default(now())
+
+  nganh NganhHoc @relation(fields: [ma_nganh], references: [ma_nganh])
+  admin Admin    @relation(fields: [ma_admin_quan_ly], references: [ma_admin])
+
+  nguyen_vong        NguyenVongSinhVien[]
+  lich_su_diem_chuan LichSuDiemChuan[]
+  du_doan_diem_chuan DuDoanDiemChuan[]
+  ctdt_to_hop        CtdtToHop[]
+  hoc_phan           CtdtHocPhan[]
+
+  @@index([ma_nganh])
+  @@map("chuong_trinh_dao_tao")
+}
+
+model CtdtToHop {
+  ma_ctdt_to_hop  String @id @default(uuid())
+  ma_chuong_trinh String
+  ma_to_hop       String
+  nam             Int
+
+  chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+  to_hop       ToHopXetTuyen     @relation(fields: [ma_to_hop], references: [ma_to_hop])
+
+  @@unique([ma_chuong_trinh, ma_to_hop, nam])
+  @@map("ctdt_to_hop")
+}
+
+// =====================================================================
+// NHÓM PHƯƠNG THỨC / ĐIỂM CHUẨN
+// =====================================================================
+model PhuongThucXetTuyen {
+  ma_phuong_thuc  String @id // PT1, PT2, PT3, PT4
+  ten_phuong_thuc String
+
+  diem_trung_tuyen DiemTrungTuyen[]
+  nguyen_vong      NguyenVongSinhVien[]
+
+  @@map("phuong_thuc_xet_tuyen")
+}
+
+model LichSuDiemChuan {
+  ma_ls_dc          String   @id @default(uuid())
+  ma_chuong_trinh   String
+  nam               Int
+  chi_tieu          Int
+  trung_tuyen       Int? // chỉ có sau khi kết thúc xét tuyển
+  ma_admin_cap_nhat String
+  create_at         DateTime @default(now())
+
+  chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
+  admin        Admin             @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
+
+  diem_trung_tuyen DiemTrungTuyen[]
+
+  @@unique([ma_chuong_trinh, nam])
+  @@map("lich_su_diem_chuan")
+}
+
+model DiemTrungTuyen {
+  ma_diem_tt     String   @id @default(uuid())
+  ma_ls_dc       String
+  ma_phuong_thuc String
+  diem           Float
+  create_at      DateTime @default(now())
+
+  lich_su     LichSuDiemChuan    @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
+  phuong_thuc PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
+
+  @@unique([ma_ls_dc, ma_phuong_thuc])
+  @@map("diem_trung_tuyen")
+}
+
+model DuDoanDiemChuan {
+  ma_du_doan_dc   String   @id @default(uuid())
+  ma_chuong_trinh String
+  nam_du_doan     Int
+  diem_du_doan    Float
+  ngay_tinh_toan  DateTime
+  create_at       DateTime @default(now())
+
+  chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+
+  @@index([ma_chuong_trinh, nam_du_doan])
+  @@map("du_doan_diem_chuan")
+}
+
+// =====================================================================
+// NHÓM NGUYỆN VỌNG
+// =====================================================================
+model NguyenVongSinhVien {
+  ma_ho_so             String         @id @default(uuid())
+  cccd                 String         @db.VarChar(12)
+  ma_chuong_trinh      String
+  trang_thai           TrangThaiDuyet @default(cho)
+  ket_qua              String? // chưa có khi mới nộp
+  diem_uu_tien_ap_dung Float?
+  tong_diem_xet_tuyen  Float?
+  ma_to_hop            String? // không áp dụng cho PT xét học bạ/hồ sơ
+  ma_phuong_thuc       String
+  nguon_du_lieu        NguonDuLieu
+  nguyen_vong          Int
+  nam_tuyen_sinh       Int
+  ma_admin_xu_ly       String? // NULL khi hồ sơ đang Chờ
+  create_at            DateTime       @default(now())
+
+  thi_sinh     ThiSinh            @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  chuong_trinh ChuongTrinhDaoTao  @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
+  to_hop       ToHopXetTuyen?     @relation(fields: [ma_to_hop], references: [ma_to_hop])
+  phuong_thuc  PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
+  admin        Admin?             @relation(fields: [ma_admin_xu_ly], references: [ma_admin])
+
+  @@index([cccd, nam_tuyen_sinh])
+  @@index([ma_chuong_trinh, nam_tuyen_sinh])
+  @@map("nguyen_vong_sinh_vien")
+}
+
+// =====================================================================
+// NHÓM TRẮC NGHIỆM / AI / NỘI DUNG
+// =====================================================================
+model KetQuaTracNghiem {
+  ma_ket_qua          String   @id @default(uuid())
+  cccd                String?  @db.VarChar(12) // NULL nếu ẩn danh
+  session_id          String
+  nhom_tinh_cach      String?
+  goi_y_nganh         String?
+  thoi_gian_thuc_hien DateTime
+  create_at           DateTime @default(now())
+
+  thi_sinh ThiSinh? @relation(fields: [cccd], references: [cccd], onDelete: SetNull)
+
+  @@index([cccd])
+  @@index([session_id])
+  @@map("ket_qua_trac_nghiem")
+}
+
+model TriThucAi {
+  ma_tri_thuc        String   @id @default(uuid())
+  chu_de             String
+  cau_hoi_mau        String?
+  noi_dung           String   @db.Text
+  trang_thai         String   @default("active")
+  ma_admin_phu_trach String
+  create_at          DateTime @default(now())
+
+  admin Admin @relation(fields: [ma_admin_phu_trach], references: [ma_admin])
+
+  @@map("tri_thuc_ai")
+}
+
+model TrangNoiDung {
+  ma_bai_viet      String    @id @default(uuid())
+  tieu_de          String
+  noi_dung_html    String    @db.Text
+  chuyen_muc       String
+  ma_admin_tac_gia String
+  ngay_dang        DateTime? // NULL = nháp
+
+  admin Admin @relation(fields: [ma_admin_tac_gia], references: [ma_admin])
+
+  @@map("trang_noi_dung")
+}
+
+model LoTrinhTuyenSinh {
+  ma_su_kien         String    @id @default(uuid())
+  ten_su_kien        String
+  thoi_gian_bat_dau  DateTime
+  thoi_gian_ket_thuc DateTime?
+  ghi_chu            String?
+  ma_admin_cap_nhat  String
+
+  admin Admin @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
+
+  @@map("lo_trinh_tuyen_sinh")
+}
+
+// =====================================================================
+// NHÓM NIÊN GIÁM: HỌC PHẦN / TÍN CHỈ
+// =====================================================================
+enum LoaiHocPhan {
+  bat_buoc
+  tu_chon
+
+  @@map("loai_hoc_phan")
+}
+
+// Danh mục học phần (dùng chung, 1 học phần có thể nằm trong nhiều CTĐT)
+model HocPhan {
+  ma_hoc_phan       String   @id // VD: INT1306
+  ten_hoc_phan      String
+  so_tin_chi        Int
+  so_tiet_ly_thuyet Int?     @default(0)
+  so_tiet_thuc_hanh Int?     @default(0)
+  mo_ta             String?  @db.Text
+  create_at         DateTime @default(now())
+
+  ctdt CtdtHocPhan[]
+
+  @@map("hoc_phan")
+}
+
+// Học phần nào nằm trong CTĐT nào, ÁP DỤNG CHO KHÓA/NĂM NÀO, học kỳ mấy,
+// bắt buộc hay tự chọn
+model CtdtHocPhan {
+  ma_ctdt_hoc_phan String      @id @default(uuid())
+  ma_chuong_trinh  String
+  ma_hoc_phan      String
+  nam_ap_dung      Int // năm/khóa áp dụng, VD: 2024
+  hoc_ky           Int // 1..8
+  loai             LoaiHocPhan @default(bat_buoc)
+  khoi_kien_thuc   String? // Đại cương / Cơ sở ngành / Chuyên ngành...
+
+  chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+  hoc_phan     HocPhan           @relation(fields: [ma_hoc_phan], references: [ma_hoc_phan])
+
+  @@unique([ma_chuong_trinh, nam_ap_dung, ma_hoc_phan])
+  @@index([ma_chuong_trinh, nam_ap_dung, hoc_ky])
+  @@map("ctdt_hoc_phan")
+}
