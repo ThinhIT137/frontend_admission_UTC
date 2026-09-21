@@ -1,0 +1,23 @@
+services:
+    frontend:
+        build:
+            context: .
+            dockerfile: Dockerfile
+
+        container_name: admission_frontend
+
+        ports:
+            - "3000:3000"
+
+        env_file:
+            - .env
+
+        volumes:
+            - .:/app
+            - /app/node_modules
+            - /app/.next
+
+        stdin_open: true
+        tty: true
+
+        command: sh
