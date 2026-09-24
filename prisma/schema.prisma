@@ -306,24 +306,23 @@ model LichSuDiemChuan {
   chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
   admin        Admin             @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
 
-  tieu_chi_phu TieuChiPhu?
+//   tieu_chi_phu TieuChiPhu?
   diem_trung_tuyen DiemTrungTuyen[]
 
   @@unique([ma_chuong_trinh, nam])
   @@map("lich_su_diem_chuan")
 }
 
-model TieuChiPhu {
-  ma_tieu_chi            String  @id @default(uuid())
-  ma_ls_dc               String  @unique // 1 ngành/năm chỉ có 1 bộ tiêu chí phụ
-  nguyen_vong_toi_da     Int?    // VD: 2  →  NV <= 2
-  dieu_kien_mon          Json?   // VD: [{ "mon": "toan", "diem_toi_thieu": 8.0 }]
-  diem_uu_tien_toi_thieu Float?  // VD: điểm ưu tiên >= x
+// model TieuChiPhu {
+//   ma_tieu_chi            String  @id @default(uuid())
+//   ma_ls_dc               String  @unique // 1 ngành/năm chỉ có 1 bộ tiêu chí phụ
+//   nguyen_vong_toi_da     Int?    // VD: 2  →  NV <= 2
+//   dieu_kien_mon          Json?   // VD: [{ "mon": "toan", "diem_toi_thieu": 8.0 }]
+//   diem_uu_tien_toi_thieu Float?  // VD: điểm ưu tiên >= x
 
-  lich_su LichSuDiemChuan @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
-
-  @@map("tieu_chi_phu")
-}
+//   lich_su LichSuDiemChuan @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
+//   @@map("tieu_chi_phu")
+// }
 
 model DiemTrungTuyen {
   ma_diem_tt     String   @id @default(uuid())
@@ -331,6 +330,10 @@ model DiemTrungTuyen {
   ma_phuong_thuc String
   diem           Float
   create_at      DateTime @default(now())
+  // tiêu chí phụ
+  nguyen_vong_toi_da     Int?    // Cột 1: VD 2  →  NV <= 2
+  dieu_kien_mon          Json?   // Cột 2: VD [{ "mon": "toan", "diem_toi_thieu": 8.0 }]
+  diem_uu_tien_toi_thieu Float?  // Cột 3: VD điểm ưu tiên >= x
 
   lich_su     LichSuDiemChuan    @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
   phuong_thuc PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
