@@ -3,14 +3,20 @@ import {
     nganhHocProps,
     nganhHocUpdate,
 } from "@/libs/nganh_hoc/nganhHocProps";
-import { paginationRequest, paginationResponse } from "@/libs/pagination";
+import { paginationRequest } from "@/libs/pagination";
 import prisma, { prismaPublic } from "@/libs/prisma";
-import { adminService } from "./admin";
+import { adminService } from "./user.service";
 
 export const nganhHocService = {
+    /*====================================================================
+        getTotal
+    ====================================================================*/
     getTotal: async () => {
         return await prismaPublic.nganhHoc.count();
     },
+    /*====================================================================
+        get
+    ====================================================================*/
     get: async ({
         page,
         pageSize,
@@ -26,6 +32,9 @@ export const nganhHocService = {
         }
         return data;
     },
+    /*====================================================================
+        create
+    ====================================================================*/
     create: async ({
         ma_nganh,
         ten_nganh,
@@ -47,6 +56,9 @@ export const nganhHocService = {
             });
         });
     },
+    /*====================================================================
+        update
+    ====================================================================*/
     update: async (
         ma_nganh: string,
         {
@@ -78,6 +90,9 @@ export const nganhHocService = {
             },
         });
     },
+    /*====================================================================
+        delete
+    ====================================================================*/
     delete: async (ma_nganh: string, ma_admin: string) => {
         await prisma.$transaction(async (tx) => {
             if (await adminService.isValidAdmin(ma_admin, tx)) {

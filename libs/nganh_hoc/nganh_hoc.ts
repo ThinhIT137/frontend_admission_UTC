@@ -1,79 +1,48 @@
-import { nganhHocService } from "@/services/nganh_hoc";
+import { createNganhHoc, deleteNganhHoc, updateNganhHoc } from "@/actions/nganh_hoc.action";
+import { nganhHocService } from "@/services/nganh_hoc.service";
 import { paginationRequest } from "../pagination";
-import { useLoading } from "@/contexts/loadingContext";
-import { nganhHocCreate, nganhHocUpdate } from "./nganhHocProps";
-
-const [setLoading] = useLoading();
 
 export const nganh_hoc = {
-    // get ngành phân trang
-    get: ({ page, pageSize }: paginationRequest) => {
+    /*====================================================================
+        getTotal
+    =====================================================================*/
+    getTotal: async () => {
         try {
-            setLoading(true);
-            return nganhHocService.get({ page, pageSize });
+            return await nganhHocService.getTotal();
         } catch (err) {
             console.log(err);
-        } finally {
-            setLoading(false);
+            return 0;
         }
     },
 
-    // Tạo ngành mới
-    create: ({
-        ma_nganh,
-        ten_nganh,
-        khoi_kien_thuc,
-        ma_admin_quan_ly,
-    }: nganhHocCreate) => {
+    /*====================================================================
+        get ngành phân trang
+    =====================================================================*/
+    get: async ({ page, pageSize }: paginationRequest) => {
         try {
-            setLoading(true);
-            nganhHocService.create({
-                ma_nganh,
-                ten_nganh,
-                khoi_kien_thuc,
-                ma_admin_quan_ly,
-            });
+            return await nganhHocService.get({ page, pageSize });
         } catch (err) {
             console.log(err);
-        } finally {
-            setLoading(false);
+            return [];
         }
     },
 
-    // update ngành
-    update: (
-        ma_nganh: string,
-        {
-            ma_nganh_moi,
-            ten_nganh,
-            khoi_kien_thuc,
-            ma_admin_quan_ly,
-        }: nganhHocUpdate,
-    ) => {
-        try {
-            setLoading(true);
-            nganhHocService.update(ma_nganh, {
-                ma_nganh_moi,
-                ten_nganh,
-                khoi_kien_thuc,
-                ma_admin_quan_ly,
-            });
-        } catch (err) {
-            console.log(err);
-        } finally {
-            setLoading(false);
-        }
+    /*====================================================================
+        Tạo ngành mới
+    =====================================================================*/
+    create: async (ma_nganh: string, ten_nganh: string, khoi_kien_thuc: string) => {
+        return await createNganhHoc(ma_nganh, ten_nganh, khoi_kien_thuc);
     },
-
-    // delete ngành học
-    delete: (ma_nganh: string, ma_admin: string) => {
-        try {
-            setLoading(true);
-            nganhHocService.delete(ma_nganh, ma_admin);
-        } catch (err) {
-            console.log(err);
-        } finally {
-            setLoading(false);
-        }
+    /*====================================================================
+        Cập nhật ngành
+    =====================================================================*/
+    update: async (ma_nganh: string, ma_nganh_moi?: string, ten_nganh?: string, khoi_kien_thuc?: string) => {
+        return await updateNganhHoc(ma_nganh, ma_nganh_moi, ten_nganh, khoi_kien_thuc);
+    },
+    /*====================================================================
+        Xóa ngành
+    =====================================================================*/
+    remove: async (ma_nganh: string) => {
+        return await deleteNganhHoc(ma_nganh);
     },
 };
