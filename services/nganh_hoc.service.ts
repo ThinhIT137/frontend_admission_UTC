@@ -3,14 +3,20 @@ import {
     nganhHocProps,
     nganhHocUpdate,
 } from "@/libs/nganh_hoc/nganhHocProps";
-import { paginationRequest, paginationResponse } from "@/libs/pagination";
+import { paginationRequest } from "@/libs/pagination";
 import prisma, { prismaPublic } from "@/libs/prisma";
-import { adminService } from "./admin";
+import { adminService } from "./user.service";
 
 export const nganhHocService = {
+    /*====================================================================
+        getTotal
+    ====================================================================*/
     getTotal: async () => {
         return await prismaPublic.nganhHoc.count();
     },
+    /*====================================================================
+        get
+    ====================================================================*/
     get: async ({
         page,
         pageSize,
@@ -21,11 +27,14 @@ export const nganhHocService = {
         });
 
         if (!data || data.length === 0) {
-            console.log("Dữ liệu ngành học không tồn tại");
-            throw "Dữ liệu ngành học không tồn tại";
+            throw new Error("Dữ liệu ngành học không tồn tại");
         }
+
         return data;
     },
+    /*====================================================================
+        create
+    ====================================================================*/
     create: async ({
         ma_nganh,
         ten_nganh,
@@ -33,8 +42,8 @@ export const nganhHocService = {
         ma_admin_quan_ly,
     }: nganhHocCreate) => {
         await prisma.$transaction(async (tx) => {
-            if (await adminService.isValidAdmin(ma_admin_quan_ly, tx)) {
-                throw "admin không tồn tại";
+            if (!(await adminService.isValidAdmin(ma_admin_quan_ly, tx))) {
+                throw new Error("admin không tồn tại");
             }
 
             await tx.nganhHoc.create({
@@ -47,6 +56,9 @@ export const nganhHocService = {
             });
         });
     },
+    /*====================================================================
+        update
+    ====================================================================*/
     update: async (
         ma_nganh: string,
         {
@@ -56,12 +68,12 @@ export const nganhHocService = {
             ma_admin_quan_ly,
         }: nganhHocUpdate,
     ): Promise<nganhHocProps> => {
-        await prisma.$transaction(async (tx) => {
-            if (await adminService.isValidAdmin(ma_admin_quan_ly, tx)) {
-                throw "admin không tồn tại";
+        return await prisma.$transaction(async (tx) => {
+            if (!(await adminService.isValidAdmin(ma_admin_quan_ly, tx))) {
+                throw new Error("admin không tồn tại");
             }
 
-            await tx.nganhHoc.update({
+            return await tx.nganhHoc.update({
                 where: { ma_nganh },
                 data: {
                     ma_nganh: ma_nganh_moi,
@@ -71,20 +83,17 @@ export const nganhHocService = {
                 },
             });
         });
-
-        return prismaPublic.nganhHoc.findFirstOrThrow({
-            where: {
-                ma_nganh: ma_nganh_moi ?? ma_nganh,
-            },
-        });
     },
+    /*====================================================================
+        delete
+    ====================================================================*/
     delete: async (ma_nganh: string, ma_admin: string) => {
         await prisma.$transaction(async (tx) => {
-            if (await adminService.isValidAdmin(ma_admin, tx)) {
-                throw "admin không tồn tại";
+            if (!(await adminService.isValidAdmin(ma_admin, tx))) {
+                throw new Error("admin không tồn tại");
             }
 
-            tx.nganhHoc.delete({
+            await tx.nganhHoc.delete({
                 where: { ma_nganh: ma_nganh },
             });
         });
