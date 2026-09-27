@@ -233,13 +233,24 @@ model DiemToHop {
 // NHÓM NGÀNH / CHƯƠNG TRÌNH ĐÀO TẠO
 // =====================================================================
 
+model KhoiNganh {
+  ma_khoi_nganh  String @id @default(uuid())
+  ten_khoi_nganh String
+
+  nganh_hoc NganhHoc[]
+
+  @@map("khoi_nganh")
+}
+
 model NganhHoc {
   ma_nganh         String   @id
   ten_nganh        String
+  ma_khoi_nganh    String?
   khoi_kien_thuc   String?
   ma_admin_quan_ly String
   create_at        DateTime @default(now())
 
+  khoi_nganh   KhoiNganh?          @relation(fields: [ma_khoi_nganh], references: [ma_khoi_nganh], onDelete: SetNull)
   admin        Admin               @relation(fields: [ma_admin_quan_ly], references: [ma_admin])
   chuong_trinh ChuongTrinhDaoTao[]
 
@@ -306,7 +317,7 @@ model LichSuDiemChuan {
   chuong_trinh ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
   admin        Admin             @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
 
-//   tieu_chi_phu TieuChiPhu?
+  //   tieu_chi_phu TieuChiPhu?
   diem_trung_tuyen DiemTrungTuyen[]
 
   @@unique([ma_chuong_trinh, nam])
@@ -325,15 +336,15 @@ model LichSuDiemChuan {
 // }
 
 model DiemTrungTuyen {
-  ma_diem_tt     String   @id @default(uuid())
-  ma_ls_dc       String
-  ma_phuong_thuc String
-  diem           Float
-  create_at      DateTime @default(now())
+  ma_diem_tt             String   @id @default(uuid())
+  ma_ls_dc               String
+  ma_phuong_thuc         String
+  diem                   Float
+  create_at              DateTime @default(now())
   // tiêu chí phụ
-  nguyen_vong_toi_da     Int?    // Cột 1: VD 2  →  NV <= 2
-  dieu_kien_mon          Json?   // Cột 2: VD [{ "mon": "toan", "diem_toi_thieu": 8.0 }]
-  diem_uu_tien_toi_thieu Float?  // Cột 3: VD điểm ưu tiên >= x
+  nguyen_vong_toi_da     Int? // Cột 1: VD 2  →  NV <= 2
+  dieu_kien_mon          Json? // Cột 2: VD [{ "mon": "toan", "diem_toi_thieu": 8.0 }]
+  diem_uu_tien_toi_thieu Float? // Cột 3: VD điểm ưu tiên >= x
 
   lich_su     LichSuDiemChuan    @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
   phuong_thuc PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
