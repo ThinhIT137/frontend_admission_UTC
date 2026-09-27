@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@/app/generated/prisma/client";
+import { LoginPayload } from "@/libs/auth";
 import prisma from "@/libs/prisma";
 import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from "@/libs/token";
-import { LoginPayload } from "@/libs/user";
 import { verifyPassword } from "@/libs/utils/password";
 import { cookieService } from "./cookie.service";
 import { tokenService } from "./token.service";
