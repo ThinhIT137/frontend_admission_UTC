@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 
 interface AdminNavItem {
   label: string;
-  href: string;
+  href?: string;
   icon: string;
+  subItems?: AdminNavItem[];
 }
 
 interface AdminNavGroup {
@@ -24,8 +25,15 @@ const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: "Quản Lý Danh Mục",
     items: [
-      { label: "Quản Lý Ngành Học", href: "/admin/quan-ly-nganh-hoc", icon: "school" },
-      { label: "Chương Trình Đào Tạo", href: "/admin/quan-ly-ctdt", icon: "menu_book" },
+      {
+        label: "Đào Tạo & Tuyển Sinh",
+        icon: "school",
+        subItems: [
+          { label: "Khoa / Viện", href: "/admin/quan-ly-khoi-nganh", icon: "account_balance" },
+          { label: "Ngành Học", href: "/admin/quan-ly-nganh-hoc", icon: "menu_book" },
+          { label: "Chương Trình Đào Tạo", href: "/admin/quan-ly-ctdt", icon: "local_library" },
+        ]
+      },
       { label: "Tổ Hợp Môn Xét Tuyển", href: "/admin/to-hop-mon", icon: "category" },
       { label: "Phương Thức Xét Tuyển", href: "/admin/phuong-thuc-xet-tuyen", icon: "how_to_reg" },
     ],
@@ -45,8 +53,49 @@ const adminNavGroups: AdminNavGroup[] = [
   },
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  role?: string;
+}
+
+import { useState, useEffect } from "react";
+
+export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname();
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+
+  // Tự động mở group nếu đang ở trang con
+  useEffect(() => {
+    adminNavGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (item.subItems) {
+          const isActive = item.subItems.some((sub) => sub.href && pathname.startsWith(sub.href));
+          if (isActive && !expandedGroups.includes(item.label)) {
+            setExpandedGroups((prev) => [...prev, item.label]);
+          }
+        }
+      });
+    });
+  }, [pathname]);
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) =>
+      prev.includes(label) ? prev.filter((g) => g !== label) : [...prev, label]
+    );
+  };
+
+  // Clone nav groups để tránh mutate trực tiếp array gốc
+  const navGroups = [...adminNavGroups];
+
+  // Nếu là super_admin thì hiển thị thêm menu Quản lý hệ thống
+  if (role === "super_admin") {
+    navGroups.push({
+      groupName: "Hệ Thống",
+      items: [
+        { label: "Quản Lý Tài Khoản", href: "/admin/accounts", icon: "manage_accounts" },
+        { label: "Quản Lý Vai Trò", href: "/admin/roles", icon: "admin_panel_settings" }
+      ]
+    });
+  }
 
   return (
     <aside className="fixed left-0 top-0 h-full w-72 bg-[#0d1b4e] text-white z-50 flex flex-col justify-between shadow-2xl border-r border-[#1a2c6d]">
@@ -72,32 +121,94 @@ export function AdminSidebar() {
 
         {/* Navigation Groups */}
         <nav className="flex flex-col px-3 py-2 gap-1 overflow-y-auto max-h-[calc(100vh-180px)]">
-          {adminNavGroups.map((group, groupIdx) => (
+          {navGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="mb-2">
               <div className="pt-2 pb-1 px-2 font-stamp text-[10px] text-[#7884bd] uppercase tracking-wider">
                 {group.groupName}
               </div>
               {group.items.map((item) => {
-                const isActive =
-                  item.href === "/admin"
+                const hasSubItems = item.subItems && item.subItems.length > 0;
+                const isExpanded = expandedGroups.includes(item.label);
+                
+                // Nếu item không có subItems, check active trực tiếp
+                const isItemActive =
+                  !hasSubItems &&
+                  item.href &&
+                  (item.href === "/admin"
                     ? pathname === "/admin"
-                    : pathname.startsWith(item.href);
+                    : pathname.startsWith(item.href));
+
+                // Nếu có subItems, check xem có subItem nào active không
+                const isGroupActive =
+                  hasSubItems &&
+                  item.subItems?.some((sub) => sub.href && pathname.startsWith(sub.href));
 
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 px-3 py-2 my-0.5 rounded-lg text-[13px] font-medium transition-all ${
-                      isActive
-                        ? "bg-[#fdb712] text-[#0d1b4e] font-bold shadow-md"
-                        : "text-white/80 hover:bg-[#1a2c6d] hover:text-white"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
+                  <div key={item.label} className="my-0.5">
+                    {hasSubItems ? (
+                      <button
+                        onClick={() => toggleGroup(item.label)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                          isGroupActive
+                            ? "bg-[#1a2c6d] text-white font-bold"
+                            : "text-white/80 hover:bg-[#1a2c6d] hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="material-symbols-outlined text-[18px]">
+                            {item.icon}
+                          </span>
+                          <span>{item.label}</span>
+                        </div>
+                        <span
+                          className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        >
+                          expand_more
+                        </span>
+                      </button>
+                    ) : (
+                      <Link
+                        href={item.href || "#"}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                          isItemActive
+                            ? "bg-[#fdb712] text-[#0d1b4e] font-bold shadow-md"
+                            : "text-white/80 hover:bg-[#1a2c6d] hover:text-white"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {item.icon}
+                        </span>
+                        <span>{item.label}</span>
+                      </Link>
+                    )}
+
+                    {/* Sub Items */}
+                    {hasSubItems && isExpanded && (
+                      <div className="mt-1 flex flex-col gap-0.5 relative before:absolute before:left-[19px] before:top-0 before:bottom-2 before:w-[1px] before:bg-[#253985]">
+                        {item.subItems?.map((subItem) => {
+                          const isSubActive = subItem.href && pathname.startsWith(subItem.href);
+                          return (
+                            <Link
+                              key={subItem.label}
+                              href={subItem.href || "#"}
+                              className={`flex items-center gap-2.5 pl-10 pr-3 py-1.5 rounded-lg text-[12px] font-medium transition-all relative ${
+                                isSubActive
+                                  ? "text-[#fdb712] font-bold"
+                                  : "text-[#7884bd] hover:text-white hover:bg-[#1a2c6d]"
+                              }`}
+                            >
+                              {isSubActive && (
+                                <span className="absolute left-[17.5px] w-1 h-1 rounded-full bg-[#fdb712]" />
+                              )}
+                              <span>{subItem.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

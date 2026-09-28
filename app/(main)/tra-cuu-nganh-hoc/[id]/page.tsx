@@ -4,7 +4,10 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { MajorFromApi } from "../page";
+import { getAllNganhHoc } from "@/actions/nganh_hoc.action";
+
+type NganhHocList = Awaited<ReturnType<typeof getAllNganhHoc>>["data"];
+export type MajorFromApi = NonNullable<NganhHocList>[0];
 
 export default function MajorDetailPage({
   params,

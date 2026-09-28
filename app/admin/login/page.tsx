@@ -1,17 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { login } from "@/actions/auth.action";
+import { toast } from "sonner";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("admin@utc.edu.vn");
-  const [password, setPassword] = useState("123456");
+  const [username, setUsername] = useState("admin123@gmail.com");
+  const [password, setPassword] = useState("123456789");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/admin");
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await login({ email: username, password });
+      toast.success("Đăng nhập thành công!");
+      router.push("/admin");
+    } catch (err: any) {
+      const errorMsg = err.message || "Đăng nhập thất bại";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -80,11 +97,27 @@ export default function AdminLoginPage() {
             </a>
           </div>
 
+          {error && (
+            <div className="text-red-500 text-[13px] font-bold text-center">
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] font-extrabold text-[15px] rounded-lg shadow-md transition-all uppercase tracking-wider"
+            disabled={isLoading}
+            className="w-full py-3 bg-[#fdb712] disabled:opacity-50 hover:bg-[#e2a20a] text-[#0d1b4e] font-extrabold text-[15px] rounded-lg shadow-md transition-all uppercase tracking-wider flex justify-center items-center gap-2"
           >
-            Đăng Nhập Quản Trị
+            {isLoading ? (
+              <>
+                <span className="material-symbols-outlined animate-spin text-[20px]">
+                  progress_activity
+                </span>
+                ĐANG ĐĂNG NHẬP...
+              </>
+            ) : (
+              "Đăng Nhập Quản Trị"
+            )}
           </button>
 
           <div className="pt-2 text-center">

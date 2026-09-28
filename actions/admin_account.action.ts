@@ -1,7 +1,6 @@
 "use server";
 
-import { VaiTroAdmin } from "@/app/generated/prisma/enums";
-import { adminAccountService } from "@/services/admin_account.service";
+import { VaiTroAdmin } from "@/constants/role";
 import { adminService } from "@/services/user.service";
 import { revalidatePath } from "next/cache";
 
@@ -14,12 +13,12 @@ export const createAdminAction = async (
     ho_ten: string,
     email: string,
     mat_khau: string,
-    vai_tro: VaiTroAdmin,
+    ma_vai_tro: string,
 ) => {
     const ma_admin_thuc_hien = await adminService.getAdminId();
     try {
-        await adminAccountService.create(
-            { ho_ten, email, mat_khau, vai_tro },
+        await adminService.create(
+            { ho_ten, email, mat_khau, ma_vai_tro },
             ma_admin_thuc_hien,
         );
 
@@ -37,14 +36,14 @@ export const updateAdminAction = async (
     ho_ten?: string,
     email?: string,
     mat_khau?: string,
-    vai_tro?: VaiTroAdmin,
+    ma_vai_tro?: string,
 ) => {
     const ma_admin_thuc_hien = await adminService.getAdminId();
 
     try {
-        await adminAccountService.update(
+        await adminService.update(
             ma_admin,
-            { ho_ten, email, mat_khau, vai_tro },
+            { ho_ten, email, mat_khau, ma_vai_tro },
             ma_admin_thuc_hien,
         );
 
@@ -61,7 +60,7 @@ export const deleteAdminAction = async (ma_admin: string) => {
     const ma_admin_thuc_hien = await adminService.getAdminId();
 
     try {
-        await adminAccountService.delete(ma_admin, ma_admin_thuc_hien);
+        await adminService.delete(ma_admin, ma_admin_thuc_hien);
 
         revalidatePath(ADMIN_PATH);
     } catch (err: any) {

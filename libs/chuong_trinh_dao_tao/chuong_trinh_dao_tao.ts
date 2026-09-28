@@ -2,6 +2,7 @@ import {
     createCTDTAction,
     updateCTDTAction,
     deleteCTDTAction,
+    getFilterCTDTAction,
 } from "@/actions/chuong_trinh_dao_tao.action";
 import { chuongTrinhDaoTaoService } from "@/services/chuong_trinh_dao_tao.service";
 import { paginationRequest } from "../pagination";
@@ -29,6 +30,39 @@ export const chuong_trinh_dao_tao = {
             console.log(err);
             return [];
         }
+    },
+    /*====================================================================
+        get — Truy vấn ngành học (5 bộ lọc)
+        term → Fuzzy Search 
+        faculty → Khoa/Viện 
+        toHop → Tổ hợp
+        diemChuan → Mức điểm  
+        year → Năm tuyển sinh
+    ====================================================================*/
+    getFilter: async ({
+        page,
+        pageSize,
+        term,
+        toHop,
+        diemChuan,
+        faculty,
+        year,
+    }: paginationRequest & {
+        term: string;
+        toHop: string;
+        diemChuan: number;
+        faculty: string;
+        year: number;
+    }) => {
+        return await getFilterCTDTAction({
+            page,
+            pageSize,
+            term,
+            toHop,
+            diemChuan,
+            faculty,
+            year,
+        });
     },
 
     /*====================================================================

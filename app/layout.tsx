@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 import "./globals.css";
+
 
 export const metadata: Metadata = {
   title: "Cổng Tuyển Sinh Đại Học Giao Thông Vận Tải - UTC",
@@ -26,6 +28,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased selection:bg-[#fdb712] selection:text-[#000525] bg-[#f4ede0] text-[#1e1b14] min-h-screen">
+        <Toaster richColors position="top-right" />
         {children}
       </body>
     </html>

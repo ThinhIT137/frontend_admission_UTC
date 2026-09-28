@@ -15,19 +15,49 @@ export const nganhHocService = {
         return await prismaPublic.nganhHoc.count();
     },
     /*====================================================================
-        get
+        get — Truy vấn ngành học (5 bộ lọc)
+        term → Fuzzy Search 
+        faculty → Khoa/Viện 
+        toHop → Tổ hợp
+        diemChuan → Mức điểm  
+        year → Năm tuyển sinh
     ====================================================================*/
     get: async ({
         page,
         pageSize,
-    }: paginationRequest): Promise<nganhHocProps[]> => {
+        term,
+        toHop,
+        diemChuan,
+        faculty,
+        year,
+    }: paginationRequest & {
+        term: string;
+        toHop: string;
+        diemChuan: number;
+        faculty: string;
+        year: number;
+    }) => {
         const data = await prismaPublic.nganhHoc.findMany({
-            skip: (page - 1) * pageSize,
-            take: pageSize,
+            include: {
+                chuong_trinh: {
+                    include: {
+                        lich_su_diem_chuan: {
+                            include: {
+                                diem_trung_tuyen: {
+                                    include: {
+                                        phuong_thuc: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                khoi_nganh: true,
+            },
         });
 
-        if (!data || data.length === 0) {
-            throw new Error("Dữ liệu ngành học không tồn tại");
+        if (faculty) {
+            return data.filter((item) => item.ma_khoi_nganh === faculty);
         }
 
         return data;
@@ -35,9 +65,10 @@ export const nganhHocService = {
     /*====================================================================
         create
     ====================================================================*/
-    create: async ({
+        create: async ({
         ma_nganh,
         ten_nganh,
+        ma_khoi_nganh,
         khoi_kien_thuc,
         ma_admin_quan_ly,
     }: nganhHocCreate) => {
@@ -50,6 +81,7 @@ export const nganhHocService = {
                 data: {
                     ma_nganh,
                     ten_nganh,
+                    ma_khoi_nganh,
                     khoi_kien_thuc,
                     ma_admin_quan_ly,
                 },
@@ -64,6 +96,7 @@ export const nganhHocService = {
         {
             ma_nganh_moi,
             ten_nganh,
+            ma_khoi_nganh,
             khoi_kien_thuc,
             ma_admin_quan_ly,
         }: nganhHocUpdate,
@@ -78,6 +111,7 @@ export const nganhHocService = {
                 data: {
                     ma_nganh: ma_nganh_moi,
                     ten_nganh,
+                    ma_khoi_nganh,
                     khoi_kien_thuc,
                     ma_admin_quan_ly,
                 },

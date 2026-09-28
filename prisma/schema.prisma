@@ -62,11 +62,13 @@ enum TrangThaiDuyet {
   @@map("trang_thai_duyet")
 }
 
-enum VaiTroAdmin {
-  super_admin
-  chuyen_vien
+model VaiTro {
+  ma_vai_tro  String   @id @default(uuid())
+  ten_vai_tro String   @unique // vd: "super_admin", "chuyen_vien"
+  mo_ta       String?
+  admins      Admin[]
 
-  @@map("vai_tro_admin")
+  @@map("vai_tro")
 }
 
 enum NguonDuLieu {
@@ -81,12 +83,13 @@ enum NguonDuLieu {
 // =====================================================================
 
 model Admin {
-  ma_admin  String      @id @default(uuid())
-  ho_ten    String
-  email     String      @unique
-  mat_khau  String // hash, KHÔNG lưu plain text
-  vai_tro   VaiTroAdmin
-  create_at DateTime    @default(now())
+  ma_admin   String      @id @default(uuid())
+  ho_ten     String
+  email      String      @unique
+  mat_khau   String // hash, KHÔNG lưu plain text
+  ma_vai_tro String
+  vai_tro    VaiTro      @relation(fields: [ma_vai_tro], references: [ma_vai_tro])
+  create_at  DateTime    @default(now())
 
   nganh_hoc          NganhHoc[]
   chuong_trinh       ChuongTrinhDaoTao[]
@@ -263,6 +266,8 @@ model ChuongTrinhDaoTao {
   ten_chuong_trinh String
   de_cuong         String?  @db.Text
   chuan_dau_ra     String?  @db.Text
+  mo_ta_ngan       String?  @db.Text
+  luot_xem         Int      @default(0)
   ma_admin_quan_ly String
   create_at        DateTime @default(now())
 

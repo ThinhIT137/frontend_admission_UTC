@@ -1,8 +1,10 @@
 import { Prisma, PrismaClient } from "@/app/generated/prisma/client";
+import { VaiTroAdmin } from "@/constants/role";
+import { CreateAdminRequest, UpdateAdminRequest } from "@/libs/admin_account/adminAccountProps";
 import { LoginPayload } from "@/libs/auth";
 import prisma from "@/libs/prisma";
 import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from "@/libs/token";
-import { verifyPassword } from "@/libs/utils/password";
+import { verifyPassword, hashPassword } from "@/libs/utils/password";
 import { cookieService } from "./cookie.service";
 import { tokenService } from "./token.service";
 
@@ -109,6 +111,7 @@ export const adminService = {
                 ma_admin: payload.userId,
             },
             select: {
+                ma_admin: true,
                 ho_ten: true,
                 email: true,
                 vai_tro: true,
@@ -131,5 +134,132 @@ export const adminService = {
             throw new Error("Token không hợp lệ");
         }
         return payload.userId;
-    }
+    },
+
+    /*====================================================================
+        Check Super Admin
+    ====================================================================*/
+    isSuperAdmin: async (ma_admin: string) => {
+        const admin = await prisma.admin.findUnique({
+            where: { ma_admin },
+            include: { vai_tro: true },
+        });
+        return admin?.vai_tro?.ten_vai_tro === VaiTroAdmin.super_admin;
+    },
+
+    /*====================================================================
+        Get Danh sách Admin
+    ====================================================================*/
+    get: async (search?: string, role?: VaiTroAdmin, page: number = 1, limit: number = 10) => {
+        const where: Prisma.AdminWhereInput = {};
+        
+        if (search) {
+            where.OR = [
+                { ho_ten: { contains: search, mode: "insensitive" } },
+                { email: { contains: search, mode: "insensitive" } },
+            ];
+        }
+        
+        if (role) {
+            where.vai_tro = { ten_vai_tro: role };
+        }
+
+        const total = await prisma.admin.count({ where });
+        const skip = (page - 1) * limit;
+
+        const data = await prisma.admin.findMany({
+            where,
+            select: {
+                ma_admin: true,
+                ho_ten: true,
+                email: true,
+                vai_tro: true,
+                create_at: true,
+            },
+            orderBy: { create_at: "desc" },
+            skip,
+            take: limit,
+        });
+
+        return {
+            data,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+        };
+    },
+
+    /*====================================================================
+        Create Admin
+    ====================================================================*/
+    create: async (data: CreateAdminRequest, ma_admin_thuc_hien: string) => {
+        if (!(await adminService.isSuperAdmin(ma_admin_thuc_hien))) {
+            throw new Error("Chỉ Super Admin mới có quyền tạo tài khoản");
+        }
+
+        const existing = await prisma.admin.findUnique({
+            where: { email: data.email },
+        });
+        if (existing) throw new Error("Email đã tồn tại trong hệ thống");
+
+        const hashed = await hashPassword(data.mat_khau);
+
+        await prisma.admin.create({
+            data: {
+                ...data,
+                mat_khau: hashed as string,
+            },
+        });
+    },
+
+    /*====================================================================
+        Update Admin
+    ====================================================================*/
+    update: async (
+        ma_admin: string,
+        data: UpdateAdminRequest,
+        ma_admin_thuc_hien: string,
+    ) => {
+        const isSelf = ma_admin === ma_admin_thuc_hien;
+        if (!isSelf && !(await adminService.isSuperAdmin(ma_admin_thuc_hien))) {
+            throw new Error("Chỉ Super Admin mới có quyền cập nhật tài khoản người khác");
+        }
+
+        const updateData: any = { ...data };
+        if (data.mat_khau) {
+            updateData.mat_khau = (await hashPassword(data.mat_khau)) as string;
+        } else {
+            delete updateData.mat_khau; // Không update mật khẩu nếu không truyền
+        }
+
+        if (data.email) {
+            const existing = await prisma.admin.findUnique({
+                where: { email: data.email },
+            });
+            if (existing && existing.ma_admin !== ma_admin) {
+                throw new Error("Email đã tồn tại trong hệ thống");
+            }
+        }
+
+        await prisma.admin.update({
+            where: { ma_admin },
+            data: updateData,
+        });
+    },
+
+    /*====================================================================
+        Delete Admin
+    ====================================================================*/
+    delete: async (ma_admin: string, ma_admin_thuc_hien: string) => {
+        if (!(await adminService.isSuperAdmin(ma_admin_thuc_hien))) {
+            throw new Error("Chỉ Super Admin mới có quyền xóa tài khoản");
+        }
+        if (ma_admin === ma_admin_thuc_hien) {
+            throw new Error("Không thể tự xóa chính mình");
+        }
+
+        await prisma.admin.delete({
+            where: { ma_admin },
+        });
+    },
 };

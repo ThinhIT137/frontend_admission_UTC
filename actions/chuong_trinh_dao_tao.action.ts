@@ -1,11 +1,49 @@
 "use server";
 
-import { adminService } from "@/services/user.service";
+import { paginationRequest } from "@/libs/pagination";
 import { chuongTrinhDaoTaoService } from "@/services/chuong_trinh_dao_tao.service";
+import { adminService } from "@/services/user.service";
 import { revalidatePath } from "next/cache";
 
-const CTDT_PATH = "/admin/chuong-trinh-dao-tao";
+const CTDT_PATH = "/admin/quan-ly-ctdt";
 
+/*====================================================================
+    get — Truy vấn ngành học (5 bộ lọc)
+    term → Fuzzy Search 
+    faculty → Khoa/Viện 
+    toHop → Tổ hợp
+    diemChuan → Mức điểm  
+    year → Năm tuyển sinh
+====================================================================*/
+export const getFilterCTDTAction = async ({
+    page,
+    pageSize,
+    term,
+    toHop,
+    diemChuan,
+    faculty,
+    year,
+}: paginationRequest & {
+    term: string;
+    toHop: string;
+    diemChuan: number;
+    faculty: string;
+    year: number;
+}) => {
+    try {
+        return await chuongTrinhDaoTaoService.getFilter({
+            page,
+            pageSize,
+            term,
+            toHop,
+            diemChuan,
+            faculty,
+            year,
+        });
+    } catch (err: any) {
+        throw new Error(err.message || "Lấy chương trình đào tạo thất bại");
+    }
+};
 /*====================================================================
     Tạo Chương trình đào tạo
 =====================================================================*/
@@ -45,14 +83,19 @@ export const updateCTDTAction = async (
     const ma_admin_quan_ly = await adminService.getAdminId();
 
     try {
-        await chuongTrinhDaoTaoService.update(
-            ma_chuong_trinh,
-            { ma_nganh, ten_chuong_trinh, de_cuong, chuan_dau_ra, ma_admin_quan_ly },
-        );
+        await chuongTrinhDaoTaoService.update(ma_chuong_trinh, {
+            ma_nganh,
+            ten_chuong_trinh,
+            de_cuong,
+            chuan_dau_ra,
+            ma_admin_quan_ly,
+        });
 
         revalidatePath(CTDT_PATH);
     } catch (err: any) {
-        throw new Error(err.message || "Cập nhật chương trình đào tạo thất bại");
+        throw new Error(
+            err.message || "Cập nhật chương trình đào tạo thất bại",
+        );
     }
 };
 

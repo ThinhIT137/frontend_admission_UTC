@@ -1,4 +1,3 @@
-import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from "@/libs/token";
 import { cookies } from "next/headers";
 
 export const cookieService = {
@@ -50,20 +49,12 @@ export const cookieService = {
     },
 
     getCookie: async (name: string) => {
-        try {
-            const cookieStore = await cookies();
-            return cookieStore.get(name)?.value;
-        } catch {
-            throw new Error("Lỗi không tìm thấy cookie: " + name + "để lấy");
-        }
+        const cookieStore = await cookies();
+        return cookieStore.get(name)?.value;
     },
 
     deleteCookie: async (name: string) => {
-        try {
-            const cookieStore = await cookies();
-            cookieStore.delete(name);
-        } catch {
-            throw new Error("Lỗi không tìm thấy cookie: " + name + " để xóa");
-        }
+        const cookieStore = await cookies();
+        cookieStore.delete(name);
     },
 };

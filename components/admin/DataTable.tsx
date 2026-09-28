@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 
 export interface Column<T> {
   header: string;
-  accessor: keyof T | ((row: T) => ReactNode);
+  accessor: keyof T | ((row: T, index: number) => ReactNode);
   className?: string;
 }
 
@@ -75,8 +75,8 @@ export function DataTable<T extends Record<string, any>>({
                   {columns.map((col, colIdx) => (
                     <td key={colIdx} className={`py-3 px-4 ${col.className || ""}`}>
                       {typeof col.accessor === "function"
-                        ? col.accessor(row)
-                        : (row[col.accessor] as ReactNode)}
+                        ? col.accessor(row, rowIdx)
+                        : (row[col.accessor as keyof T] as ReactNode)}
                     </td>
                   ))}
                   {(onEdit || onDelete || actions) && (

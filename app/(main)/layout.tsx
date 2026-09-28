@@ -1,9 +1,10 @@
 "use client";
 
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/components/layout/footer";
+import { Header } from "@/components/layout/header";
 import { ChatWidget } from "@/components/ui/ChatWidget";
+import { LoadingProvider } from "@/contexts/loadingContext";
 
 export default function ClientLayout({
   children,
@@ -22,7 +23,9 @@ export default function ClientLayout({
 
         {/* Dynamic Page Content */}
         <main className="w-full pt-16 bg-[#f4ede0] flex-1 relative px-6 py-6">
-          {children}
+          <LoadingProvider>
+            {children}
+          </LoadingProvider>
         </main>
 
         {/* Client Footer */}
