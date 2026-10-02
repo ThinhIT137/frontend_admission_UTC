@@ -6,6 +6,7 @@ import {
 } from "@/actions/chuong_trinh_dao_tao.action";
 import { chuongTrinhDaoTaoService } from "@/services/chuong_trinh_dao_tao.service";
 import { paginationRequest } from "../pagination";
+import { LoaiChuanDauRa } from "@/app/generated/prisma/client";
 
 export const chuong_trinh_dao_tao = {
     /*====================================================================
@@ -81,16 +82,20 @@ export const chuong_trinh_dao_tao = {
         create
     =====================================================================*/
     create: async (
+        ma_chuong_trinh: string,
         ma_nganh: string,
         ten_chuong_trinh: string,
         de_cuong?: string | null,
-        chuan_dau_ra?: string | null,
+        chuan_dau_ra?: LoaiChuanDauRa[],
+        mo_ta_ngan?: string | null,
     ) => {
         return await createCTDTAction(
+            ma_chuong_trinh,
             ma_nganh,
             ten_chuong_trinh,
             de_cuong,
             chuan_dau_ra,
+            mo_ta_ngan,
         );
     },
 
@@ -102,7 +107,8 @@ export const chuong_trinh_dao_tao = {
         ma_nganh?: string,
         ten_chuong_trinh?: string,
         de_cuong?: string | null,
-        chuan_dau_ra?: string | null,
+        chuan_dau_ra?: LoaiChuanDauRa[],
+        mo_ta_ngan?: string | null,
     ) => {
         return await updateCTDTAction(
             ma_chuong_trinh,
@@ -110,6 +116,7 @@ export const chuong_trinh_dao_tao = {
             ten_chuong_trinh,
             de_cuong,
             chuan_dau_ra,
+            mo_ta_ngan,
         );
     },
 

@@ -34,8 +34,20 @@ const adminNavGroups: AdminNavGroup[] = [
           { label: "Chương Trình Đào Tạo", href: "/admin/quan-ly-ctdt", icon: "local_library" },
         ]
       },
-      { label: "Tổ Hợp Môn Xét Tuyển", href: "/admin/to-hop-mon", icon: "category" },
-      { label: "Phương Thức Xét Tuyển", href: "/admin/phuong-thuc-xet-tuyen", icon: "how_to_reg" },
+      {
+        label: "Tổ Hợp & Môn Xét Tuyển",
+        icon: "category",
+        subItems: [
+          { label: "Tổ Hợp Xét Tuyển", href: "/admin/to-hop-mon", icon: "dashboard_customize" },
+          { label: "Môn Xét Tuyển", href: "/admin/mon-xet-tuyen", icon: "book" },
+          { label: "Phương Thức Xét Tuyển", href: "/admin/phuong-thuc-xet-tuyen", icon: "how_to_reg" },
+        ]
+      },
+      {
+        label: "Chỉ Tiêu & Điểm Chuẩn",
+        href: "/admin/chi-tieu-diem-chuan",
+        icon: "fact_check",
+      },
     ],
   },
   {

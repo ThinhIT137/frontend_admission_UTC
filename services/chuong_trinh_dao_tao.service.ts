@@ -138,10 +138,12 @@ export const chuongTrinhDaoTaoService = {
         create
     ====================================================================*/
     create: async ({
+        ma_chuong_trinh,
         ma_nganh,
         ten_chuong_trinh,
         de_cuong,
         chuan_dau_ra,
+        mo_ta_ngan,
         ma_admin_quan_ly,
     }: ChuongTrinhDaoTaoCreate) => {
         await prisma.$transaction(async (tx) => {
@@ -156,12 +158,14 @@ export const chuongTrinhDaoTaoService = {
                 throw new Error("Ngành học không tồn tại");
             }
 
-            await tx.chuongTrinhDaoTao.create({
+            return await tx.chuongTrinhDaoTao.create({
                 data: {
+                    ma_chuong_trinh,
                     ma_nganh,
                     ten_chuong_trinh,
                     de_cuong,
-                    chuan_dau_ra,
+                    chuan_dau_ra: chuan_dau_ra || [],
+                    mo_ta_ngan,
                     ma_admin_quan_ly,
                 },
             });
@@ -178,6 +182,7 @@ export const chuongTrinhDaoTaoService = {
             ten_chuong_trinh,
             de_cuong,
             chuan_dau_ra,
+            mo_ta_ngan,
             ma_admin_quan_ly,
         }: ChuongTrinhDaoTaoUpdate,
     ): Promise<ChuongTrinhDaoTaoProps> => {

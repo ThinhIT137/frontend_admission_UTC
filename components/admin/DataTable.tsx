@@ -15,6 +15,7 @@ export interface DataTableProps<T> {
   onDelete?: (row: T) => void;
   actions?: (row: T) => ReactNode;
   emptyText?: string;
+  onClickRow?: (row: T) => void;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -24,6 +25,7 @@ export function DataTable<T extends Record<string, any>>({
   onDelete,
   actions,
   emptyText = "Không tìm thấy dữ liệu phù hợp",
+  onClickRow,
 }: DataTableProps<T>) {
   return (
     <div className="w-full bg-white rounded-xl border border-[#e9e2d5] shadow-sm overflow-hidden">
@@ -70,7 +72,8 @@ export function DataTable<T extends Record<string, any>>({
                     row.ma_tri_thuc ??
                     rowIdx
                   }
-                  className="hover:bg-[#faf3e6]/60 transition-colors font-medium"
+                  className={`hover:bg-[#faf3e6]/60 transition-colors font-medium ${onClickRow ? 'cursor-pointer' : ''}`}
+                  onClick={() => onClickRow && onClickRow(row)}
                 >
                   {columns.map((col, colIdx) => (
                     <td key={colIdx} className={`py-3 px-4 ${col.className || ""}`}>
@@ -85,7 +88,7 @@ export function DataTable<T extends Record<string, any>>({
                         {actions && actions(row)}
                         {onEdit && (
                           <button
-                            onClick={() => onEdit(row)}
+                            onClick={(e) => { e.stopPropagation(); onEdit(row); }}
                             className="p-1.5 text-[#0d1b4e] hover:bg-[#dde1ff] rounded transition-colors"
                             title="Chỉnh sửa"
                           >
@@ -96,7 +99,7 @@ export function DataTable<T extends Record<string, any>>({
                         )}
                         {onDelete && (
                           <button
-                            onClick={() => onDelete(row)}
+                            onClick={(e) => { e.stopPropagation(); onDelete(row); }}
                             className="p-1.5 text-[#ba1a1a] hover:bg-[#ffdad6] rounded transition-colors"
                             title="Xóa"
                           >

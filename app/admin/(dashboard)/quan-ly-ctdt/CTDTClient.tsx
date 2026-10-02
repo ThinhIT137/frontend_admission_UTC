@@ -8,6 +8,19 @@ import { createCTDTAction, updateCTDTAction, deleteCTDTAction } from "@/actions/
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 
+const CHUAN_DAU_RA_LABELS: Record<string, string> = {
+  CU_NHAN: "Cử nhân",
+  KY_SU: "Kỹ sư",
+  THAC_SI: "Thạc sĩ",
+  TIEN_SI: "Tiến sĩ",
+  KHAC: "Khác"
+};
+
+const CHUAN_DAU_RA_OPTIONS = Object.keys(CHUAN_DAU_RA_LABELS).map(key => ({
+  value: key,
+  label: CHUAN_DAU_RA_LABELS[key]
+}));
+
 export default function CTDTClient({ initialData, majors }: { initialData: any[]; majors: any[] }) {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,9 +28,13 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
   const [deletingRow, setDeletingRow] = useState<any | null>(null);
 
   // Form State
+  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [maNganh, setMaNganh] = useState("");
   const [maNganhName, setMaNganhName] = useState("");
+  const [deCuong, setDeCuong] = useState("");
+  const [moTaNgan, setMoTaNgan] = useState("");
+  const [chuanDauRa, setChuanDauRa] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Phân trang
@@ -47,9 +64,20 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     return filteredData.slice(start, start + PAGE_SIZE);
   }, [filteredData, currentPage]);
 
+  // Kéo lên đầu page khi đổi trang
+  useMemo(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentPage]);
+
   const openCreate = () => {
     setEditingRow(null);
+    setCode("");
     setName("");
+    setDeCuong("");
+    setMoTaNgan("");
+    setChuanDauRa([]);
     const defaultMajor = majors[0];
     setMaNganh(defaultMajor?.ma_nganh || "");
     setMaNganhName(defaultMajor?.ten_nganh || "");
@@ -58,7 +86,11 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
 
   const openEdit = (row: any) => {
     setEditingRow(row);
+    setCode(row.ma_chuong_trinh);
     setName(row.ten_chuong_trinh);
+    setDeCuong(row.de_cuong || "");
+    setMoTaNgan(row.mo_ta_ngan || "");
+    setChuanDauRa(row.chuan_dau_ra || []);
     setMaNganh(row.ma_nganh);
     setMaNganhName(row.nganh?.ten_nganh || "");
     setIsModalOpen(true);
@@ -72,10 +104,14 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     }
     try {
       if (editingRow) {
-        await updateCTDTAction(editingRow.ma_chuong_trinh, maNganh, name);
+        await updateCTDTAction(editingRow.ma_chuong_trinh, maNganh, name, deCuong, chuanDauRa as any, moTaNgan);
         toast.success("Cập nhật CTĐT thành công!");
       } else {
-        await createCTDTAction(maNganh, name);
+        if (!code.trim()) {
+          toast.error("Vui lòng nhập mã CTĐT!");
+          return;
+        }
+        await createCTDTAction(code, maNganh, name, deCuong, chuanDauRa as any, moTaNgan);
         toast.success("Thêm mới CTĐT thành công!");
       }
       setIsModalOpen(false);
@@ -109,7 +145,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       header: "Mã CTĐT",
       accessor: (r) => (
         <span className="font-stamp font-bold text-[#0d1b4e] bg-[#f4ede0] px-2 py-0.5 rounded border border-[#c6c5d0]">
-          {r.ma_chuong_trinh.slice(0,8)}...
+          {r.ma_chuong_trinh}
         </span>
       ),
       className: "w-[120px]",
@@ -230,23 +266,40 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
         title={editingRow ? "Chỉnh Sửa CTĐT" : "Thêm CTĐT Mới"}
         onSubmit={handleSave}
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[12px] font-bold text-[#1e1b14] mb-1">
-              Tên CTĐT:
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Vd: Kỹ sư Phần mềm Chất lượng cao"
-              className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold outline-none"
-            />
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar p-2">
+          <div className="flex gap-4">
+            {!editingRow && (
+              <div className="flex-1 max-w-[200px]">
+                <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+                  Mã CTĐT:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Vd: 7480201CLC"
+                  className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                />
+              </div>
+            )}
+            <div className="flex-[2]">
+              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+                Tên CTĐT:
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Vd: Kỹ sư Phần mềm Chất lượng cao"
+                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+              />
+            </div>
           </div>
 
           <div className="relative">
-            <label className="block text-[12px] font-bold text-[#1e1b14] mb-1">
+            <label className="block text-[12px] font-bold text-[#767680] mb-1 uppercase">
               Trực thuộc Ngành:
             </label>
             <div className="relative">
@@ -307,6 +360,57 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                 * Ngành học không tồn tại. Vui lòng chọn từ danh sách.
               </span>
             )}
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+              Chuẩn Đầu Ra:
+            </label>
+            <div className="grid grid-cols-4 gap-2 bg-white p-2 border border-[#c6c5d0] rounded-lg">
+              {CHUAN_DAU_RA_OPTIONS.map((opt) => (
+                <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 text-[#0d1b4e] rounded focus:ring-[#0d1b4e]"
+                    checked={chuanDauRa.includes(opt.value)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setChuanDauRa((prev) => [...prev, opt.value]);
+                      } else {
+                        setChuanDauRa((prev) => prev.filter((v) => v !== opt.value));
+                      }
+                    }}
+                  />
+                  <span className="text-[13px] text-[#1e1b14] font-medium">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+                Mô tả ngắn:
+              </label>
+              <textarea
+                value={moTaNgan}
+                onChange={(e) => setMoTaNgan(e.target.value)}
+                placeholder="Nhập mô tả ngắn gọn về chương trình..."
+                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none min-h-[60px] focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+                Đề cương:
+              </label>
+              <textarea
+                value={deCuong}
+                onChange={(e) => setDeCuong(e.target.value)}
+                placeholder="Nhập đề cương chương trình..."
+                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none min-h-[80px] focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+              />
+            </div>
           </div>
         </div>
       </ModalForm>

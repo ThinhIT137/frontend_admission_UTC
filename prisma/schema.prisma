@@ -260,12 +260,20 @@ model NganhHoc {
   @@map("nganh_hoc")
 }
 
+enum LoaiChuanDauRa {
+  CU_NHAN
+  KY_SU
+  THAC_SI
+  TIEN_SI
+  KHAC
+}
+
 model ChuongTrinhDaoTao {
-  ma_chuong_trinh  String   @id @default(uuid())
+  ma_chuong_trinh  String           @id
   ma_nganh         String
   ten_chuong_trinh String
-  de_cuong         String?  @db.Text
-  chuan_dau_ra     String?  @db.Text
+  de_cuong         String?          @db.Text
+  chuan_dau_ra     LoaiChuanDauRa[]
   mo_ta_ngan       String?  @db.Text
   luot_xem         Int      @default(0)
   ma_admin_quan_ly String

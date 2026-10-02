@@ -6,7 +6,21 @@ import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { createNganhHoc, updateNganhHoc, deleteNganhHoc } from "@/actions/nganh_hoc.action";
+import { reassignProgramsToMajorAction, deleteCTDTAction, createCTDTAction } from "@/actions/chuong_trinh_dao_tao.action";
 import { toast } from "sonner";
+
+const CHUAN_DAU_RA_LABELS: Record<string, string> = {
+  CU_NHAN: "Cử nhân",
+  KY_SU: "Kỹ sư",
+  THAC_SI: "Thạc sĩ",
+  TIEN_SI: "Tiến sĩ",
+  KHAC: "Khác"
+};
+
+const CHUAN_DAU_RA_OPTIONS = Object.keys(CHUAN_DAU_RA_LABELS).map(key => ({
+  value: key,
+  label: CHUAN_DAU_RA_LABELS[key]
+}));
 
 export default function NganhHocClient({ 
   initialData, 
@@ -19,6 +33,25 @@ export default function NganhHocClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [deletingRow, setDeletingRow] = useState<any | null>(null);
+  
+  // Programs Modal State
+  const [viewingPrograms, setViewingPrograms] = useState<any | null>(null);
+  const [searchNewProgram, setSearchNewProgram] = useState("");
+  const [searchAssignedProgram, setSearchAssignedProgram] = useState("");
+  const [selectedNewPrograms, setSelectedNewPrograms] = useState<string[]>([]);
+  const [isAddingPrograms, setIsAddingPrograms] = useState(false);
+  const [deletingProgram, setDeletingProgram] = useState<any | null>(null);
+  
+  // Create New Program inside Modal State
+  const [isCreatingProgram, setIsCreatingProgram] = useState(false);
+  const [newProgramCode, setNewProgramCode] = useState("");
+  const [newProgramName, setNewProgramName] = useState("");
+  const [newProgramDeCuong, setNewProgramDeCuong] = useState("");
+  const [newProgramMoTaNgan, setNewProgramMoTaNgan] = useState("");
+  const [newProgramChuanDauRa, setNewProgramChuanDauRa] = useState<string[]>([]);
+  const [isSubmittingNewProgram, setIsSubmittingNewProgram] = useState(false);
+
+
 
   // Form State
   const [code, setCode] = useState("");
@@ -60,6 +93,88 @@ export default function NganhHocClient({
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredData.slice(start, start + PAGE_SIZE);
   }, [filteredData, currentPage]);
+
+  // Lấy tất cả các chương trình đào tạo từ initialData
+  const allPrograms = useMemo(() => {
+    const programs: any[] = [];
+    initialData.forEach(major => {
+      if (major.chuong_trinh) {
+        major.chuong_trinh.forEach((p: any) => {
+          programs.push({
+            ...p,
+            ten_nganh_cu: major.ten_nganh
+          });
+        });
+      }
+    });
+    return programs;
+  }, [initialData]);
+
+  // Các CTĐT chưa thuộc ngành hiện tại (để có thể Add)
+  const availableProgramsToAdd = useMemo(() => {
+    if (!viewingPrograms) return [];
+    let list = allPrograms.filter(p => p.ma_nganh !== viewingPrograms.ma_nganh);
+    if (searchNewProgram.trim()) {
+      const lower = searchNewProgram.toLowerCase();
+      list = list.filter(p => p.ten_chuong_trinh.toLowerCase().includes(lower) || p.ma_chuong_trinh.toLowerCase().includes(lower));
+    }
+    return list;
+  }, [allPrograms, viewingPrograms, searchNewProgram]);
+
+  // Các CTĐT đã thuộc ngành hiện tại
+  const assignedPrograms = useMemo(() => {
+    if (!viewingPrograms) return [];
+    let list = viewingPrograms.chuong_trinh || [];
+    if (searchAssignedProgram.trim()) {
+      const lower = searchAssignedProgram.toLowerCase();
+      list = list.filter((p: any) => p.ten_chuong_trinh.toLowerCase().includes(lower) || p.ma_chuong_trinh.toLowerCase().includes(lower));
+    }
+    return list;
+  }, [viewingPrograms, searchAssignedProgram]);
+
+  const handleAddPrograms = async () => {
+    if (!viewingPrograms || selectedNewPrograms.length === 0) return;
+    setIsAddingPrograms(true);
+    try {
+      await reassignProgramsToMajorAction(selectedNewPrograms, viewingPrograms.ma_nganh);
+      toast.success("Đã thêm các chương trình đào tạo vào ngành!");
+      
+      // Update local state temporarily so UI reflects instantly without closing modal
+      setViewingPrograms((prev: any) => {
+        if (!prev) return prev;
+        const newlyAdded = allPrograms.filter(p => selectedNewPrograms.includes(p.ma_chuong_trinh));
+        return {
+          ...prev,
+          chuong_trinh: [...(prev.chuong_trinh || []), ...newlyAdded]
+        };
+      });
+      setSelectedNewPrograms([]);
+      setSearchNewProgram("");
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra khi thêm CTĐT");
+    } finally {
+      setIsAddingPrograms(false);
+    }
+  };
+
+  const handleConfirmDeleteProgram = async () => {
+    if (!deletingProgram || !viewingPrograms) return;
+    try {
+      await deleteCTDTAction(deletingProgram.ma_chuong_trinh);
+      toast.success("Đã xóa chương trình đào tạo!");
+      
+      setViewingPrograms((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          chuong_trinh: prev.chuong_trinh.filter((p: any) => p.ma_chuong_trinh !== deletingProgram.ma_chuong_trinh)
+        };
+      });
+      setDeletingProgram(null);
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra khi xóa CTĐT");
+    }
+  };
 
   const openCreate = () => {
     setEditingRow(null);
@@ -206,8 +321,25 @@ export default function NganhHocClient({
         <DataTable
           columns={columns}
           data={paginatedData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={(row) => {
+             // Ngăn chặn nổi bọt sự kiện click row
+             openEdit(row);
+          }}
+          onDelete={(row) => {
+             setDeletingRow(row);
+          }}
+          onClickRow={(row) => {
+            setViewingPrograms(row);
+            setSearchNewProgram("");
+            setSearchAssignedProgram("");
+            setSelectedNewPrograms([]);
+            setIsCreatingProgram(false);
+            setNewProgramCode("");
+            setNewProgramName("");
+            setNewProgramDeCuong("");
+            setNewProgramMoTaNgan("");
+            setNewProgramChuanDauRa([]);
+          }}
         />
 
         {/* Pagination Controls */}
@@ -385,6 +517,315 @@ export default function NganhHocClient({
         message={`Bạn có chắc chắn muốn xóa ngành "${deletingRow?.ten_nganh}" (${deletingRow?.ma_nganh}) khỏi cơ sở dữ liệu Supabase?`}
         onConfirm={handleDelete}
         onCancel={() => setDeletingRow(null)}
+      />
+
+      {/* Viewing Programs Modal */}
+      {viewingPrograms && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div 
+            className="bg-[#faf3e6] rounded-2xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[#e9e2d5] flex items-center justify-between bg-white relative">
+              <h2 className="text-[18px] font-bold text-[#0d1b4e]">
+                Các Chương Trình Đào Tạo Thuộc <span className="text-[#0284c7]">{viewingPrograms.ten_nganh}</span>
+              </h2>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setIsCreatingProgram(!isCreatingProgram)}
+                  className="flex items-center gap-1.5 bg-[#fdb712] text-[#0d1b4e] px-3 py-1.5 rounded-lg font-bold text-[12px] shadow-sm transition-colors hover:bg-[#e5a610]"
+                >
+                  <span className="material-symbols-outlined text-[16px]">{isCreatingProgram ? 'remove_circle' : 'add_circle'}</span>
+                  {isCreatingProgram ? "Hủy Thêm Mới" : "Tạo Mới CTĐT"}
+                </button>
+                <button 
+                  onClick={() => setViewingPrograms(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-[#faf3e6] flex flex-col gap-4">
+              
+              {/* Form tạo mới CTĐT inline */}
+              {isCreatingProgram && (
+                <div className="bg-white rounded-xl shadow-sm border border-[#fdb712] p-4 bg-yellow-50/30">
+                  <h3 className="font-bold text-[14px] text-[#0d1b4e] mb-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[18px] text-[#fdb712]">add_box</span>
+                    Tạo Chương Trình Đào Tạo Mới
+                  </h3>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 max-w-[200px]">
+                      <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">Mã CTĐT</label>
+                      <input 
+                        type="text" 
+                        placeholder="Vd: 7480201CLC" 
+                        value={newProgramCode}
+                        onChange={(e) => setNewProgramCode(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">Tên Chương Trình Mới</label>
+                      <input 
+                        type="text" 
+                        placeholder="Vd: Ngôn ngữ Anh (Chất lượng cao)..." 
+                        value={newProgramName}
+                        onChange={(e) => setNewProgramName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 items-start mt-2">
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">Chuẩn Đầu Ra</label>
+                      <div className="grid grid-cols-4 gap-2 bg-white p-2 border border-[#c6c5d0] rounded-lg">
+                        {CHUAN_DAU_RA_OPTIONS.map((opt) => (
+                          <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="w-3.5 h-3.5 text-[#0d1b4e] rounded focus:ring-[#0d1b4e]"
+                              checked={newProgramChuanDauRa.includes(opt.value)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewProgramChuanDauRa(prev => [...prev, opt.value]);
+                                } else {
+                                  setNewProgramChuanDauRa(prev => prev.filter(v => v !== opt.value));
+                                }
+                              }}
+                            />
+                            <span className="text-[12px]">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-2">
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">Mô tả ngắn</label>
+                      <textarea 
+                        placeholder="Nhập mô tả..." 
+                        value={newProgramMoTaNgan}
+                        onChange={(e) => setNewProgramMoTaNgan(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all min-h-[60px]"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">Đề cương</label>
+                      <textarea 
+                        placeholder="Nhập đề cương..." 
+                        value={newProgramDeCuong}
+                        onChange={(e) => setNewProgramDeCuong(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all min-h-[60px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end mt-3">
+                    <button 
+                      onClick={async () => {
+                        if (!newProgramCode.trim()) {
+                          toast.error("Vui lòng nhập mã chương trình!");
+                          return;
+                        }
+                        if (!newProgramName.trim()) {
+                          toast.error("Vui lòng nhập tên chương trình!");
+                          return;
+                        }
+                        setIsSubmittingNewProgram(true);
+                        try {
+                          const newProg = await createCTDTAction(
+                            newProgramCode, 
+                            viewingPrograms.ma_nganh, 
+                            newProgramName,
+                            newProgramDeCuong,
+                            newProgramChuanDauRa as any,
+                            newProgramMoTaNgan
+                          );
+                          toast.success("Tạo chương trình đào tạo thành công!");
+                          setViewingPrograms((prev: any) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              chuong_trinh: [...(prev.chuong_trinh || []), newProg]
+                            };
+                          });
+                          setNewProgramCode("");
+                          setNewProgramName("");
+                          setNewProgramDeCuong("");
+                          setNewProgramMoTaNgan("");
+                          setNewProgramChuanDauRa([]);
+                          setIsCreatingProgram(false);
+                        } catch (err: any) {
+                          toast.error(err.message || "Lỗi tạo chương trình!");
+                        } finally {
+                          setIsSubmittingNewProgram(false);
+                        }
+                      }}
+                      disabled={isSubmittingNewProgram || !newProgramName.trim() || !newProgramCode.trim()} 
+                      className="bg-[#0d1b4e] text-white h-[38px] px-5 rounded-lg font-bold text-[13px] hover:bg-[#1a2b6d] disabled:opacity-50 transition-colors whitespace-nowrap"
+                    >
+                      {isSubmittingNewProgram ? "Đang lưu..." : "Lưu Lại"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Phần thêm CTĐT */}
+              <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] p-4">
+                <h3 className="font-bold text-[14px] text-[#0d1b4e] mb-3">Thêm CTĐT từ ngành khác</h3>
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[16px]">
+                      search
+                    </span>
+                    <input 
+                      type="text" 
+                      placeholder="Tìm kiếm chương trình đào tạo..." 
+                      value={searchNewProgram}
+                      onChange={(e) => setSearchNewProgram(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleAddPrograms} 
+                    disabled={selectedNewPrograms.length === 0 || isAddingPrograms} 
+                    className="bg-[#0d1b4e] text-white h-[38px] px-4 rounded-lg font-bold text-[13px] hover:bg-[#1a2b6d] disabled:opacity-50 transition-colors whitespace-nowrap"
+                  >
+                    {isAddingPrograms ? "Đang xử lý..." : `Thêm ${selectedNewPrograms.length > 0 ? `(${selectedNewPrograms.length})` : ''}`}
+                  </button>
+                </div>
+
+                <div className="bg-white border border-[#e9e2d5] rounded-lg h-48 overflow-y-auto">
+                  <div className="p-2 border-b border-[#e9e2d5] flex items-center justify-between sticky top-0 bg-white z-10">
+                    <span className="text-[12px] font-bold text-[#45464f] ml-1">Đã chọn: {selectedNewPrograms.length}</span>
+                    <div>
+                      <button 
+                        onClick={() => setSelectedNewPrograms(availableProgramsToAdd.map(p => p.ma_chuong_trinh))}
+                        className="text-[11px] font-bold text-[#0284c7] hover:underline px-2"
+                      >
+                        Chọn tất cả (đang hiển thị)
+                      </button>
+                      <span className="text-[#c6c5d0]">|</span>
+                      <button 
+                        onClick={() => setSelectedNewPrograms([])}
+                        className="text-[11px] font-bold text-red-500 hover:underline px-2"
+                      >
+                        Bỏ chọn tất cả
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <ul className="divide-y divide-[#e9e2d5]">
+                    {availableProgramsToAdd.map(p => (
+                      <li key={p.ma_chuong_trinh} className="flex items-start gap-3 p-2 hover:bg-[#faf3e6] transition-colors">
+                        <input 
+                          type="checkbox" 
+                          id={`prog-${p.ma_chuong_trinh}`}
+                          className="mt-1 w-4 h-4 cursor-pointer"
+                          checked={selectedNewPrograms.includes(p.ma_chuong_trinh)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedNewPrograms(prev => [...prev, p.ma_chuong_trinh]);
+                            } else {
+                              setSelectedNewPrograms(prev => prev.filter(id => id !== p.ma_chuong_trinh));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`prog-${p.ma_chuong_trinh}`} className="cursor-pointer flex-1">
+                          <span className="text-[13px] font-bold text-[#1e1b14] block">{p.ten_chuong_trinh}</span>
+                          <span className="text-[11px] text-[#767680] block">{p.ma_chuong_trinh} - Thuộc ngành: {p.ten_nganh_cu}</span>
+                        </label>
+                      </li>
+                    ))}
+                    {availableProgramsToAdd.length === 0 && (
+                      <li className="p-4 text-center text-[#767680] text-[13px] italic">
+                        Không có CTĐT nào khớp với tìm kiếm.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Phần danh sách đã gán */}
+              <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-[14px] text-[#0d1b4e]">Danh sách đã gán ({assignedPrograms.length})</h3>
+                  <div className="relative w-64">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[16px]">
+                      search
+                    </span>
+                    <input 
+                      type="text" 
+                      placeholder="Tìm trong danh sách..." 
+                      value={searchAssignedProgram}
+                      onChange={(e) => setSearchAssignedProgram(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#faf3e6] border border-[#e9e2d5] rounded-md text-[12px] outline-none focus:border-[#0d1b4e]"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#f4ede0] text-[11px] uppercase text-[#45464f]">
+                        <th className="p-3 font-bold border-b border-[#e9e2d5] w-[150px]">Mã CTĐT</th>
+                        <th className="p-3 font-bold border-b border-[#e9e2d5]">Tên Chương Trình</th>
+                        <th className="p-3 font-bold border-b border-[#e9e2d5] w-[80px] text-center">Xóa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assignedPrograms.length > 0 ? (
+                        assignedPrograms.map((p: any) => (
+                          <tr key={p.ma_chuong_trinh} className="hover:bg-[#faf3e6]/50 transition-colors border-b border-[#e9e2d5] text-[13px]">
+                            <td className="p-3">
+                              <span className="font-stamp font-bold text-[#0d1b4e] bg-[#f4ede0] px-2 py-0.5 rounded border border-[#c6c5d0]">
+                                {p.ma_chuong_trinh}
+                              </span>
+                            </td>
+                            <td className="p-3 font-bold text-[#1e1b14]">{p.ten_chuong_trinh}</td>
+                            <td className="p-3 text-center">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingProgram(p);
+                                }}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#ba1a1a] transition-colors mx-auto"
+                                title="Xóa chương trình này khỏi hệ thống"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="p-6 text-center text-[#767680] text-[13px] italic bg-[#faf3e6]/30">
+                            Chưa có chương trình đào tạo nào thuộc ngành này
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Program Dialog */}
+      <ConfirmDialog
+        isOpen={!!deletingProgram}
+        title="Xác Nhận Xóa CTĐT"
+        message={`Chương trình đào tạo bắt buộc phải có một ngành học. Việc Xóa ở đây sẽ xóa vĩnh viễn "${deletingProgram?.ten_chuong_trinh}" khỏi hệ thống. Bạn có chắc chắn?`}
+        onConfirm={handleConfirmDeleteProgram}
+        onCancel={() => setDeletingProgram(null)}
       />
     </div>
   );

@@ -5,6 +5,8 @@ import { chuongTrinhDaoTaoService } from "@/services/chuong_trinh_dao_tao.servic
 import { adminService } from "@/services/user.service";
 import { revalidatePath } from "next/cache";
 
+import { LoaiChuanDauRa } from "@/app/generated/prisma/client";
+
 const CTDT_PATH = "/admin/quan-ly-ctdt";
 
 /*====================================================================
@@ -48,23 +50,29 @@ export const getFilterCTDTAction = async ({
     Tạo Chương trình đào tạo
 =====================================================================*/
 export const createCTDTAction = async (
+    ma_chuong_trinh: string,
     ma_nganh: string,
     ten_chuong_trinh: string,
     de_cuong?: string | null,
-    chuan_dau_ra?: string | null,
+    chuan_dau_ra?: LoaiChuanDauRa[],
+    mo_ta_ngan?: string | null,
 ) => {
     const ma_admin_quan_ly = await adminService.getAdminId();
 
     try {
-        await chuongTrinhDaoTaoService.create({
+        const newProgram = await chuongTrinhDaoTaoService.create({
+            ma_chuong_trinh,
             ma_nganh,
             ten_chuong_trinh,
             de_cuong,
             chuan_dau_ra,
+            mo_ta_ngan,
             ma_admin_quan_ly,
         });
 
+        revalidatePath("/admin/quan-ly-nganh-hoc");
         revalidatePath(CTDT_PATH);
+        return newProgram;
     } catch (err: any) {
         throw new Error(err.message || "Tạo chương trình đào tạo thất bại");
     }
@@ -78,7 +86,8 @@ export const updateCTDTAction = async (
     ma_nganh?: string,
     ten_chuong_trinh?: string,
     de_cuong?: string | null,
-    chuan_dau_ra?: string | null,
+    chuan_dau_ra?: LoaiChuanDauRa[],
+    mo_ta_ngan?: string | null,
 ) => {
     const ma_admin_quan_ly = await adminService.getAdminId();
 
@@ -88,6 +97,7 @@ export const updateCTDTAction = async (
             ten_chuong_trinh,
             de_cuong,
             chuan_dau_ra,
+            mo_ta_ngan,
             ma_admin_quan_ly,
         });
 
@@ -111,5 +121,27 @@ export const deleteCTDTAction = async (ma_chuong_trinh: string) => {
         revalidatePath(CTDT_PATH);
     } catch (err: any) {
         throw new Error(err.message || "Xóa chương trình đào tạo thất bại");
+    }
+};
+
+/*====================================================================
+    Đổi ngành cho nhiều CTĐT cùng lúc
+=====================================================================*/
+export const reassignProgramsToMajorAction = async (ma_chuong_trinhs: string[], ma_nganh: string) => {
+    const ma_admin_quan_ly = await adminService.getAdminId();
+
+    try {
+        await Promise.all(
+            ma_chuong_trinhs.map(ma_chuong_trinh => 
+                chuongTrinhDaoTaoService.update(ma_chuong_trinh, {
+                    ma_nganh,
+                    ma_admin_quan_ly,
+                })
+            )
+        );
+        revalidatePath("/admin/quan-ly-nganh-hoc");
+        revalidatePath(CTDT_PATH);
+    } catch (err: any) {
+        throw new Error(err.message || "Đổi ngành thất bại");
     }
 };
