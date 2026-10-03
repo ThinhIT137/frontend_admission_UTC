@@ -67,11 +67,13 @@ const adminNavGroups: AdminNavGroup[] = [
 
 interface AdminSidebarProps {
   role?: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 import { useState, useEffect } from "react";
 
-export function AdminSidebar({ role }: AdminSidebarProps) {
+export function AdminSidebar({ role, isOpen = true, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
@@ -110,21 +112,36 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-72 bg-[#0d1b4e] text-white z-50 flex flex-col justify-between shadow-2xl border-r border-[#1a2c6d]">
+    <aside className="h-full w-72 bg-[#0d1b4e] text-white flex flex-col justify-between shadow-2xl border-r border-[#1a2c6d]">
       <div className="flex flex-col">
         {/* Brand Header */}
-        <div className="p-4 flex items-center gap-3 bg-[#081133]">
-          <div className="w-10 h-10 rounded-full bg-[#fdb712] p-0.5 shadow flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[#0d1b4e] text-[24px]">school</span>
+        <div className="p-4 flex items-center justify-between bg-[#081133] border-b border-[#1a2c6d]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#fdb712] p-0.5 shadow flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[#0d1b4e] text-[24px]">school</span>
+            </div>
+            <div>
+              <span className="font-display font-bold text-[16px] text-white tracking-wide block uppercase leading-tight">
+                UTC Admin
+              </span>
+              <span className="font-stamp text-[10px] text-[#fdb712] uppercase tracking-wider block">
+                Kỳ Tuyển Sinh K66
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="font-display font-bold text-[16px] text-white tracking-wide block uppercase leading-tight">
-              UTC Admin
-            </span>
-            <span className="font-stamp text-[10px] text-[#fdb712] uppercase tracking-wider block">
-              Kỳ Tuyển Sinh K66
-            </span>
-          </div>
+
+          {onToggle && (
+            <button
+              onClick={onToggle}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-[#fdb712] hover:text-white flex items-center justify-center transition-all shadow-xs"
+              title="Ẩn Sidebar"
+              aria-label="Ẩn Sidebar"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                menu_open
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="px-4 py-2 text-[#7884bd] font-stamp text-[11px] uppercase border-b border-[#1a2c6d]">

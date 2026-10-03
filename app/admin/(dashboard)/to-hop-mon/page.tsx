@@ -1,36 +1,17 @@
+import { toHopXetTuyenService } from "@/services/to_hop_xet_tuyen.service";
 import ToHopClient from "./ToHopClient";
-import prisma from "@/libs/prisma";
 
 export const metadata = {
   title: "Quản Lý Tổ Hợp Xét Tuyển | UTC Admin",
 };
 
-export default async function CombinationsPage() {
-  const [toHops, danhMucMonHoc, programs] = await Promise.all([
-    prisma.toHopXetTuyen.findMany({
-      include: {
-        mon_1: true,
-        mon_2: true,
-        mon_3: true,
-        _count: {
-          select: { ctdt_to_hop: true },
-        },
-      },
-      orderBy: {
-        ma_to_hop: "asc",
-      },
-    }),
-    prisma.danhMucMonHoc.findMany({
-      orderBy: {
-        ten_mon: "asc",
-      },
-    }),
-    prisma.chuongTrinhDaoTao.findMany({
-      orderBy: {
-        ten_chuong_trinh: "asc",
-      },
-    }),
-  ]);
+export default async function ManageCombinationsPage() {
+  let initialData: any[] = [];
+  try {
+    initialData = await toHopXetTuyenService.getAll();
+  } catch (err) {
+    console.error("Lỗi nạp dữ liệu tổ hợp xét tuyển từ server:", err);
+  }
 
-  return <ToHopClient initialData={toHops} subjects={danhMucMonHoc} allPrograms={programs} />;
+  return <ToHopClient initialData={initialData} />;
 }

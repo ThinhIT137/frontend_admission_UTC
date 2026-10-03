@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import { Timeline } from "@/components/ui/Timeline";
 
@@ -61,6 +62,45 @@ const mockMilestones: RoadmapMilestone[] = [
 ];
 
 export default function RoadmapPage() {
+  const [milestones, setMilestones] = useState<RoadmapMilestone[]>(mockMilestones);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("utc_admission_milestones");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mapped: RoadmapMilestone[] = parsed.map((m: any, idx: number) => {
+            const formatD = (d: string) => {
+              if (!d) return "";
+              const parts = d.split("T")[0].split("-");
+              return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+            };
+            const timeRange = `${formatD(m.thoi_gian_bat_dau)} - ${formatD(m.thoi_gian_ket_thuc)}`;
+            const status = m.trang_thai || "UPCOMING";
+            let statusText = "SẮP DIỄN RA";
+            if (status === "ACTIVE") statusText = "ĐANG MỞ HỒ SƠ";
+            if (status === "PAST") statusText = "ĐÃ KẾT THÚC";
+
+            return {
+              phase: m.giai_doan || `GIAI ĐOẠN ${idx + 1}`,
+              timeRange,
+              title: m.ten_su_kien,
+              status,
+              statusText,
+              details: m.ghi_chu
+                ? [m.ghi_chu]
+                : ["Theo dõi thông báo chính thức từ Hội đồng Tuyển sinh UTC."],
+            };
+          });
+          setMilestones(mapped);
+        }
+      }
+    } catch (e) {
+      console.error("Lỗi đồng bộ mốc thời gian:", e);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col w-full space-y-6 pb-12">
       {/* Title Card */}
@@ -88,7 +128,7 @@ export default function RoadmapPage() {
         </h3>
 
         <div className="space-y-4">
-          {mockMilestones.map((ms, idx) => (
+          {milestones.map((ms, idx) => (
             <div
               key={idx}
               className="bg-white p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px] flex flex-col md:flex-row gap-6 justify-between items-start"

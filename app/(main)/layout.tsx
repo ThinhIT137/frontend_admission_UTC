@@ -1,8 +1,8 @@
 "use client";
 
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Footer } from "@/components/layout/footer";
-import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/Footer";
+import { Header } from "@/components/layout/Header";
 import { ChatWidget } from "@/components/ui/ChatWidget";
 import { LoadingProvider } from "@/contexts/loadingContext";
 
