@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Fuse from "fuse.js";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
@@ -29,11 +30,44 @@ export default function NganhHocClient({
   initialData: any[],
   faculties: { ma_khoi_nganh: string; ten_khoi_nganh: string }[]
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const facultyParam = searchParams.get("faculty") || "";
+
+  const [selectedFaculty, setSelectedFaculty] = useState(facultyParam);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [deletingRow, setDeletingRow] = useState<any | null>(null);
-  
+
+  // Sync state with URL params if query param changes
+  useEffect(() => {
+    setSelectedFaculty(searchParams.get("faculty") || "");
+  }, [searchParams]);
+
+  const handleFacultyFilterChange = (facultyCode: string) => {
+    setSelectedFaculty(facultyCode);
+    const params = new URLSearchParams(searchParams.toString());
+    if (facultyCode && facultyCode !== "ALL") {
+      params.set("faculty", facultyCode);
+    } else {
+      params.delete("faculty");
+    }
+    router.push(`/admin/quan-ly-nganh-hoc?${params.toString()}`);
+  };
+
+  // Filter by Faculty first
+  const facultyFilteredData = useMemo(() => {
+    if (!selectedFaculty || selectedFaculty === "ALL") return initialData;
+    return initialData.filter((item) => {
+      return (
+        item.ma_khoi_nganh === selectedFaculty ||
+        item.khoi_nganh?.ma_khoi_nganh === selectedFaculty ||
+        item.khoi_nganh?.ten_khoi_nganh?.toLowerCase() === selectedFaculty.toLowerCase()
+      );
+    });
+  }, [initialData, selectedFaculty]);
+
   // Programs Modal State
   const [viewingPrograms, setViewingPrograms] = useState<any | null>(null);
   const [searchNewProgram, setSearchNewProgram] = useState("");
@@ -51,8 +85,6 @@ export default function NganhHocClient({
   const [newProgramChuanDauRa, setNewProgramChuanDauRa] = useState<string[]>([]);
   const [isSubmittingNewProgram, setIsSubmittingNewProgram] = useState(false);
 
-
-
   // Form State
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -65,27 +97,26 @@ export default function NganhHocClient({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  // 1. Tạo bộ máy tìm kiếm Fuse.js
+  // 1. Tạo bộ máy tìm kiếm Fuse.js trên danh sách đã lọc theo Khoa
   const fuse = useMemo(() => {
-    return new Fuse(initialData, {
+    return new Fuse(facultyFilteredData, {
       keys: ["ma_nganh", "ten_nganh"], // Tìm trên mã ngành và tên ngành
       threshold: 0.3, // Độ mờ: 0 là chính xác tuyệt đối, 1 là khớp lỏng lẻo
       ignoreLocation: true, // Tìm ở bất cứ đâu trong chuỗi
     });
-  }, [initialData]);
+  }, [facultyFilteredData]);
 
   // 2. Lấy data để render
   const filteredData = useMemo(() => {
-    if (!search.trim()) return initialData;
-    // Bỏ vào máy xay Fuse
+    if (!search.trim()) return facultyFilteredData;
     const results = fuse.search(search);
     return results.map((result) => result.item);
-  }, [search, initialData, fuse]);
+  }, [search, facultyFilteredData, fuse]);
 
-  // reset page khi search
-  useMemo(() => {
+  // reset page khi search hoặc đổi khoa
+  useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, selectedFaculty]);
 
   // Cắt data theo trang
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
@@ -268,13 +299,13 @@ export default function NganhHocClient({
       className: "w-[100px] text-center",
     },
     {
-      header: "Trạng Thái",
-      accessor: () => (
-        <span className="px-2 py-0.5 rounded bg-[#86efac] text-[#111827] font-stamp text-[10px] font-bold">
-          SUPABASE
+      header: "Khối Kiến Thức",
+      accessor: (r) => (
+        <span className="text-[12px] font-semibold text-[#45464f] bg-[#faf3e6] px-2.5 py-1 rounded border border-[#e9e2d5] inline-block">
+          {r.khoi_kien_thuc || r.khoi_nganh?.ten_khoi_nganh || "Đại cương & Chuyên ngành"}
         </span>
       ),
-      className: "w-[120px] text-center",
+      className: "w-[200px]",
     },
   ];
 
@@ -286,6 +317,9 @@ export default function NganhHocClient({
           <h1 className="font-display font-bold text-[26px] text-[#0d1b4e]">
             Quản Lý Danh Mục Ngành Học
           </h1>
+          <p className="text-[13px] text-[#45464f] mt-0.5">
+            Danh mục các ngành đào tạo Đại học chính quy và chương trình chuẩn UTC.
+          </p>
         </div>
 
         <button
@@ -297,23 +331,77 @@ export default function NganhHocClient({
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-[#e9e2d5] shadow-sm flex items-center justify-between">
-        <div className="relative w-full max-w-md">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-            search
-          </span>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo mã ngành hoặc tên ngành..."
-            className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-[#faf3e6] text-[#1e1b14] text-[13px] outline-none border border-[#c6c5d0]"
-          />
+      {/* Filter & Search Bar */}
+      <div className="bg-white p-4 rounded-xl border border-[#e9e2d5] shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Search Box */}
+          <div className="relative w-full sm:max-w-md">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm theo mã ngành hoặc tên ngành..."
+              className="w-full pl-9 pr-4 py-2 rounded-lg bg-[#faf3e6] text-[#1e1b14] text-[13px] outline-none border border-[#c6c5d0] focus:border-[#0d1b4e]"
+            />
+          </div>
+
+          {/* Faculty Selector & Count */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold text-[#45464f] whitespace-nowrap">
+                Lọc theo Khoa/Viện:
+              </span>
+              <select
+                value={selectedFaculty}
+                onChange={(e) => handleFacultyFilterChange(e.target.value)}
+                className="px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold text-[#0d1b4e] outline-none focus:border-[#0d1b4e]"
+              >
+                <option value="">-- Tất cả Khoa / Viện ({initialData.length} ngành) --</option>
+                {faculties.map((f) => {
+                  const countInFaculty = initialData.filter(
+                    (m) =>
+                      m.ma_khoi_nganh === f.ma_khoi_nganh ||
+                      m.khoi_nganh?.ma_khoi_nganh === f.ma_khoi_nganh
+                  ).length;
+                  return (
+                    <option key={f.ma_khoi_nganh} value={f.ma_khoi_nganh}>
+                      {f.ten_khoi_nganh} ({countInFaculty} ngành)
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <span className="text-[12px] font-bold text-[#0d1b4e] whitespace-nowrap bg-[#faf3e6] px-3 py-2 rounded-lg border border-[#e9e2d5]">
+              Hiển thị: <strong>{filteredData.length}</strong> ngành
+            </span>
+          </div>
         </div>
-        <span className="text-[12px] font-bold text-[#45464f]">
-          Tổng số: {filteredData.length} ngành
-        </span>
+
+        {/* Active Faculty Filter Alert Banner */}
+        {selectedFaculty && (
+          <div className="flex items-center justify-between px-3.5 py-2 bg-[#e0f2fe] border border-[#bae6fd] rounded-lg text-[12px] text-[#0369a1] animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-[#0284c7]">filter_alt</span>
+              <span>
+                Đang lọc danh sách theo:{" "}
+                <strong className="text-[#0d1b4e]">
+                  {faculties.find((f) => f.ma_khoi_nganh === selectedFaculty)?.ten_khoi_nganh || selectedFaculty}
+                </strong>{" "}
+                (Tìm thấy {filteredData.length} ngành đào tạo)
+              </span>
+            </div>
+            <button
+              onClick={() => handleFacultyFilterChange("")}
+              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 text-[#ba1a1a] rounded-md font-bold text-[11px] border border-red-200 transition-colors shadow-xs"
+            >
+              <span className="material-symbols-outlined text-[14px]">close</span>
+              Bỏ lọc (Xem tất cả)
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">

@@ -7,6 +7,8 @@ import { ModalForm } from "@/components/admin/ModalForm";
 import { createKhoiNganh, updateKhoiNganh, deleteKhoiNganh } from "@/actions/khoi_nganh.action";
 import { toast } from "sonner";
 
+import Link from "next/link";
+
 export default function KhoiNganhClient({ initialData }: { initialData: any[] }) {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,7 +109,7 @@ export default function KhoiNganhClient({ initialData }: { initialData: any[] })
     {
       header: "Mã Khoa/Viện",
       accessor: (r) => (
-        <span className="font-stamp font-bold text-[#0d1b4e] bg-[#f4ede0] px-2 py-0.5 rounded border border-[#c6c5d0]">
+        <span className="font-stamp font-bold text-[#0d1b4e] bg-[#f4ede0] px-2.5 py-1 rounded border border-[#c6c5d0]">
           {r.ma_khoi_nganh}
         </span>
       ),
@@ -116,18 +118,32 @@ export default function KhoiNganhClient({ initialData }: { initialData: any[] })
     {
       header: "Tên Khoa/Viện Quản Lý",
       accessor: (r) => (
-        <span className="font-bold text-[#1e1b14] text-[14px]">{r.ten_khoi_nganh}</span>
+        <Link
+          href={`/admin/quan-ly-nganh-hoc?faculty=${r.ma_khoi_nganh}`}
+          className="font-bold text-[#0d1b4e] hover:text-[#0284c7] hover:underline text-[15px] inline-flex items-center gap-1.5 group"
+          title="Nhấp để xem danh sách các ngành học thuộc khoa/viện này"
+        >
+          <span>{r.ten_khoi_nganh}</span>
+          <span className="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity text-[#0284c7]">
+            arrow_forward
+          </span>
+        </Link>
       ),
       className: "w-full",
     },
     {
       header: "Số Ngành Thuộc",
       accessor: (r) => (
-        <span className="font-bold text-[#0284c7] bg-[#e0f2fe] px-2 py-0.5 rounded-full whitespace-nowrap">
+        <Link
+          href={`/admin/quan-ly-nganh-hoc?faculty=${r.ma_khoi_nganh}`}
+          className="font-bold text-[#0284c7] bg-[#e0f2fe] hover:bg-[#bae6fd] px-3 py-1 rounded-full whitespace-nowrap inline-flex items-center gap-1 shadow-xs transition-colors text-[12px]"
+          title="Xem chi tiết các ngành thuộc khoa này"
+        >
+          <span className="material-symbols-outlined text-[14px]">school</span>
           {r._count?.nganh_hoc || 0} Ngành
-        </span>
+        </Link>
       ),
-      className: "w-[120px] text-center",
+      className: "w-[150px] text-center",
     },
   ];
 
@@ -136,12 +152,9 @@ export default function KhoiNganhClient({ initialData }: { initialData: any[] })
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[24px] font-bold text-[#0d1b4e]">
+          <h1 className="text-[28px] font-bold text-[#0d1b4e] font-display">
             Quản Lý Danh Mục Khoa / Viện
           </h1>
-          <p className="text-[13px] text-[#767680] mt-1">
-            Quản lý các khoa, viện, khối ngành (sử dụng để gán cho các ngành học)
-          </p>
         </div>
         <button
           onClick={openCreate}

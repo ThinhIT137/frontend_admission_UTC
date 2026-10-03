@@ -1,13 +1,15 @@
+import { Suspense } from "react";
 import { nganhHocService } from "@/services/nganh_hoc.service";
 import NganhHocClient from "./NganhHocClient";
 import prisma from "@/libs/prisma";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export const metadata = {
   title: "Quản Lý Danh Mục Ngành Học | UTC Admin",
 };
 
 export default async function ManageMajorsPage() {
-  // Lấy dữ liệu ngành học từ server thay vì client fetch
+  // Lấy dữ liệu ngành học từ server
   const allMajors = await nganhHocService.get({
     page: 1,
     pageSize: 1000,
@@ -22,6 +24,9 @@ export default async function ManageMajorsPage() {
     orderBy: { ten_khoi_nganh: 'asc' }
   });
 
-  // Truyền dữ liệu xuống Client Component để hiển thị và xử lý fuzzy search
-  return <NganhHocClient initialData={allMajors} faculties={allFaculties} />;
+  return (
+    <Suspense fallback={<LoadingSpinner label="Đang tải danh mục ngành học..." />}>
+      <NganhHocClient initialData={allMajors} faculties={allFaculties} />
+    </Suspense>
+  );
 }
