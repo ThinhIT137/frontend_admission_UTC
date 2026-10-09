@@ -22,6 +22,9 @@ export const createLoTrinhTuyenSinh = async (data: {
 }) => {
   try {
     const ma_admin_cap_nhat = await adminService.getAdminId();
+    if (typeof data.ten_su_kien !== "string" || !data.ten_su_kien.trim()) {
+      throw new Error("Tên sự kiện không được để trống");
+    }
     return await prisma.loTrinhTuyenSinh.create({
       data: {
         ...data,
@@ -45,6 +48,10 @@ export const updateLoTrinhTuyenSinh = async (
 ) => {
   try {
     const ma_admin_cap_nhat = await adminService.getAdminId();
+    if (data.ten_su_kien !== undefined &&
+        (typeof data.ten_su_kien !== "string" || !data.ten_su_kien.trim())) {
+      throw new Error("Tên sự kiện không được để trống");
+    }
     return await prisma.loTrinhTuyenSinh.update({
       where: { ma_su_kien },
       data: {
@@ -60,6 +67,7 @@ export const updateLoTrinhTuyenSinh = async (
 
 export const deleteLoTrinhTuyenSinh = async (ma_su_kien: string) => {
   try {
+    await adminService.getAdminId();
     return await prisma.loTrinhTuyenSinh.delete({
       where: { ma_su_kien },
     });

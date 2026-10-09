@@ -1,4 +1,15 @@
 import prisma, { prismaPublic } from "@/libs/prisma";
+import { adminService } from "./user.service";
+
+const validateCombination = (code: string, subjects: string[]) => {
+    if (typeof code !== "string" || !code.trim()) throw new Error("Thiếu mã tổ hợp");
+    if (subjects.some(subject => typeof subject !== "string" || !subject.trim())) {
+        throw new Error("Vui lòng chọn đủ ba môn");
+    }
+    if (new Set(subjects.map(subject => subject.trim())).size !== 3) {
+        throw new Error("Ba môn trong tổ hợp phải khác nhau");
+    }
+};
 
 export const toHopXetTuyenService = {
     getAll: async () => {
@@ -18,6 +29,8 @@ export const toHopXetTuyenService = {
     },
 
     create: async (ma_to_hop: string, ma_mon_1: string, ma_mon_2: string, ma_mon_3: string) => {
+        await adminService.getAdminId();
+        validateCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3]);
         return await prisma.toHopXetTuyen.create({
             data: {
                 ma_to_hop,
@@ -29,6 +42,8 @@ export const toHopXetTuyenService = {
     },
 
     update: async (ma_to_hop: string, ma_mon_1: string, ma_mon_2: string, ma_mon_3: string) => {
+        await adminService.getAdminId();
+        validateCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3]);
         return await prisma.toHopXetTuyen.update({
             where: { ma_to_hop },
             data: {
@@ -40,6 +55,7 @@ export const toHopXetTuyenService = {
     },
 
     delete: async (ma_to_hop: string) => {
+        await adminService.getAdminId();
         return await prisma.toHopXetTuyen.delete({
             where: { ma_to_hop }
         });

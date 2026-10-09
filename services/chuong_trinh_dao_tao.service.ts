@@ -207,6 +207,7 @@ export const chuongTrinhDaoTaoService = {
                     ten_chuong_trinh,
                     de_cuong,
                     chuan_dau_ra,
+                    mo_ta_ngan,
                     ma_admin_quan_ly,
                 },
             });
