@@ -221,8 +221,14 @@ export const adminService = {
         ma_admin_thuc_hien: string,
     ) => {
         const isSelf = ma_admin === ma_admin_thuc_hien;
-        if (!isSelf && !(await adminService.isSuperAdmin(ma_admin_thuc_hien))) {
-            throw new Error("Chỉ Super Admin mới có quyền cập nhật tài khoản người khác");
+        if (!isSelf || data.ma_vai_tro !== undefined) {
+            if (!(await adminService.isSuperAdmin(ma_admin_thuc_hien))) {
+                throw new Error(
+                    isSelf
+                        ? "Chỉ Super Admin mới có quyền thay đổi vai trò"
+                        : "Chỉ Super Admin mới có quyền cập nhật tài khoản người khác",
+                );
+            }
         }
 
         const updateData: any = { ...data };

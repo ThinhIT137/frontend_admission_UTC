@@ -36,6 +36,17 @@ export const createChiTieu = async (data: {
   try {
     const ma_admin_cap_nhat = await adminService.getAdminId();
 
+    if (typeof data.ma_chuong_trinh !== "string" || !data.ma_chuong_trinh.trim()) {
+      throw new Error("Vui lòng chọn chương trình đào tạo");
+    }
+    if (!Number.isInteger(data.chi_tieu) || data.chi_tieu < 1) {
+      throw new Error("Chỉ tiêu phải là số nguyên lớn hơn 0");
+    }
+    if (!Array.isArray(data.phuong_thuc_ids) || data.phuong_thuc_ids.length === 0 ||
+        data.phuong_thuc_ids.some(id => typeof id !== "string" || !id.trim())) {
+      throw new Error("Vui lòng chọn phương thức xét tuyển hợp lệ");
+    }
+
     // Check if already exists for this year
     const existing = await prisma.lichSuDiemChuan.findUnique({
       where: {

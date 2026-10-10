@@ -1,4 +1,5 @@
 import prisma from "@/libs/prisma";
+import { adminService } from "./user.service";
 
 export const getPhuongThucXetTuyenList = async () => {
   try {
@@ -14,6 +15,11 @@ export const getPhuongThucXetTuyenList = async () => {
 
 export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; ten_phuong_thuc: string }) => {
   try {
+    await adminService.getAdminId();
+    if (typeof data.ma_phuong_thuc !== "string" || !data.ma_phuong_thuc.trim() ||
+        typeof data.ten_phuong_thuc !== "string" || !data.ten_phuong_thuc.trim()) {
+      throw new Error("Vui lòng nhập mã và tên phương thức");
+    }
     const existing = await prisma.phuongThucXetTuyen.findUnique({
       where: { ma_phuong_thuc: data.ma_phuong_thuc },
     });
@@ -33,6 +39,11 @@ export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; t
 
 export const updatePhuongThucXetTuyen = async (ma_phuong_thuc: string, data: { ten_phuong_thuc?: string }) => {
   try {
+    await adminService.getAdminId();
+    if (data.ten_phuong_thuc !== undefined &&
+        (typeof data.ten_phuong_thuc !== "string" || !data.ten_phuong_thuc.trim())) {
+      throw new Error("Tên phương thức không được để trống");
+    }
     return await prisma.phuongThucXetTuyen.update({
       where: { ma_phuong_thuc },
       data,
@@ -45,6 +56,7 @@ export const updatePhuongThucXetTuyen = async (ma_phuong_thuc: string, data: { t
 
 export const deletePhuongThucXetTuyen = async (ma_phuong_thuc: string) => {
   try {
+    await adminService.getAdminId();
     return await prisma.phuongThucXetTuyen.delete({
       where: { ma_phuong_thuc },
     });
