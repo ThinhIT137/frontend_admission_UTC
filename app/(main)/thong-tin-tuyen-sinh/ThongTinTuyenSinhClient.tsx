@@ -62,6 +62,8 @@ export default function ThongTinTuyenSinhClient({
   const [openFaq, setOpenFaq] = useState<string | null>(initialFaqs[0]?.id || null);
   // Active section for TOC
   const [activeSection, setActiveSection] = useState("timeline");
+  // Toggle conversion table viewer
+  const [showConversionTable, setShowConversionTable] = useState(false);
 
   // Track active section on scroll
   useEffect(() => {
@@ -152,7 +154,7 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
     <div className="flex flex-col w-full space-y-8 pb-16">
       {/* 1. Header Banner */}
       <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#fdb712] border-[2px] border-[#111827] font-stamp text-[12px] font-black text-[#111827] uppercase rotate-[-1deg] shadow-[2px_2px_0px_#111827]">
               <span className="material-symbols-outlined text-[16px]">verified</span>
@@ -166,21 +168,13 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={handleDownloadScheme}
-              className="inline-flex items-center gap-2 px-5 py-3 bg-[#0d1b4e] text-[#fdb712] hover:bg-[#1a2c6d] font-black text-[14px] border-[2.5px] border-[#111827] shadow-[4px_4px_0px_#111827] transition-all hover:scale-[1.02] active:scale-95 rounded-xl"
-            >
-              <span className="material-symbols-outlined text-[20px]">download</span>
-              Tải Đề Án 2026 (PDF)
-            </button>
-            <Link
-              href="/tra-cuu-nganh-hoc"
-              className="inline-flex items-center gap-1.5 px-4 py-3 bg-[#faf3e6] hover:bg-[#f4ede0] text-[#0d1b4e] font-bold text-[14px] border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] rounded-xl transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">travel_explore</span>
-              Tra Cứu Ngành
-            </Link>
+          <div className="hidden md:flex flex-col items-end gap-1 shrink-0 bg-[#faf3e6] px-4 py-3 rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827]">
+            <span className="text-[11px] font-black uppercase text-[#767680] font-stamp">Khóa Tuyển Sinh</span>
+            <span className="font-display font-black text-[22px] text-[#0d1b4e]">K66 (2026 - 2027)</span>
+            <span className="text-[11px] font-bold text-[#15803d] flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-[#15803d]" />
+              Áp dụng Cơ sở Hà Nội
+            </span>
           </div>
         </div>
 
@@ -224,9 +218,9 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
       </div>
 
       {/* 4. Main Layout with Content and Sticky TOC */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Main Content Column (Col 8) */}
-        <div className="lg:col-span-8 space-y-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Content Column */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-10 min-w-0">
 
           {/* BLOCK 1: TIMELINE MỐC THỜI GIAN */}
           <section id="timeline" className="scroll-mt-24 space-y-4">
@@ -405,13 +399,9 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
                     <span className="px-2.5 py-1 bg-[#faf3e6] border border-[#c6c5d0] rounded-md font-bold text-[#0d1b4e]">
                       Áp dụng: Cơ sở Hà Nội (Mã trường: GHA)
                     </span>
-                    <Link
-                      href="/tinh-diem-quy-doi"
-                      className="px-2.5 py-1 bg-[#e0f2fe] hover:bg-[#bae6fd] text-[#0284c7] font-bold rounded-md transition-colors inline-flex items-center gap-1"
-                    >
-                      <span>Tính điểm xét tuyển</span>
-                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </Link>
+                    <span className="px-2.5 py-1 bg-[#f0fdf4] border border-[#bbf7d0] rounded-md font-semibold text-[#166534]">
+                      Chỉ tiêu & Điểm chuẩn độc lập theo từng phương thức
+                    </span>
                   </div>
                 </div>
               ))}
@@ -532,27 +522,165 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
                 </button>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-[32px] text-[#0284c7] shrink-0">
-                    translate
-                  </span>
-                  <div>
-                    <h3 className="font-bold text-[15px] text-[#0d1b4e]">
-                      Bảng Quy Đổi Điểm Chứng Chỉ Tiếng Anh Quốc Tế (IELTS / TOEFL / SAT)
-                    </h3>
-                    <p className="text-[12px] text-[#767680] mt-0.5">
-                      Quy đổi điểm chứng chỉ ngoại ngữ sang thang điểm 10 môn Tiếng Anh xét tuyển K66
-                    </p>
+              {/* Official English Certificate Conversion Table (IELTS / TOEFL / SAT) */}
+              <div className="bg-white rounded-2xl border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] overflow-hidden">
+                <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0284c7]/10 border border-[#0284c7] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-[24px] text-[#0284c7]">
+                        translate
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-display font-black text-[15px] sm:text-[16px] text-[#0d1b4e]">
+                          Bảng Quy Đổi Điểm Chứng Chỉ Tiếng Anh Quốc Tế (IELTS / TOEFL / SAT)
+                        </h3>
+                        <span className="px-2 py-0.5 rounded bg-[#fef08a] border border-[#111827] font-stamp text-[10px] font-black text-[#111827]">
+                          ĐÃ CÔNG BỐ
+                        </span>
+                      </div>
+                      <p className="text-[12px] sm:text-[13px] text-[#45464f] mt-1 font-medium">
+                        Quy định quy đổi điểm môn Tiếng Anh và cộng điểm ưu tiên xét tuyển Đại học chính quy K66 UTC Hà Nội
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    onClick={() => setShowConversionTable(!showConversionTable)}
+                    className="px-4 py-2.5 bg-[#0d1b4e] hover:bg-[#1a2c6d] text-[#fdb712] font-black text-[13px] border-[2px] border-[#111827] rounded-xl shadow-[2px_2px_0px_#111827] transition-all shrink-0 flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showConversionTable ? "expand_less" : "table_chart"}
+                    </span>
+                    <span>{showConversionTable ? "Thu Gọn Bảng" : "Xem Bảng Quy Đổi Chuẩn"}</span>
+                  </button>
                 </div>
-                <Link
-                  href="/tinh-diem-quy-doi"
-                  className="px-4 py-2 bg-[#0d1b4e] hover:bg-[#1a2c6d] text-white font-bold text-[13px] border-[2px] border-[#111827] rounded-xl shadow-xs transition-all shrink-0 flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px]">calculate</span>
-                  Xem Bảng Quy Đổi
-                </Link>
+
+                {/* Detailed Published Table */}
+                {showConversionTable && (
+                  <div className="p-5 border-t-[2px] border-[#111827] bg-[#fffdf7] space-y-4">
+                    <div className="p-3.5 bg-[#e0f2fe] border border-[#0284c7] rounded-xl text-[12.5px] text-[#0369a1] font-medium leading-relaxed flex items-start gap-2.5">
+                      <span className="material-symbols-outlined text-[20px] text-[#0284c7] shrink-0">
+                        info
+                      </span>
+                      <div>
+                        <strong>Quy định Đề án K66:</strong> Từ mùa tuyển sinh 2026, Trường ĐH Giao thông Vận tải (Cơ sở Hà Nội - Mã GHA) áp dụng chứng chỉ tiếng Anh quốc tế (IELTS từ 5.0 trở lên) để xét kết hợp / cộng điểm ưu tiên theo đề án tuyển sinh; đồng thời xét miễn học và công nhận điểm các học phần Tiếng Anh sau khi trúng tuyển và nhập học.
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827]">
+                      <table className="w-full text-left text-[13px] bg-white">
+                        <thead className="bg-[#0d1b4e] text-white text-[12px] uppercase font-stamp">
+                          <tr>
+                            <th className="py-2.5 px-3 border-r border-white/20">Chứng Chỉ Ngoại Ngữ</th>
+                            <th className="py-2.5 px-3 border-r border-white/20">Mức Điểm Đạt Được</th>
+                            <th className="py-2.5 px-3 border-r border-white/20 text-center">Điểm Quy Đổi (Thang 10)</th>
+                            <th className="py-2.5 px-3">Phạm Vi Áp Dụng & Ghi Chú</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {/* IELTS */}
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-bold text-[#0d1b4e] border-r border-gray-200" rowSpan={5}>
+                              IELTS Academic
+                              <span className="block text-[10px] text-[#767680] font-normal">IDP hoặc BC cấp</span>
+                            </td>
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">5.0</td>
+                            <td className="py-2 px-3 text-center font-black text-[#15803d] bg-green-50/50 border-r border-gray-200">8.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Cộng điểm ưu tiên / Xét tuyển kết hợp K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">5.5</td>
+                            <td className="py-2 px-3 text-center font-black text-[#15803d] bg-green-50/50 border-r border-gray-200">8.5</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Cộng điểm ưu tiên / Xét tuyển kết hợp K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">6.0</td>
+                            <td className="py-2 px-3 text-center font-black text-[#15803d] bg-green-50/50 border-r border-gray-200">9.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Cộng điểm ưu tiên / Xét tuyển kết hợp K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">6.5</td>
+                            <td className="py-2 px-3 text-center font-black text-[#15803d] bg-green-50/50 border-r border-gray-200">9.5</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Miễn học phần TA & Ưu tiên CT Tiên tiến</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">7.0 - 9.0</td>
+                            <td className="py-2 px-3 text-center font-black text-[#15803d] bg-green-50/50 border-r border-gray-200">10.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Miễn học phần TA & Ưu tiên CT Tiên tiến</td>
+                          </tr>
+
+                          {/* TOEFL iBT */}
+                          <tr className="hover:bg-[#fff9ea] border-t-2 border-gray-300">
+                            <td className="py-2 px-3 font-bold text-[#0d1b4e] border-r border-gray-200" rowSpan={5}>
+                              TOEFL iBT
+                              <span className="block text-[10px] text-[#767680] font-normal">ETS Hoa Kỳ cấp</span>
+                            </td>
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">45 - 53</td>
+                            <td className="py-2 px-3 text-center font-black text-[#0284c7] bg-blue-50/50 border-r border-gray-200">8.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Xét tuyển kết hợp theo đề án K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">54 - 64</td>
+                            <td className="py-2 px-3 text-center font-black text-[#0284c7] bg-blue-50/50 border-r border-gray-200">8.5</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Xét tuyển kết hợp theo đề án K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">65 - 78</td>
+                            <td className="py-2 px-3 text-center font-black text-[#0284c7] bg-blue-50/50 border-r border-gray-200">9.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Xét tuyển kết hợp theo đề án K66</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">79 - 95</td>
+                            <td className="py-2 px-3 text-center font-black text-[#0284c7] bg-blue-50/50 border-r border-gray-200">9.5</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Miễn học phần TA đầu vào</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">96 - 120</td>
+                            <td className="py-2 px-3 text-center font-black text-[#0284c7] bg-blue-50/50 border-r border-gray-200">10.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Miễn học phần TA đầu vào</td>
+                          </tr>
+
+                          {/* SAT */}
+                          <tr className="hover:bg-[#fff9ea] border-t-2 border-gray-300">
+                            <td className="py-2 px-3 font-bold text-[#0d1b4e] border-r border-gray-200">
+                              SAT (Scholastic)
+                            </td>
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">≥ 1200 / 1600</td>
+                            <td className="py-2 px-3 text-center font-black text-[#f59e0b] bg-yellow-50/50 border-r border-gray-200">Đạt Điểm Sàn</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Môn Toán ≥ 600, xét tuyển kết hợp thẳng</td>
+                          </tr>
+
+                          {/* TOEIC */}
+                          <tr className="hover:bg-[#fff9ea] border-t-2 border-gray-300">
+                            <td className="py-2 px-3 font-bold text-[#0d1b4e] border-r border-gray-200" rowSpan={3}>
+                              TOEIC (L&R)
+                              <span className="block text-[10px] text-[#767680] font-normal">Sau khi nhập học</span>
+                            </td>
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">550 - 645</td>
+                            <td className="py-2 px-3 text-center font-black text-gray-700 border-r border-gray-200">8.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Xét miễn học phần & chuẩn đầu ra sinh viên</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">650 - 845</td>
+                            <td className="py-2 px-3 text-center font-black text-gray-700 border-r border-gray-200">8.5 - 9.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Xét miễn học phần & chuẩn đầu ra sinh viên</td>
+                          </tr>
+                          <tr className="hover:bg-[#fff9ea]">
+                            <td className="py-2 px-3 font-mono font-semibold border-r border-gray-200">≥ 850</td>
+                            <td className="py-2 px-3 text-center font-black text-gray-700 border-r border-gray-200">10.0</td>
+                            <td className="py-2 px-3 text-[12px] text-gray-700">Miễn toàn bộ học phần TA đại cương</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="text-[12px] text-[#767680] space-y-1">
+                      <p>📌 <em>Lưu ý: Chứng chỉ quốc tế phải còn thời hạn 2 năm tính đến ngày nộp hồ sơ xét tuyển. Thí sinh nộp bản sao công chứng kèm bản gốc để đối chiếu khi hoàn tất thủ tục nhập học tại Hà Nội.</em></p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -631,63 +759,67 @@ Chi tiết xem tại cổng thông tin tuyển sinh chính thức: https://tuyen
 
         </div>
 
-        {/* Sticky Table of Contents (TOC) Sidebar Column (Col 4) */}
-        <div className="lg:col-span-4 sticky top-24 space-y-4">
-          <div className="bg-[#fffdf7] p-5 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b-[2px] border-[#111827] pb-2.5">
-              <h3 className="font-display font-black text-[15px] text-[#0d1b4e] uppercase flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px]">list_alt</span>
-                Mục Lục Truy Cập Nhanh
-              </h3>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#fdb712] border border-[#111827]" />
-            </div>
+        {/* Sticky Table of Contents (TOC) Sidebar Column */}
+        <div className="lg:col-span-4 xl:col-span-3">
+          <div className="sticky top-24 space-y-4">
+            <div className="bg-[#fffdf7] p-5 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl space-y-4 transition-all">
+              <div className="flex items-center justify-between border-b-[2px] border-[#111827] pb-2.5">
+                <h3 className="font-display font-black text-[15px] text-[#0d1b4e] uppercase flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">list_alt</span>
+                  Mục Lục Truy Cập Nhanh
+                </h3>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#15803d] border border-[#111827] animate-pulse" title="Đang theo dõi vị trí cuộn" />
+              </div>
 
-            <nav className="space-y-1.5 text-[13px] font-bold">
-              {[
-                { id: "timeline", label: "Mốc Thời Gian Lộ Trình", icon: "event" },
-                { id: "phuong-thuc", label: "Phương Thức Xét Tuyển", icon: "how_to_reg" },
-                { id: "chi-tieu", label: "Chỉ Tiêu & Cơ Cấu Đào Tạo", icon: "bar_chart" },
-                { id: "quy-che", label: "Quy Chế & Đề Án Văn Bản", icon: "policy" },
-                { id: "faq", label: "Câu Hỏi Thường Gặp (FAQ)", icon: "quiz" },
-                { id: "lien-he", label: "Liên Hệ Cơ Sở Hà Nội", icon: "support_agent" },
-              ].map((item) => {
-                const isActive = activeSection === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => scrollToSection(item.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between transition-all ${
-                      isActive
-                        ? "bg-[#0d1b4e] text-[#fdb712] shadow-xs translate-x-1"
-                        : "text-[#374151] hover:bg-[#faf3e6]"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </span>
-                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                  </button>
-                );
-              })}
-            </nav>
+              <nav className="space-y-1.5 text-[13px] font-bold">
+                {[
+                  { id: "timeline", label: "Mốc Thời Gian Lộ Trình", icon: "event" },
+                  { id: "phuong-thuc", label: "Phương Thức Xét Tuyển", icon: "how_to_reg" },
+                  { id: "chi-tieu", label: "Chỉ Tiêu & Cơ Cấu Đào Tạo", icon: "bar_chart" },
+                  { id: "quy-che", label: "Quy Chế & Đề Án Văn Bản", icon: "policy" },
+                  { id: "faq", label: "Câu Hỏi Thường Gặp (FAQ)", icon: "quiz" },
+                  { id: "lien-he", label: "Liên Hệ Cơ Sở Hà Nội", icon: "support_agent" },
+                ].map((item) => {
+                  const isActive = activeSection === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => scrollToSection(item.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-[#0d1b4e] text-[#fdb712] shadow-xs translate-x-1 font-black"
+                          : "text-[#374151] hover:bg-[#faf3e6]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </span>
+                      <span className="material-symbols-outlined text-[14px]">
+                        {isActive ? "play_arrow" : "arrow_forward"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
 
-            <div className="p-3.5 bg-[#faf3e6] border-[2px] border-[#111827] rounded-xl text-center space-y-2 mt-4">
-              <span className="material-symbols-outlined text-[28px] text-[#0d1b4e]">
-                smart_toy
-              </span>
-              <h4 className="font-display font-black text-[14px] text-[#0d1b4e]">
-                Trợ Lý AI Tư Vấn 24/7
-              </h4>
-              <p className="text-[11px] text-[#767680] leading-snug">
-                Có câu hỏi riêng về điểm chuẩn, tổ hợp môn hoặc xét tuyển vào UTC Hà Nội? Hỏi ngay AI!
-              </p>
-              <Link
-                href="/hoi-dap-ai"
-                className="inline-block w-full py-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] font-black text-[12px] border border-[#111827] rounded-lg shadow-xs transition-colors"
-              >
-                Hỏi Đáp Cùng AI
-              </Link>
+              <div className="p-3.5 bg-[#faf3e6] border-[2px] border-[#111827] rounded-xl text-center space-y-2 mt-4 shadow-xs">
+                <span className="material-symbols-outlined text-[28px] text-[#0d1b4e]">
+                  smart_toy
+                </span>
+                <h4 className="font-display font-black text-[14px] text-[#0d1b4e]">
+                  Trợ Lý AI Tư Vấn 24/7
+                </h4>
+                <p className="text-[11px] text-[#767680] leading-snug">
+                  Có câu hỏi riêng về điểm chuẩn, tổ hợp môn hoặc xét tuyển vào UTC Hà Nội? Hỏi ngay AI!
+                </p>
+                <Link
+                  href="/hoi-dap-ai"
+                  className="inline-block w-full py-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] font-black text-[12px] border border-[#111827] rounded-lg shadow-xs transition-colors"
+                >
+                  Hỏi Đáp Cùng AI
+                </Link>
+              </div>
             </div>
           </div>
         </div>

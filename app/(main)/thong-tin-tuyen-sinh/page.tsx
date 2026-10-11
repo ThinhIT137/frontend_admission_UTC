@@ -139,18 +139,76 @@ export default async function AdmissionInfoPage() {
       majorCount: f._count.nganh_hoc,
     }));
 
-    // Process FAQs
-    faqs = dbFaqs.map((f) => ({
-      id: f.ma_tri_thuc,
-      topic: f.chu_de || "Tư vấn chung",
-      question: f.cau_hoi_mau || "Câu hỏi thường gặp",
-      answer: f.noi_dung,
-    }));
+    // Process FAQs - only include genuine admission FAQs, filtering out internal RAG chunks and test rows
+    const validDbFaqs = dbFaqs
+      .filter((f) => {
+        const q = (f.cau_hoi_mau || "").toLowerCase();
+        const topic = (f.chu_de || "").toLowerCase();
+        const content = (f.noi_dung || "").toLowerCase();
+        const isInternalChunk =
+          topic.includes("niên giám") ||
+          topic.includes("chuẩn đầu ra") ||
+          q.includes("cđr") ||
+          q.includes("bloom") ||
+          q.includes("chunk") ||
+          q.includes("test") ||
+          content.includes("bảng cđr") ||
+          content.includes("### bối cảnh");
+        return !isInternalChunk && f.cau_hoi_mau && f.noi_dung;
+      })
+      .map((f) => ({
+        id: f.ma_tri_thuc,
+        topic: f.chu_de || "Tư Vấn Tuyển Sinh",
+        question: f.cau_hoi_mau!,
+        answer: f.noi_dung,
+      }));
+
+    faqs = validDbFaqs;
   } catch (error) {
     console.error("Lỗi tải thông tin tuyển sinh từ database:", error);
   }
 
-  // Graceful Fallback if DB tables are currently empty
+  // Curated high-value FAQs for UTC Hanoi K66 Admission
+  const highValueFaqs: FaqItem[] = [
+    {
+      id: "faq_xettuyen_som",
+      topic: "Xét Tuyển Sớm & Cổng Bộ",
+      question: "Đã đủ điều kiện trúng tuyển sớm (Học bạ, ĐGNL, IELTS) có bắt buộc phải đăng ký trên Cổng tuyển sinh của Bộ GD&ĐT không?",
+      answer: "BẮT BUỘC 100%. Theo Quy chế tuyển sinh chung, thí sinh dù đã nhận thông báo đủ điều kiện trúng tuyển sớm tại Trường ĐH Giao thông Vận tải (Cơ sở Hà Nội - Mã GHA) vẫn bắt buộc phải đăng ký nguyện vọng ngành đó trên Cổng dịch vụ công xét tuyển của Bộ GD&ĐT (thisinh.thitotnghiepthpt.edu.vn) theo đúng thời gian quy định. Để chắc chắn trúng tuyển chính thức vào ngành mong muốn, bạn hãy đặt ngành đó ở vị trí Nguyện vọng 1.",
+    },
+    {
+      id: "faq_chung_chi_ielts",
+      topic: "Chứng Chỉ Tiếng Anh",
+      question: "Quy định sử dụng chứng chỉ IELTS / TOEFL / SAT trong mùa tuyển sinh 2026 tại UTC Hà Nội như thế nào?",
+      answer: "Theo Đề án tuyển sinh 2026, chứng chỉ IELTS (từ 5.0 trở lên) hoặc TOEFL iBT tương đương được sử dụng để xét kết hợp / cộng điểm ưu tiên theo quy định từng ngành. Thí sinh cần có chứng chỉ còn thời hạn 2 năm tính đến ngày nộp hồ sơ. Đặc biệt, sau khi trúng tuyển và nhập học, sinh viên sở hữu chứng chỉ quốc tế hợp lệ sẽ được xét miễn học và chuyển đổi điểm tối đa (lên đến 10.0) cho các học phần Tiếng Anh trong chương trình đào tạo.",
+    },
+    {
+      id: "faq_nhieu_phuong_thuc",
+      topic: "Đăng Ký Nguyện Vọng",
+      question: "Thí sinh có thể đồng thời nộp hồ sơ bằng nhiều phương thức xét tuyển vào cùng một ngành không?",
+      answer: "Hoàn toàn được. Nhà trường thực hiện xét tuyển độc lập theo từng phương thức (Xét kết quả thi tốt nghiệp THPT, Xét học bạ THPT, Xét kết quả bài thi ĐGNL ĐHQG Hà Nội hoặc ĐGTD Bách Khoa). Mỗi phương thức có chỉ tiêu và điểm chuẩn riêng, giúp thí sinh gia tăng tối đa cơ hội trúng tuyển vào ngành học mơ ước mà không bị giới hạn.",
+    },
+    {
+      id: "faq_hoc_phi",
+      topic: "Học Phí & Lộ Trình",
+      question: "Mức học phí áp dụng cho sinh viên khóa K66 (Cơ sở Hà Nội) dự kiến là bao nhiêu?",
+      answer: "Mức học phí hệ đại trà tại Cơ sở Hà Nội dự kiến: Khối Kỹ thuật & Công nghệ khoảng 420.000 - 460.000 đ/tín chỉ (~15 - 18 triệu đ/năm học); Khối Kinh tế & Vận tải khoảng 380.000 - 410.000 đ/tín chỉ (~13 - 15 triệu đ/năm học) theo quy định của Nhà nước đối với trường đại học công lập tự chủ. Các chương trình tiên tiến, chất lượng cao giảng dạy bằng tiếng Anh có định mức kinh tế kỹ thuật riêng được công khai chi tiết trong Đề án tuyển sinh.",
+    },
+    {
+      id: "faq_ky_tuc_xa",
+      topic: "Ký Túc Xá & Đời Sống",
+      question: "Tân sinh viên K66 có được đăng ký ở Ký túc xá không? Vị trí và điều kiện nội trú ra sao?",
+      answer: "Ký túc xá UTC nằm ngay trong khuôn viên trường tại Số 3 phố Cầu Giấy (Hà Nội), kết nối trực tiếp với giảng đường, thư viện và trạm tàu điện ngầm Nhổn - Ga Hà Nội. Nhà trường ưu tiên bố trí chỗ ở nội trú cho tân sinh viên thuộc diện chính sách, hộ nghèo/cận nghèo, học sinh vùng sâu vùng xa và các bạn ở tỉnh xa nộp đơn đăng ký sớm ngay trong tuần lễ làm thủ tục nhập học.",
+    },
+    {
+      id: "faq_hoc_bong_viec_lam",
+      topic: "Học Bổng & Việc Làm",
+      question: "Chính sách học bổng đầu vào và cơ hội việc làm sau khi tốt nghiệp tại UTC như thế nào?",
+      answer: "Hằng năm, UTC trao tặng học bổng Khuyến khích học tập, học bổng Thủ khoa/Á khoa (miễn 100% học phí) và hàng trăm suất học bổng tài trợ từ các tập đoàn lớn (Samsung, FPT, Viettel, các tổng công ty hạ tầng và logistics). Trường có mạng lưới hợp tác với hơn 300 doanh nghiệp, tỷ lệ sinh viên tốt nghiệp có việc làm đúng chuyên ngành trong vòng 12 tháng luôn đạt trên 95%.",
+    },
+  ];
+
+  // Fallback if DB milestones or methods are empty
   if (milestones.length === 0) {
     milestones = [
       {
@@ -218,32 +276,10 @@ export default async function AdmissionInfoPage() {
   }
 
   if (faqs.length === 0) {
-    faqs = [
-      {
-        id: "faq1",
-        topic: "Địa Điểm Đào Tạo",
-        question: "Trường Đại học Giao thông Vận tải Cơ sở Hà Nội ở đâu?",
-        answer: "Cơ sở chính tọa lạc tại Số 3 phố Cầu Giấy, Phường Láng Thượng, Quận Đống Đa, Hà Nội (Mã trường: GHA). Toàn bộ sinh viên trúng tuyển cơ sở Hà Nội được học tập tại hệ thống giảng đường A, B và các phòng thí nghiệm trọng điểm tại Cầu Giấy.",
-      },
-      {
-        id: "faq2",
-        topic: "Quy Đổi IELTS",
-        question: "Thí sinh sử dụng chứng chỉ IELTS để xét tuyển cần đáp ứng điều kiện gì?",
-        answer: "Chứng chỉ IELTS phải đạt từ 5.0 trở lên, còn hiệu lực tính đến ngày nộp hồ sơ. Điểm IELTS được quy đổi tương đương: 5.0 = 8.5 điểm; 5.5 = 9.0 điểm; 6.0 = 9.5 điểm; 6.5 trở lên = 10.0 điểm môn Tiếng Anh trong tổ hợp xét tuyển.",
-      },
-      {
-        id: "faq3",
-        topic: "Học Bổng",
-        question: "Chính sách học bổng dành cho Tân sinh viên K66 như thế nào?",
-        answer: "Nhà trường dành hàng trăm suất học bổng Khuyến khích học tập, Học bổng Tài năng (100% học phí) cho các thí sinh có điểm xét tuyển đầu vào cao nhất ngành, cùng nhiều gói học bổng doanh nghiệp tài trợ từ các tập đoàn công nghệ và giao thông hàng đầu.",
-      },
-      {
-        id: "faq4",
-        topic: "Ký Túc Xá",
-        question: "Sinh viên năm thứ nhất có được ưu tiên đăng ký Ký túc xá không?",
-        answer: "Trường có khu Ký túc xá khang trang ngay trong khuôn viên trường tại Hà Nội. Tân sinh viên thuộc đối tượng ưu tiên, hộ nghèo hoặc ở các tỉnh xa sẽ được ưu tiên bố trí chỗ ở ngay trong tuần lễ làm thủ tục nhập học.",
-      },
-    ];
+    faqs = highValueFaqs;
+  } else {
+    // If DB had a few non-internal FAQs, prepend highValueFaqs to ensure rich and high-value FAQs
+    faqs = [...highValueFaqs, ...faqs.filter(f => !highValueFaqs.some(h => h.id === f.id))];
   }
 
   return (

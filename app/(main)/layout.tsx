@@ -19,7 +19,7 @@ export default function ClientLayout({
   };
 
   return (
-    <div className="bg-[#f4ede0] font-body-md text-[#1e1b14] antialiased min-h-screen relative selection:bg-[#fdb712] selection:text-[#000525] overflow-x-hidden">
+    <div className="bg-[#f4ede0] font-body-md text-[#1e1b14] antialiased min-h-screen relative selection:bg-[#fdb712] selection:text-[#000525] overflow-x-clip">
       {/* Sidebar with slide transition */}
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
 
