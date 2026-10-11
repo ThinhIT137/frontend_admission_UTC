@@ -220,7 +220,7 @@ export default async function AdmissionInfoPage() {
     {
       id: "faq_chung_chi_ielts",
       topic: "Chứng Chỉ Tiếng Anh",
-      question: "Quy định sử dụng chứng chỉ IELTS / TOEFL / SAT trong mùa tuyển sinh 2026 tại UTC Hà Nội như thế nào?",
+      question: "Quy định sử dụng chứng chỉ IELTS / TOEFL / SAT trong mùa tuyển sinh 2026 tại UTC như thế nào?",
       answer: "Theo Đề án tuyển sinh 2026, chứng chỉ IELTS (từ 5.0 trở lên) hoặc TOEFL iBT tương đương được sử dụng để xét kết hợp / cộng điểm ưu tiên theo quy định từng ngành. Thí sinh cần có chứng chỉ còn thời hạn 2 năm tính đến ngày nộp hồ sơ. Đặc biệt, sau khi trúng tuyển và nhập học, sinh viên sở hữu chứng chỉ quốc tế hợp lệ sẽ được xét miễn học và chuyển đổi điểm tối đa (lên đến 10.0) cho các học phần Tiếng Anh trong chương trình đào tạo.",
     },
     {
@@ -257,7 +257,7 @@ export default async function AdmissionInfoPage() {
         title: "Đăng Ký Hồ Sơ Xét Tuyển Sớm & Chứng Chỉ Quốc Tế",
         startDate: "01/03/2026",
         endDate: "30/05/2026",
-        note: "Nộp hồ sơ xét học bạ, chứng chỉ IELTS và điểm thi ĐGNL ĐHQG Hà Nội trên cổng trực tuyến UTC Hà Nội.",
+        note: "Nộp hồ sơ xét học bạ, chứng chỉ IELTS và điểm thi ĐGNL ĐHQG Hà Nội trên cổng trực tuyến UTC.",
         status: "ACTIVE",
         statusText: "ĐANG MỞ HỒ SƠ",
       },
@@ -284,7 +284,7 @@ export default async function AdmissionInfoPage() {
         title: "Công Bố Điểm Chuẩn & Xác Nhận Nhập Học Tân Sinh Viên K66",
         startDate: "20/08/2026",
         endDate: "31/08/2026",
-        note: "Tra cứu kết quả trúng tuyển chính thức và làm thủ tục nhập học trực tiếp hoặc trực tuyến tại UTC Hà Nội.",
+        note: "Tra cứu kết quả trúng tuyển chính thức và làm thủ tục nhập học trực tiếp hoặc trực tuyến tại UTC.",
         status: "UPCOMING",
         statusText: "CHUẨN BỊ K66",
       },

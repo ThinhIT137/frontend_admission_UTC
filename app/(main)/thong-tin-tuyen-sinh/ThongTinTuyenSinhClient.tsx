@@ -307,10 +307,10 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
               HỘI ĐỒNG TUYỂN SINH K66 • CƠ SỞ HÀ NỘI (GHA)
             </div>
             <h1 className="font-display font-black text-[28px] sm:text-[34px] text-[#0d1b4e] uppercase leading-tight tracking-tight">
-              THÔNG TIN & QUY CHẾ TUYỂN SINH UTC HÀ NỘI
+              THÔNG TIN & QUY CHẾ TUYỂN SINH UTC
             </h1>
             <p className="text-[14px] sm:text-[15px] text-[#45464f] font-medium leading-relaxed">
-              Cổng tra cứu quy chế tuyển sinh, các mốc thời gian xét tuyển, phương thức xét tuyển và chỉ tiêu đào tạo Đại học chính quy Trường Đại học Giao thông Vận tải (Cơ sở Hà Nội - Mã trường: GHA).
+              Cổng tra cứu quy chế tuyển sinh, các mốc thời gian xét tuyển, phương thức xét tuyển và chỉ tiêu đào tạo Đại học chính quy Trường Đại học Giao thông Vận tải (Mã trường: GHA).
             </p>
           </div>
 
@@ -319,7 +319,7 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
             <span className="font-display font-black text-[22px] text-[#0d1b4e]">K66 (2026 - 2027)</span>
             <span className="text-[11px] font-bold text-[#15803d] flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-              Áp dụng Cơ sở Hà Nội
+              Mã Trường: GHA
             </span>
           </div>
         </div>
@@ -358,11 +358,43 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
         )}
       </div>
 
-      {/* 3. Main Grid Layout with Left Content and Right Sticky Floating TOC */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* 3. Mobile / Tablet Horizontal Sticky Quick Nav Bar (< xl) */}
+      <div className="xl:hidden sticky top-16 z-30 bg-[#fffdf7]/95 backdrop-blur-md -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 border-y-[2px] border-[#111827] shadow-xs">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <span className="text-[11px] font-black uppercase text-[#0d1b4e] font-stamp shrink-0 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[15px]">list_alt</span> Mục Lục:
+          </span>
+          {[
+            { id: "tong-quan", label: "1. Tổng Quan", icon: "campaign" },
+            { id: "phuong-thuc", label: "2. Phương Thức", icon: "how_to_reg" },
+            { id: "chi-tieu-diem-chuan", label: "3. Điểm Chuẩn", icon: "leaderboard" },
+            { id: "quy-che", label: "4. Quy Chế", icon: "policy" },
+            { id: "ho-so", label: "5. Hồ Sơ", icon: "checklist" },
+            { id: "hoc-phi", label: "6. Học Phí", icon: "payments" },
+            { id: "faq", label: "7. FAQ", icon: "quiz" },
+            { id: "kenh-chinh-thuc", label: "8. Kênh Pháp Lý", icon: "verified_user" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => scrollToSection(item.id)}
+              className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border border-[#111827] transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                activeSection === item.id
+                  ? "bg-[#0d1b4e] text-[#fdb712] shadow-xs"
+                  : "bg-white text-[#374151] hover:bg-[#faf3e6]"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[13px]">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Main Grid Layout with Left Content and Right Sticky Floating TOC */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         
-        {/* Main Content Column (8 cols on lg, 9 cols on xl when sidebar collapsed) */}
-        <div className="lg:col-span-8 xl:col-span-9 space-y-12 min-w-0">
+        {/* Main Content Column (Full width on < xl, 8 or 9 cols on xl+) */}
+        <div className="xl:col-span-8 2xl:col-span-9 space-y-12 min-w-0">
 
           {/* SECTION 1: TỔNG QUAN MÙA TUYỂN SINH */}
           <section id="tong-quan" className="scroll-mt-24 space-y-5">
@@ -821,7 +853,7 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
                       </span>
                     </div>
                     <p className="text-[12px] sm:text-[13px] text-[#45464f] mt-1 font-medium">
-                      Quy định chuyển đổi điểm và cộng điểm ưu tiên xét tuyển theo Đề án Tuyển sinh Đại học chính quy K66 UTC Hà Nội
+                      Quy định chuyển đổi điểm và cộng điểm ưu tiên xét tuyển theo Đề án Tuyển sinh Đại học chính quy K66 UTC
                     </p>
                   </div>
                 </div>
@@ -1165,19 +1197,19 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
 
         </div>
 
-        {/* Sticky Table of Contents (TOC) Sidebar Column (4 cols on lg, 3 cols on xl) */}
-        <div className="lg:col-span-4 xl:col-span-3">
+        {/* Sticky Table of Contents (TOC) Sidebar Column - Display only on xl+ screens to prevent squash */}
+        <div className="hidden xl:block xl:col-span-4 2xl:col-span-3">
           <div className="sticky top-24 space-y-4">
-            <div className="bg-[#fffdf7] p-5 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl space-y-4 transition-all">
+            <div className="bg-[#fffdf7] p-4.5 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl space-y-3.5 transition-all">
               <div className="flex items-center justify-between border-b-[2px] border-[#111827] pb-2.5">
-                <h3 className="font-display font-black text-[15px] text-[#0d1b4e] uppercase flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]">list_alt</span>
+                <h3 className="font-display font-black text-[14px] text-[#0d1b4e] uppercase flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[17px]">list_alt</span>
                   Mục Lục Truy Cập Nhanh
                 </h3>
                 <span className="w-2.5 h-2.5 rounded-full bg-[#15803d] border border-[#111827] animate-pulse" title="Đang theo dõi vị trí cuộn" />
               </div>
 
-              <nav className="space-y-1.5 text-[12.5px] font-bold">
+              <nav className="space-y-1.5 text-[12px] font-bold">
                 {[
                   { id: "tong-quan", label: "1. Tổng Quan Tuyển Sinh", icon: "campaign" },
                   { id: "phuong-thuc", label: "2. Phương Thức Xét Tuyển", icon: "how_to_reg" },
@@ -1193,17 +1225,17 @@ Cổng thông tin tuyển sinh chính thức duy nhất: https://tuyensinh.utc.e
                     <button
                       key={item.id}
                       onClick={() => scrollToSection(item.id)}
-                      className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between gap-2 transition-all cursor-pointer ${
                         isActive
                           ? "bg-[#0d1b4e] text-[#fdb712] shadow-xs translate-x-1 font-black"
                           : "text-[#374151] hover:bg-[#faf3e6]"
                       }`}
                     >
-                      <span className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
+                      <span className="flex items-center gap-2 min-w-0 overflow-hidden">
+                        <span className="material-symbols-outlined text-[15px] shrink-0">{item.icon}</span>
                         <span className="truncate">{item.label}</span>
                       </span>
-                      <span className="material-symbols-outlined text-[14px]">
+                      <span className="material-symbols-outlined text-[13px] shrink-0">
                         {isActive ? "play_arrow" : "arrow_forward"}
                       </span>
                     </button>

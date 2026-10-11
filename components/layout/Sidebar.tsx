@@ -64,7 +64,7 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
             </div>
             <div>
               <span className="font-display font-black text-[22px] text-[#000525] tracking-tight leading-none block">
-                UTC HÀ NỘI
+                UTC
               </span>
               <span className="font-stamp text-[11px] text-[#45464f] uppercase tracking-wider block">
                 Tuyển Sinh Kỹ Sư K66

@@ -45,7 +45,7 @@ export function Header({ isSidebarOpen = true, onToggleSidebar }: HeaderProps) {
               Thí sinh 2k8
             </span>
             <span className="block font-stamp text-[10px] font-bold text-[#7c5800] uppercase">
-              UTC HÀ NỘI (GHA)
+              UTC (GHA)
             </span>
           </div>
           <div className="w-9 h-9 rounded-full border-[2px] border-[#000525] bg-[#fdb712] flex items-center justify-center shadow-[2px_2px_0px_#000525] overflow-hidden">

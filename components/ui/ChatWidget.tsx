@@ -27,6 +27,7 @@ const suggestedQuestions = [
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -56,13 +57,13 @@ export function ChatWidget() {
     setTimeout(() => {
       let botResponse = "Cảm ơn bạn đã đặt câu hỏi. ";
       if (query.toLowerCase().includes("cntt") || query.toLowerCase().includes("công nghệ thông tin")) {
-        botResponse += "Ngành Công nghệ Thông tin (mã ngành 7480201) tại UTC năm 2025 có điểm chuẩn xét tuyển THPT là 25.85 điểm (khối A00, A01). Chỉ tiêu tuyển sinh khoảng 320 sinh viên.";
+        botResponse += "Ngành Công nghệ Thông tin (mã ngành 7480201) tại UTC năm 2025 có điểm chuẩn xét tuyển THPT là 25.85 điểm (khối A00, A01). Chỉ tiêu tuyển sinh khoảng 360 sinh viên.";
       } else if (query.toLowerCase().includes("quy đổi") || query.toLowerCase().includes("ielts")) {
         botResponse += "Điểm IELTS từ 5.0 được quy đổi thành 8.0 điểm môn Tiếng Anh, IELTS 6.0 = 9.0 điểm, IELTS 6.5+ = 10.0 điểm trong tổ hợp xét tuyển của UTC.";
       } else if (query.toLowerCase().includes("chỉ tiêu")) {
-        botResponse += "Tổng chỉ tiêu tuyển sinh K66 năm 2026 dự kiến là 6.000 sinh viên (Hà Nội: 4.500 chỉ tiêu, Phân hiệu TP.HCM: 1.500 chỉ tiêu).";
+        botResponse += "Tổng chỉ tiêu tuyển sinh K66 năm 2026 dự kiến là khoảng 6.000 sinh viên tại UTC.";
       } else {
-        botResponse += "Hệ thống UTC cung cấp thông tin tra cứu tự động cho 35+ ngành đào tạo. Bạn có thể tham khảo mục Tra cứu ngành học hoặc liên hệ Hotline (024) 3766 3311 để được hướng dẫn chi tiết.";
+        botResponse += "Hệ thống UTC cung cấp thông tin tra cứu tự động cho 33+ ngành đào tạo. Bạn có thể tham khảo mục Tra cứu ngành học hoặc liên hệ Hotline (024) 3766 3311 để được hướng dẫn chi tiết.";
       }
 
       const botMsg: Message = {
@@ -183,14 +184,42 @@ export function ChatWidget() {
         </div>
       )}
 
-      {/* Floating Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-extrabold text-[15px] border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all rounded-full cursor-pointer"
-      >
-        <span className="font-display tracking-wider">AI CHAT</span>
-        <span className="material-symbols-outlined text-[22px]">smart_toy</span>
-      </button>
+      {/* Floating Toggle Controls */}
+      {isMinimized ? (
+        <button
+          onClick={() => {
+            setIsMinimized(false);
+            setIsOpen(true);
+          }}
+          title="Mở Trợ Lý AI Tuyển Sinh"
+          className="w-11 h-11 bg-[#0284c7] hover:bg-[#0369a1] text-white border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group relative"
+        >
+          <span className="material-symbols-outlined text-[22px]">smart_toy</span>
+          <span className="absolute right-full mr-2 px-2 py-1 bg-[#111827] text-white text-[11px] font-bold rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            Mở AI Chat
+          </span>
+        </button>
+      ) : (
+        <div className="flex items-center gap-1.5 bg-transparent">
+          {/* Small minimize button to tuck away and avoid blocking content */}
+          <button
+            onClick={() => setIsMinimized(true)}
+            title="Thu nhỏ nút AI Chat để không che nội dung"
+            className="w-7 h-7 bg-[#fffdf7] hover:bg-[#ffdea8] text-[#111827] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+          </button>
+
+          {/* Full AI Chat Toggle Button */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white font-extrabold text-[14px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all rounded-full cursor-pointer"
+          >
+            <span className="font-display tracking-wider">AI CHAT</span>
+            <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
