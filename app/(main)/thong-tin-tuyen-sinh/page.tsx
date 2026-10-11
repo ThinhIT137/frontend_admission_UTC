@@ -1,154 +1,262 @@
-"use client";
+import { Suspense } from "react";
+import { prismaPublic } from "@/libs/prisma";
+import ThongTinTuyenSinhClient, {
+  MilestoneItem,
+  MethodItem,
+  FacultySummary,
+  FaqItem,
+} from "./ThongTinTuyenSinhClient";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
-import { useState } from "react";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+export const metadata = {
+  title: "Thông Tin & Quy Chế Tuyển Sinh | Trường Đại học Giao thông Vận tải (Hà Nội)",
+  description:
+    "Tổng hợp đề án, phương thức xét tuyển, chỉ tiêu đào tạo và mốc thời gian tuyển sinh Đại học chính quy Trường ĐH Giao thông Vận tải Cơ sở Hà Nội (GHA) năm 2026.",
+};
 
-interface FAQItem {
-  q: string;
-  a: string;
-}
+export const revalidate = 60; // Cache 60s for high performance
 
-const faqs: FAQItem[] = [
-  {
-    q: "Trường Đại học Giao thông Vận tải có mấy cơ sở đào tạo?",
-    a: "Trường có 2 cơ sở đào tạo chính: Cơ sở chính tại Số 3 phố Cầu Giấy, Q. Đống Đa, Hà Nội và Phân hiệu tại Phường Tăng Nhơn Phú A, Thành phố Thủ Đức, TP. Hồ Chí Minh.",
-  },
-  {
-    q: "Thí sinh sử dụng chứng chỉ IELTS để xét tuyển cần đáp ứng điều kiện gì?",
-    a: "Chứng chỉ IELTS phải đạt từ 5.0 trở lên, còn hiệu lực tính đến ngày nộp hồ sơ. Điểm IELTS được quy đổi sang thang điểm 10 môn Tiếng Anh trong tổ hợp xét tuyển.",
-  },
-  {
-    q: "Chính sách học bổng dành cho Tân sinh viên K66 như thế nào?",
-    a: "Nhà trường dành hàng trăm suất học bổng Khuyến khích học tập, Học bổng Tài năng (100% học phí) cho các thí sinh có điểm xét tuyển đầu vào cao nhất ngành.",
-  },
-];
+export default async function AdmissionInfoPage() {
+  let milestones: MilestoneItem[] = [];
+  let methods: MethodItem[] = [];
+  let faculties: FacultySummary[] = [];
+  let totalMajors = 0;
+  let totalPrograms = 0;
+  let totalQuota = 0;
+  let faqs: FaqItem[] = [];
 
-export default function AdmissionInfoPage() {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  try {
+    // Only aggregate quota for the current admission year (2026 or 2025), not sum all historical years
+    const [
+      dbMilestones,
+      dbMethods,
+      dbFaculties,
+      countMajors,
+      countPrograms,
+      dbFaqs,
+      quota2026,
+      quota2025,
+    ] = await Promise.all([
+      prismaPublic.loTrinhTuyenSinh.findMany({
+        orderBy: { thoi_gian_bat_dau: "asc" },
+      }),
+      prismaPublic.phuongThucXetTuyen.findMany({
+        orderBy: { ma_phuong_thuc: "asc" },
+      }),
+      prismaPublic.khoiNganh.findMany({
+        include: {
+          _count: {
+            select: { nganh_hoc: true },
+          },
+        },
+        orderBy: { ten_khoi_nganh: "asc" },
+      }),
+      prismaPublic.nganhHoc.count(),
+      prismaPublic.chuongTrinhDaoTao.count(),
+      prismaPublic.triThucAi.findMany({
+        where: { trang_thai: "active" },
+        orderBy: { create_at: "desc" },
+        take: 8,
+      }),
+      prismaPublic.lichSuDiemChuan.aggregate({
+        where: { nam: 2026 },
+        _sum: { chi_tieu: true },
+      }),
+      prismaPublic.lichSuDiemChuan.aggregate({
+        where: { nam: 2025 },
+        _sum: { chi_tieu: true },
+      }),
+    ]);
+
+    totalMajors = countMajors;
+    totalPrograms = countPrograms;
+    // Real quota for current admission season at Hanoi campus
+    totalQuota = quota2026._sum.chi_tieu || quota2025._sum.chi_tieu || 6000;
+
+    // Process Milestones
+    const now = new Date();
+    milestones = dbMilestones.map((m) => {
+      const start = new Date(m.thoi_gian_bat_dau);
+      const end = m.thoi_gian_ket_thuc ? new Date(m.thoi_gian_ket_thuc) : null;
+
+      let status: "PAST" | "ACTIVE" | "UPCOMING" = "UPCOMING";
+      let statusText = "SẮP DIỄN RA";
+
+      if (end ? now > end : now.getTime() > start.getTime() + 7 * 86400000) {
+        status = "PAST";
+        statusText = "ĐÃ KẾT THÚC";
+      } else if (now >= start && (!end || now <= end)) {
+        status = "ACTIVE";
+        statusText = "ĐANG DIỄN RA";
+      }
+
+      const formatDate = (d: Date) => {
+        return d.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+      };
+
+      return {
+        id: m.ma_su_kien,
+        title: m.ten_su_kien,
+        startDate: formatDate(start),
+        endDate: end ? formatDate(end) : null,
+        note: m.ghi_chu,
+        status,
+        statusText,
+      };
+    });
+
+    // Process Methods
+    methods = dbMethods.map((pt) => {
+      let desc = "Xét tuyển Đại học chính quy Cơ sở Hà Nội.";
+      const lower = pt.ten_phuong_thuc.toLowerCase() + " " + pt.ma_phuong_thuc.toLowerCase();
+      if (lower.includes("thpt") || lower.includes("100")) {
+        desc = "Xét tuyển dựa trên tổng điểm thi tốt nghiệp THPT năm 2026 của tổ hợp 3 môn xét tuyển.";
+      } else if (lower.includes("học bạ") || lower.includes("200")) {
+        desc = "Xét tuyển dựa trên kết quả học bạ THPT (tổng điểm trung bình các học kỳ theo tổ hợp môn).";
+      } else if (lower.includes("đgnl") || lower.includes("402")) {
+        desc = "Xét tuyển theo kết quả kỳ thi Đánh giá năng lực của ĐHQG Hà Nội (HSA) hoặc ĐGTD ĐH Bách Khoa.";
+      } else if (lower.includes("kết hợp") || lower.includes("ielts")) {
+        desc = "Xét tuyển kết hợp chứng chỉ Tiếng Anh quốc tế (IELTS từ 5.0 trở lên) với điểm thi tốt nghiệp THPT.";
+      } else if (lower.includes("thẳng") || lower.includes("301")) {
+        desc = "Xét tuyển thẳng theo quy chế hiện hành của Bộ GD&ĐT dành cho học sinh đạt giải quốc gia/quốc tế.";
+      }
+
+      return {
+        code: pt.ma_phuong_thuc,
+        name: pt.ten_phuong_thuc,
+        description: desc,
+      };
+    });
+
+    // Process Faculties
+    faculties = dbFaculties.map((f) => ({
+      code: f.ma_khoi_nganh,
+      name: f.ten_khoi_nganh,
+      majorCount: f._count.nganh_hoc,
+    }));
+
+    // Process FAQs
+    faqs = dbFaqs.map((f) => ({
+      id: f.ma_tri_thuc,
+      topic: f.chu_de || "Tư vấn chung",
+      question: f.cau_hoi_mau || "Câu hỏi thường gặp",
+      answer: f.noi_dung,
+    }));
+  } catch (error) {
+    console.error("Lỗi tải thông tin tuyển sinh từ database:", error);
+  }
+
+  // Graceful Fallback if DB tables are currently empty
+  if (milestones.length === 0) {
+    milestones = [
+      {
+        id: "ms1",
+        title: "Đăng Ký Hồ Sơ Xét Tuyển Sớm & Chứng Chỉ Quốc Tế",
+        startDate: "01/03/2026",
+        endDate: "30/05/2026",
+        note: "Nộp hồ sơ xét học bạ, chứng chỉ IELTS và điểm thi ĐGNL ĐHQG Hà Nội trên cổng trực tuyến UTC Hà Nội.",
+        status: "ACTIVE",
+        statusText: "ĐANG MỞ HỒ SƠ",
+      },
+      {
+        id: "ms2",
+        title: "Kỳ Thi Tốt Nghiệp THPT Quốc Gia Năm 2026",
+        startDate: "26/06/2026",
+        endDate: "29/06/2026",
+        note: "Thí sinh tham dự kỳ thi tốt nghiệp THPT tại các điểm thi trên cả nước.",
+        status: "UPCOMING",
+        statusText: "SẮP DIỄN RA",
+      },
+      {
+        id: "ms3",
+        title: "Đăng Ký & Điều Chỉnh Nguyện Vọng Trên Cổng Thông Tin Bộ GD&ĐT",
+        startDate: "10/07/2026",
+        endDate: "30/07/2026",
+        note: "Thực hiện đăng ký tất cả nguyện vọng xét tuyển vào mã trường GHA theo thứ tự ưu tiên trên hệ thống chung.",
+        status: "UPCOMING",
+        statusText: "SẮP DIỄN RA",
+      },
+      {
+        id: "ms4",
+        title: "Công Bố Điểm Chuẩn & Xác Nhận Nhập Học Tân Sinh Viên K66",
+        startDate: "20/08/2026",
+        endDate: "31/08/2026",
+        note: "Tra cứu kết quả trúng tuyển chính thức và làm thủ tục nhập học trực tiếp hoặc trực tuyến tại UTC Hà Nội.",
+        status: "UPCOMING",
+        statusText: "CHUẨN BỊ K66",
+      },
+    ];
+  }
+
+  if (methods.length === 0) {
+    methods = [
+      {
+        code: "PT100",
+        name: "Xét tuyển theo kết quả thi tốt nghiệp THPT năm 2026",
+        description: "Sử dụng kết quả tổ hợp 3 môn thi tốt nghiệp THPT Quốc gia năm 2026 theo mã tổ hợp ngành đăng ký.",
+      },
+      {
+        code: "PT200",
+        name: "Xét tuyển kết hợp Chứng chỉ Quốc tế & Điểm THPT",
+        description: "Xét kết hợp chứng chỉ IELTS từ 5.0 trở lên hoặc SAT với tổng điểm 2 môn trong tổ hợp xét tuyển.",
+      },
+      {
+        code: "PT402",
+        name: "Xét tuyển theo kết quả Thi ĐGNL ĐHQG Hà Nội & ĐGTD Bách Khoa",
+        description: "Sử dụng điểm bài thi ĐGNL của ĐHQG Hà Nội (HSA) hoặc Đánh giá tư duy ĐHBK Hà Nội (TSA).",
+      },
+      {
+        code: "PT301",
+        name: "Xét tuyển thẳng theo quy chế của Bộ GD&ĐT",
+        description: "Dành cho thí sinh đạt giải học sinh giỏi quốc gia, cuộc thi KHKT cấp quốc gia và quốc tế.",
+      },
+    ];
+  }
+
+  if (faqs.length === 0) {
+    faqs = [
+      {
+        id: "faq1",
+        topic: "Địa Điểm Đào Tạo",
+        question: "Trường Đại học Giao thông Vận tải Cơ sở Hà Nội ở đâu?",
+        answer: "Cơ sở chính tọa lạc tại Số 3 phố Cầu Giấy, Phường Láng Thượng, Quận Đống Đa, Hà Nội (Mã trường: GHA). Toàn bộ sinh viên trúng tuyển cơ sở Hà Nội được học tập tại hệ thống giảng đường A, B và các phòng thí nghiệm trọng điểm tại Cầu Giấy.",
+      },
+      {
+        id: "faq2",
+        topic: "Quy Đổi IELTS",
+        question: "Thí sinh sử dụng chứng chỉ IELTS để xét tuyển cần đáp ứng điều kiện gì?",
+        answer: "Chứng chỉ IELTS phải đạt từ 5.0 trở lên, còn hiệu lực tính đến ngày nộp hồ sơ. Điểm IELTS được quy đổi tương đương: 5.0 = 8.5 điểm; 5.5 = 9.0 điểm; 6.0 = 9.5 điểm; 6.5 trở lên = 10.0 điểm môn Tiếng Anh trong tổ hợp xét tuyển.",
+      },
+      {
+        id: "faq3",
+        topic: "Học Bổng",
+        question: "Chính sách học bổng dành cho Tân sinh viên K66 như thế nào?",
+        answer: "Nhà trường dành hàng trăm suất học bổng Khuyến khích học tập, Học bổng Tài năng (100% học phí) cho các thí sinh có điểm xét tuyển đầu vào cao nhất ngành, cùng nhiều gói học bổng doanh nghiệp tài trợ từ các tập đoàn công nghệ và giao thông hàng đầu.",
+      },
+      {
+        id: "faq4",
+        topic: "Ký Túc Xá",
+        question: "Sinh viên năm thứ nhất có được ưu tiên đăng ký Ký túc xá không?",
+        answer: "Trường có khu Ký túc xá khang trang ngay trong khuôn viên trường tại Hà Nội. Tân sinh viên thuộc đối tượng ưu tiên, hộ nghèo hoặc ở các tỉnh xa sẽ được ưu tiên bố trí chỗ ở ngay trong tuần lễ làm thủ tục nhập học.",
+      },
+    ];
+  }
 
   return (
-    <div className="flex flex-col w-full space-y-6 pb-12">
-      {/* Title Card */}
-      <div className="bg-[#fffdf7] p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[16px] relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-block px-3 py-0.5 bg-[#fdb712] border-[2px] border-[#111827] font-stamp text-[11px] font-bold text-[#111827] uppercase rotate-[-2deg] shadow-[1px_1px_0px_#111827]">
-            VĂN BẢN CHÍNH THỨC
-          </div>
-          <h1 className="font-display font-extrabold text-[28px] lg:text-[34px] text-[#111827] uppercase mt-2">
-            THÔNG TIN & QUY CHẾ TUYỂN SINH UTC
-          </h1>
-          <p className="text-[14px] text-[#4b5563] font-medium mt-1">
-            Tổng hợp quy chế, phương thức xét tuyển, chỉ tiêu đào tạo và các câu hỏi thường gặp của thí sinh K66.
-          </p>
-        </div>
-
-        <a
-          href="#"
-          className="shrink-0 inline-flex items-center gap-2 px-5 py-3 bg-[#000525] text-[#fff9ee] font-bold text-[14px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#7c5800] hover:bg-[#fdb712] hover:text-[#000525] transition-all rounded-[10px]"
-        >
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Tải Đề án 2026 (PDF)
-        </a>
-      </div>
-
-      <DisclaimerBanner />
-
-      {/* Sections Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* News & Regulations */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px] space-y-4">
-            <h3 className="font-display font-bold text-[20px] text-[#111827] border-b-[2px] border-dashed border-[#c6c5d0] pb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#0284c7]">menu_book</span>
-              Phương Thức Xét Tuyển Đại Học 2026
-            </h3>
-
-            <div className="space-y-3 text-[14px] text-[#374151]">
-              <div className="p-3 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[8px] space-y-1">
-                <span className="font-bold text-[#0d1b4e] font-display text-[15px]">
-                  PT1: Xét tuyển theo kết quả thi THPT 2026
-                </span>
-                <p className="text-[13px] text-[#4b5563]">
-                  Sử dụng kết quả tổ hợp 3 môn thi tốt nghiệp THPT Quốc gia năm 2026 theo mã tổ hợp ngành đăng ký.
-                </p>
-              </div>
-
-              <div className="p-3 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[8px] space-y-1">
-                <span className="font-bold text-[#0d1b4e] font-display text-[15px]">
-                  PT2: Xét tuyển kết hợp Chứng chỉ Quốc tế & THPT
-                </span>
-                <p className="text-[13px] text-[#4b5563]">
-                  Xét kết hợp IELTS từ 5.0+ hoặc SAT với tổng điểm 2 môn THPT trong tổ hợp xét tuyển.
-                </p>
-              </div>
-
-              <div className="p-3 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[8px] space-y-1">
-                <span className="font-bold text-[#0d1b4e] font-display text-[15px]">
-                  PT3: Xét tuyển theo kết quả Thi ĐGNL ĐHQG & ĐHBK
-                </span>
-                <p className="text-[13px] text-[#4b5563]">
-                  Sử dụng điểm kỳ thi ĐGNL ĐHQG Hà Nội (HSA) hoặc ĐGTD Bách Khoa (TSA) năm 2026.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ Accordion */}
-          <div className="bg-white p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px] space-y-4">
-            <h3 className="font-display font-bold text-[20px] text-[#111827] border-b-[2px] border-dashed border-[#c6c5d0] pb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#ea580c]">quiz</span>
-              Hỏi Đáp Thường Gặp (FAQ)
-            </h3>
-
-            <div className="space-y-3">
-              {faqs.map((faq, idx) => (
-                <div
-                  key={idx}
-                  className="border-[2px] border-[#111827] rounded-[10px] overflow-hidden bg-[#fffdf7]"
-                >
-                  <button
-                    onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                    className="w-full p-4 text-left font-display font-bold text-[15px] text-[#111827] flex items-center justify-between bg-[#faf3e6] hover:bg-[#ffdea8] transition-colors"
-                  >
-                    <span>{faq.q}</span>
-                    <span className="material-symbols-outlined text-[20px]">
-                      {openFaq === idx ? "expand_less" : "expand_more"}
-                    </span>
-                  </button>
-                  {openFaq === idx && (
-                    <div className="p-4 text-[13px] text-[#4b5563] font-medium leading-relaxed border-t border-[#111827] bg-white">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar TOC Links */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="bg-[#fffdf7] p-5 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px] space-y-3">
-            <h4 className="font-display font-bold text-[16px] text-[#111827] uppercase border-b pb-2">
-              MỤC LỤC TRUY CẬP NHANH
-            </h4>
-            <nav className="space-y-2 text-[13px] font-bold text-[#0284c7]">
-              <a href="#" className="block hover:underline">
-                • Đề án Tuyển sinh K66 đầy đủ
-              </a>
-              <a href="#" className="block hover:underline">
-                • Quy chế quy đổi điểm ngoại ngữ
-              </a>
-              <a href="#" className="block hover:underline">
-                • Khung học phí & Học bổng tài năng
-              </a>
-              <a href="#" className="block hover:underline">
-                • Thông tin Ký túc xá & Đời sống Sinh viên
-              </a>
-            </nav>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Suspense fallback={<LoadingSpinner label="Đang tải thông tin tuyển sinh UTC..." />}>
+      <ThongTinTuyenSinhClient
+        initialMilestones={milestones}
+        initialMethods={methods}
+        faculties={faculties}
+        totalMajors={totalMajors}
+        totalPrograms={totalPrograms}
+        totalQuota={totalQuota}
+        initialFaqs={faqs}
+      />
+    </Suspense>
   );
 }

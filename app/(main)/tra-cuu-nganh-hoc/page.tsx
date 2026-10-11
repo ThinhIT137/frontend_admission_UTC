@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getFilterCTDTAction } from "@/actions/chuong_trinh_dao_tao.action";
 import { getAllKhoiNganh } from "@/actions/khoi_nganh.action";
 import { getAllToHopAction } from "@/actions/to_hop_xet_tuyen.action";
@@ -9,13 +11,15 @@ import Hero from "@/components/tra-cuu-nganh-hoc/Hero";
 import MajorList from "@/components/tra-cuu-nganh-hoc/MajorList";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import { useLoading } from "@/contexts/loadingContext";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export type MajorFromApi = Awaited<ReturnType<typeof getFilterCTDTAction>>["data"][0];
 
-export default function MajorLookupPage() {
+function MajorLookupContent() {
     const { setLoading } = useLoading();
+    const searchParams = useSearchParams();
+    const initialFacultyParam = searchParams.get("faculty") || searchParams.get("khoi") || searchParams.get("khoi_nganh") || "";
+
     const [dataKhoaVien, setDataKhoaVien] = useState<KhoiNganh[]>([]);
     const [dataToHop, setDataToHop] = useState<any[]>([]);
     const [dataNganhHoc, setDataNganhHoc] = useState<
@@ -23,10 +27,18 @@ export default function MajorLookupPage() {
     >([]);
     // selected
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedFaculty, setSelectedFaculty] = useState("");
+    const [selectedFaculty, setSelectedFaculty] = useState(initialFacultyParam);
     const [selectedToHop, setSelectToHop] = useState("");
     const [selectedDiemChuan, setSelectedDiemChuan] = useState<number>(0);
     const [selectedYear, setSelectedYear] = useState<number>(2026);
+
+    // Sync when searchParams change in URL
+    useEffect(() => {
+        const param = searchParams.get("faculty") || searchParams.get("khoi") || searchParams.get("khoi_nganh") || "";
+        if (param) {
+            setSelectedFaculty(param);
+        }
+    }, [searchParams]);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -50,15 +62,6 @@ export default function MajorLookupPage() {
     // Lấy danh sách Ngành Học (chạy mỗi khi filter thay đổi)
     const fetchNganhHoc = async () => {
         try {
-            console.log({
-                page: currentPage,
-                pageSize,
-                term: searchTerm,
-                toHop: selectedToHop,
-                diemChuan: selectedDiemChuan,
-                faculty: selectedFaculty,
-                year: selectedYear,
-            });
             setLoading(true);
             const res = await getFilterCTDTAction({
                 page: currentPage,
@@ -69,10 +72,8 @@ export default function MajorLookupPage() {
                 faculty: selectedFaculty,
                 year: selectedYear,
             });
-            // Lấy data và totalPages từ object trả về
             setDataNganhHoc(res?.data || []);
             setTotalPages(res?.total ? Math.ceil(res.total / pageSize) : 1);
-            console.log(res?.data);
         } catch (err) {
             console.error("Lỗi tải ngành học:", err);
             setDataNganhHoc([]);
@@ -142,5 +143,13 @@ export default function MajorLookupPage() {
                 pageSize={pageSize}
             />
         </div>
+    );
+}
+
+export default function MajorLookupPage() {
+    return (
+        <Suspense fallback={<LoadingSpinner label="Đang tải dữ liệu tra cứu ngành học..." />}>
+            <MajorLookupContent />
+        </Suspense>
     );
 }

@@ -2,20 +2,22 @@
 
 @layer base {
   body {
-    font-family: 'Be Vietnam Pro', sans-serif;
+    font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 
+/* Use Be Vietnam Pro for clean, crisp, native Vietnamese typography across all headings */
 .font-display {
-  font-family: 'Bricolage Grotesque', sans-serif !important;
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 .font-stamp {
-  font-family: 'Space Grotesk', monospace !important;
+  font-family: 'Space Grotesk', 'Be Vietnam Pro', monospace !important;
 }
 
 .font-body-md {
-  font-family: 'Be Vietnam Pro', sans-serif;
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Custom Neo-Brutalist Shadow Helpers */

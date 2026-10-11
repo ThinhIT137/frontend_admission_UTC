@@ -21,17 +21,38 @@ const navItems: NavItem[] = [
   { label: "Cổng Quản trị viên", href: "/admin", icon: "admin_panel_settings", badge: "Admin" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-72 bg-[#eee7db] border-r-[3px] border-[#000525] z-50 flex flex-col justify-between overflow-y-auto shadow-[4px_0px_0px_#000525]">
+    <aside
+      className={`fixed left-0 top-0 h-full w-72 bg-[#eee7db] border-r-[3px] border-[#000525] z-50 flex flex-col justify-between overflow-y-auto shadow-[4px_0px_0px_#000525] transition-transform duration-300 ease-in-out ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="pt-4 px-5 pb-6 relative">
-        {/* Tape Sticker Top - positioned safely inside header */}
-        <div className="mx-auto mb-4 w-28 h-6 bg-[#fdb712] border-[2px] border-[#000525] rotate-[-2deg] shadow-[2px_2px_0px_#000525] flex items-center justify-center pointer-events-none">
-          <span className="font-stamp text-[12px] text-[#000525] uppercase tracking-widest font-bold">
-            UTC • 2026
-          </span>
+        {/* Tape Sticker Top & Toggle Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-28 h-6 bg-[#fdb712] border-[2px] border-[#000525] rotate-[-2deg] shadow-[2px_2px_0px_#000525] flex items-center justify-center pointer-events-none">
+            <span className="font-stamp text-[12px] text-[#000525] uppercase tracking-widest font-bold">
+              UTC • 2026
+            </span>
+          </div>
+
+          {onToggle && (
+            <button
+              onClick={onToggle}
+              className="w-7 h-7 rounded border border-[#000525] bg-white flex items-center justify-center text-[#000525] hover:bg-[#fdb712] transition-colors"
+              title="Thu gọn menu"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+            </button>
+          )}
         </div>
 
         {/* Profile / School Card */}
@@ -42,11 +63,11 @@ export function Sidebar() {
               <span className="material-symbols-outlined text-[28px] text-[#000525]">school</span>
             </div>
             <div>
-              <span className="font-display font-bold text-[22px] text-[#000525] tracking-tight leading-none block">
-                UTC
+              <span className="font-display font-black text-[22px] text-[#000525] tracking-tight leading-none block">
+                UTC HÀ NỘI
               </span>
               <span className="font-stamp text-[11px] text-[#45464f] uppercase tracking-wider block">
-                Tuyển Sinh Kỹ Sư
+                Tuyển Sinh Kỹ Sư K66
               </span>
             </div>
           </div>
@@ -115,7 +136,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2 bg-[#fff] p-2 border-[2px] border-[#000525] shadow-[2px_2px_0px_#000525] rounded-[6px]">
           <span className="material-symbols-outlined text-[#0284c7]">headset_mic</span>
           <div className="text-[11px]">
-            <p className="font-bold text-[#000525]">Hỗ trợ tuyển sinh</p>
+            <p className="font-bold text-[#000525]">Hotline Hà Nội</p>
             <p className="text-[#45464f] font-mono">(024) 3766 3311</p>
           </div>
         </div>
