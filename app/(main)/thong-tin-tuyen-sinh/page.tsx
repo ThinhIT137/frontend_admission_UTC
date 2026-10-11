@@ -5,6 +5,7 @@ import ThongTinTuyenSinhClient, {
   MethodItem,
   FacultySummary,
   FaqItem,
+  AdmissionScoreHistory,
 } from "./ThongTinTuyenSinhClient";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
@@ -24,6 +25,7 @@ export default async function AdmissionInfoPage() {
   let totalPrograms = 0;
   let totalQuota = 0;
   let faqs: FaqItem[] = [];
+  let admissionHistory: AdmissionScoreHistory[] = [];
 
   try {
     // Only aggregate quota for the current admission year (2026 or 2025), not sum all historical years
@@ -36,6 +38,7 @@ export default async function AdmissionInfoPage() {
       dbFaqs,
       quota2026,
       quota2025,
+      dbScores,
     ] = await Promise.all([
       prismaPublic.loTrinhTuyenSinh.findMany({
         orderBy: { thoi_gian_bat_dau: "asc" },
@@ -66,12 +69,50 @@ export default async function AdmissionInfoPage() {
         where: { nam: 2025 },
         _sum: { chi_tieu: true },
       }),
+      prismaPublic.lichSuDiemChuan.findMany({
+        include: {
+          chuong_trinh: {
+            include: {
+              nganh: true,
+            },
+          },
+          diem_trung_tuyen: {
+            include: {
+              phuong_thuc: true,
+            },
+          },
+        },
+        orderBy: [
+          { nam: "desc" },
+          { chuong_trinh: { ten_chuong_trinh: "asc" } },
+        ],
+        take: 120,
+      }),
     ]);
 
     totalMajors = countMajors;
     totalPrograms = countPrograms;
     // Real quota for current admission season at Hanoi campus
     totalQuota = quota2026._sum.chi_tieu || quota2025._sum.chi_tieu || 6000;
+
+    // Process Admission Benchmark Scores History
+    admissionHistory = dbScores.map((item) => {
+      const scores = (item.diem_trung_tuyen || []).map((d) => ({
+        methodCode: d.ma_phuong_thuc,
+        methodName: d.phuong_thuc?.ten_phuong_thuc || d.ma_phuong_thuc,
+        score: d.diem,
+      }));
+
+      return {
+        id: item.ma_ls_dc,
+        year: item.nam,
+        majorCode: item.chuong_trinh?.nganh?.ma_nganh || item.chuong_trinh?.ma_nganh || item.ma_chuong_trinh,
+        majorName: item.chuong_trinh?.nganh?.ten_nganh || item.chuong_trinh?.ten_chuong_trinh,
+        programName: item.chuong_trinh?.ten_chuong_trinh,
+        quota: item.chi_tieu,
+        scores,
+      };
+    });
 
     // Process Milestones
     const now = new Date();
@@ -292,6 +333,7 @@ export default async function AdmissionInfoPage() {
         totalPrograms={totalPrograms}
         totalQuota={totalQuota}
         initialFaqs={faqs}
+        admissionHistory={admissionHistory}
       />
     </Suspense>
   );
