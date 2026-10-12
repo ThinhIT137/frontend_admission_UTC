@@ -31,6 +31,7 @@ function MajorLookupContent() {
     const [selectedToHop, setSelectToHop] = useState("");
     const [selectedDiemChuan, setSelectedDiemChuan] = useState<number>(0);
     const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [sortOption, setSortOption] = useState<string>("score-desc");
 
     // Sync when searchParams change in URL
     useEffect(() => {
@@ -96,6 +97,7 @@ function MajorLookupContent() {
         selectedToHop,
         selectedDiemChuan,
         selectedYear,
+        sortOption,
     ]);
 
     // Khi trang hoặc bộ lọc thay đổi → debounce 300ms → fetch API
@@ -112,6 +114,39 @@ function MajorLookupContent() {
         selectedYear,
         currentPage,
     ]);
+
+    // Xử lý sắp xếp (Sort) phía client trên tập dữ liệu hiển thị
+    const sortedNganhHoc = [...dataNganhHoc].sort((a, b) => {
+        if (sortOption === "name-asc") {
+            return a.ten_chuong_trinh.localeCompare(b.ten_chuong_trinh, "vi");
+        }
+        if (sortOption === "name-desc") {
+            return b.ten_chuong_trinh.localeCompare(a.ten_chuong_trinh, "vi");
+        }
+        if (sortOption === "score-desc" || sortOption === "score-asc") {
+            const scoreA =
+                a.lich_su_diem_chuan?.find((h: any) => h.nam === selectedYear)?.diem_trung_tuyen?.[0]?.diem ||
+                a.lich_su_diem_chuan?.[0]?.diem_trung_tuyen?.[0]?.diem ||
+                0;
+            const scoreB =
+                b.lich_su_diem_chuan?.find((h: any) => h.nam === selectedYear)?.diem_trung_tuyen?.[0]?.diem ||
+                b.lich_su_diem_chuan?.[0]?.diem_trung_tuyen?.[0]?.diem ||
+                0;
+            return sortOption === "score-desc" ? scoreB - scoreA : scoreA - scoreB;
+        }
+        if (sortOption === "quota-desc") {
+            const quotaA =
+                a.lich_su_diem_chuan?.find((h: any) => h.nam === selectedYear)?.chi_tieu ||
+                a.lich_su_diem_chuan?.[0]?.chi_tieu ||
+                0;
+            const quotaB =
+                b.lich_su_diem_chuan?.find((h: any) => h.nam === selectedYear)?.chi_tieu ||
+                b.lich_su_diem_chuan?.[0]?.chi_tieu ||
+                0;
+            return quotaB - quotaA;
+        }
+        return 0;
+    });
 
     return (
         <div className="flex flex-col w-full space-y-6 pb-12">
@@ -130,12 +165,14 @@ function MajorLookupContent() {
                 setSelectedDiemChuan={setSelectedDiemChuan}
                 selectedYear={selectedYear}
                 setSelectedYear={setSelectedYear}
+                sortOption={sortOption}
+                setSortOption={setSortOption}
                 data_khoa_vien={dataKhoaVien}
                 data_to_hop={dataToHop}
             />
             {/* Major Cards Grid and Pagination */}
             <MajorList
-                dataNganhHoc={dataNganhHoc}
+                dataNganhHoc={sortedNganhHoc}
                 selectedYear={selectedYear}
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}

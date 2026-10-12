@@ -12,6 +12,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Trang chủ", href: "/", icon: "home" },
+  { label: "Nộp hồ sơ trực tuyến", href: "/nop-ho-so", icon: "upload_file", badge: "K66" },
+  { label: "Tra cứu hồ sơ", href: "/tra-cuu-ho-so", icon: "search_check" },
   { label: "Tính điểm quy đổi", href: "/tinh-diem-quy-doi", icon: "calculate" },
   { label: "Tra cứu ngành học", href: "/tra-cuu-nganh-hoc", icon: "directions_railway" },
   { label: "Lộ trình tuyển sinh", href: "/lo-trinh-tuyen-sinh", icon: "timeline" },

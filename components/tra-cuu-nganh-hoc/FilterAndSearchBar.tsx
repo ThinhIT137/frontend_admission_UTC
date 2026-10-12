@@ -12,6 +12,8 @@ const FilterAndSearchBar = ({
     setSelectedDiemChuan,
     selectedYear,
     setSelectedYear,
+    sortOption,
+    setSortOption,
     data_khoa_vien,
     data_to_hop,
 }: {
@@ -30,17 +32,13 @@ const FilterAndSearchBar = ({
     // Tìm theo năm
     selectedYear: number;
     setSelectedYear: Dispatch<SetStateAction<number>>;
+    // Sắp xếp
+    sortOption?: string;
+    setSortOption?: Dispatch<SetStateAction<string>>;
     data_khoa_vien: KhoiNganh[];
     data_to_hop: any[];
 }) => {
     const locNhanh = {
-        topNV: () => {
-            setSearchTerm("");
-            setSelectedFaculty("");
-            setSelectedToHop("");
-            setSelectedDiemChuan(0);
-            setSelectedYear(2026);
-        },
         toHopA00: () => {
             setSearchTerm("");
             setSelectedFaculty("");
@@ -55,10 +53,10 @@ const FilterAndSearchBar = ({
             setSelectedDiemChuan(0);
             setSelectedYear(2026);
         },
-        chuongTrinhMoi2026: () => {
+        toHopD01: () => {
             setSearchTerm("");
             setSelectedFaculty("");
-            setSelectedToHop("A00");
+            setSelectedToHop("D01");
             setSelectedDiemChuan(0);
             setSelectedYear(2026);
         },
@@ -186,54 +184,79 @@ const FilterAndSearchBar = ({
             {/* Separator */}
             <hr className="border-t-[2px] border-[#e5e7eb] w-full" />
 
-            {/* Quick Filters */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+            {/* Quick Filters and Sort Control */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-start gap-2">
                     <span className="text-[11px] font-bold text-[#4b5563] uppercase flex items-center gap-1 mr-1">
                         <span className="material-symbols-outlined text-[14px]">
                             push_pin
                         </span>
-                        Bộ Lọc Nhanh:
+                        Lọc Nhanh Tổ Hợp:
                     </span>
                     <button
-                        onClick={() => locNhanh.topNV()}
-                        className="px-3 py-1 bg-[#fdb712] border-[2px] border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:shadow-[2px_2px_0px_#111827] transition-all flex items-center gap-1"
-                    >
-                        <span className="material-symbols-outlined text-[13px] font-bold">
-                            star
-                        </span>
-                        Top Nguyện Vọng
-                    </button>
-                    <button
                         onClick={() => locNhanh.toHopA00()}
-                        className="px-3 py-1 bg-[#bae6fd] border-[2px] border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:shadow-[2px_2px_0px_#111827] transition-all"
+                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                            selectedToHop === "A00"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
+                                : "bg-[#bae6fd] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                        }`}
                     >
-                        Tổ hợp A00
+                        Tổ hợp A00 (Toán, Lý, Hóa)
                     </button>
                     <button
                         onClick={() => locNhanh.toHopA01()}
-                        className="px-3 py-1 bg-[#38bdf8] border-[2px] border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:shadow-[2px_2px_0px_#111827] transition-all"
+                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                            selectedToHop === "A01"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
+                                : "bg-[#38bdf8] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                        }`}
                     >
-                        Tổ hợp A01
+                        Tổ hợp A01 (Toán, Lý, Anh)
                     </button>
                     <button
-                        onClick={() => locNhanh.chuongTrinhMoi2026()}
-                        className="px-3 py-1 bg-[#34d399] border-[2px] border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:shadow-[2px_2px_0px_#111827] transition-all flex items-center gap-1"
+                        onClick={() => locNhanh.toHopD01()}
+                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                            selectedToHop === "D01"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
+                                : "bg-[#fed7aa] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                        }`}
                     >
-                        <span className="material-symbols-outlined text-[13px] font-bold">
-                            bolt
-                        </span>
-                        Chương trình Mới 2026
+                        Tổ hợp D01 (Toán, Văn, Anh)
+                    </button>
+                    <button
+                        onClick={() => {
+                            locNhanh.datlai();
+                            if (setSortOption) setSortOption("score-desc");
+                        }}
+                        className="px-3 py-1 border-[2px] border-dashed border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:bg-[#f3f4f6] transition-all whitespace-nowrap ml-1 cursor-pointer"
+                    >
+                        Đặt lại bộ lọc
                     </button>
                 </div>
-                <button
-                    onClick={() => {
-                        locNhanh.datlai();
-                    }}
-                    className="px-3 py-1 border-[2px] border-dashed border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:bg-[#f3f4f6] transition-all whitespace-nowrap"
-                >
-                    Đặt lại bộ lọc
-                </button>
+
+                {/* SẮP XẾP (SORT) */}
+                {setSortOption && (
+                    <div className="flex items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#e5e7eb]">
+                        <span className="text-[11px] font-black text-[#0d1b4e] uppercase flex items-center gap-1 shrink-0">
+                            <span className="material-symbols-outlined text-[16px] text-[#0284c7]">
+                                sort
+                            </span>
+                            Sắp xếp:
+                        </span>
+                        <select
+                            value={sortOption || "score-desc"}
+                            onChange={(e) => setSortOption(e.target.value)}
+                            className="px-3 py-1.5 bg-[#faf3e6] border-[2px] border-[#111827] rounded-xl font-bold text-[12px] text-[#0d1b4e] outline-none cursor-pointer focus:shadow-[2px_2px_0px_#111827]"
+                        >
+                            <option value="score-desc">Điểm chuẩn: Cao → Thấp</option>
+                            <option value="score-asc">Điểm chuẩn: Thấp → Cao</option>
+                            <option value="default">Mặc định theo mã CTDT</option>
+                            <option value="quota-desc">Chỉ tiêu: Nhiều nhất</option>
+                            <option value="name-asc">Tên ngành: A → Z</option>
+                            <option value="name-desc">Tên ngành: Z → A</option>
+                        </select>
+                    </div>
+                )}
             </div>
         </div>
     );

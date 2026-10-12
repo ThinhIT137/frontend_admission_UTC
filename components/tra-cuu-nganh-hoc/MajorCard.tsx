@@ -97,18 +97,14 @@ export default function MajorCard({ major, idx, selectedYear }: MajorCardProps) 
                 </div>
             </div>
 
-            {/* Footer Buttons */}
-            <div className="flex items-center gap-3 mt-auto">
-                <button className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-white text-[#111827] font-bold text-[12px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[8px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all">
-                    <span className="material-symbols-outlined text-[14px]">compare_arrows</span>
-                    So sánh
-                </button>
+            {/* Footer Button: Xem Khung CTĐT & Chi Tiết */}
+            <div className="mt-auto pt-2">
                 <Link
                     href={`/tra-cuu-nganh-hoc/${major.ma_nganh}`}
-                    className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-[#0284c7] text-white font-bold text-[12px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[8px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all"
+                    className="w-full flex justify-center items-center gap-2 px-4 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[13px] border-[2px] border-[#111827] shadow-[2.5px_2.5px_0px_#111827] rounded-[10px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all"
                 >
-                    Khung CTĐT
-                    <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
+                    <span>Xem Chi Tiết & Khung CTĐT</span>
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </Link>
             </div>
         </div>

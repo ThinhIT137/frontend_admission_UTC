@@ -1,141 +1,222 @@
-"use client";
+import { Suspense } from "react";
+import { prismaPublic } from "@/libs/prisma";
+import ChatbotClient, {
+  ChatbotKnowledgeBase,
+  ProgramKnowledge,
+  FaqKnowledge,
+  MethodKnowledge,
+  MilestoneKnowledge,
+} from "./ChatbotClient";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
-import { useState } from "react";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+export const metadata = {
+  title: "Hỏi Đáp AI Tuyển Sinh UTC 24/7 | Trường Đại học Giao thông Vận tải",
+  description:
+    "Trợ lý tư vấn AI tuyển sinh K66 kết nối trực tiếp cơ sở dữ liệu Đại học Giao thông Vận tải: điểm chuẩn các năm, chỉ tiêu, ngành đào tạo, quy đổi IELTS và phương thức xét tuyển.",
+};
 
-export default function AIChatPage() {
-  const [messages, setMessages] = useState([
-    {
-      id: "1",
-      sender: "bot",
-      text: "Xin chào bạn! Mình là Trợ lý AI Tuyển sinh UTC. Mình đã học toàn bộ Đề án tuyển sinh, điểm chuẩn 5 năm qua và thông tin 35+ ngành của Trường ĐH Giao thông Vận tải. Bạn cần tư vấn điều gì?",
-      time: "Vừa xong",
-    },
-  ]);
-  const [input, setInput] = useState("");
+export const revalidate = 60; // Cache 60s for high performance & instant response
 
-  const handleSend = (textToSend?: string) => {
-    const q = (textToSend || input).trim();
-    if (!q) return;
-
-    const userMsg = {
-      id: Date.now().toString(),
-      sender: "user",
-      text: q,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInput("");
-
-    setTimeout(() => {
-      const botMsg = {
-        id: (Date.now() + 1).toString(),
-        sender: "bot",
-        text: `Cảm ơn bạn đã hỏi: "${q}". Dựa trên Đề án tuyển sinh UTC 2026, thông tin liên quan đến câu hỏi của bạn được cập nhật trực tiếp từ Hội đồng tuyển sinh. Bạn có thể tham khảo thêm tại mục Tra cứu ngành học hoặc liên hệ Hotline (024) 3766 3311.`,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-      setMessages((prev) => [...prev, botMsg]);
-    }, 600);
+export default async function AIChatPage() {
+  let knowledgeBase: ChatbotKnowledgeBase = {
+    programs: [],
+    faqs: [],
+    methods: [],
+    milestones: [],
+    totalMajors: 0,
+    totalQuota: 6000,
   };
 
+  try {
+    const [
+      dbPrograms,
+      dbFaqs,
+      dbMethods,
+      dbMilestones,
+      countMajors,
+      quota2026,
+      quota2025,
+    ] = await Promise.all([
+      prismaPublic.chuongTrinhDaoTao.findMany({
+        include: {
+          nganh: {
+            include: {
+              khoi_nganh: true,
+            },
+          },
+          ctdt_to_hop: {
+            include: {
+              to_hop: true,
+            },
+          },
+          lich_su_diem_chuan: {
+            include: {
+              diem_trung_tuyen: {
+                include: {
+                  phuong_thuc: true,
+                },
+              },
+            },
+            orderBy: { nam: "desc" },
+            take: 3,
+          },
+        },
+        orderBy: { luot_xem: "desc" },
+      }),
+      prismaPublic.triThucAi.findMany({
+        where: { trang_thai: "active" },
+        orderBy: { create_at: "desc" },
+      }),
+      prismaPublic.phuongThucXetTuyen.findMany({
+        orderBy: { ma_phuong_thuc: "asc" },
+      }),
+      prismaPublic.loTrinhTuyenSinh.findMany({
+        orderBy: { thoi_gian_bat_dau: "asc" },
+      }),
+      prismaPublic.nganhHoc.count(),
+      prismaPublic.lichSuDiemChuan.aggregate({
+        where: { nam: 2026 },
+        _sum: { chi_tieu: true },
+      }),
+      prismaPublic.lichSuDiemChuan.aggregate({
+        where: { nam: 2025 },
+        _sum: { chi_tieu: true },
+      }),
+    ]);
+
+    // Format danh mục chương trình đào tạo & Điểm chuẩn từ DB
+    const formattedPrograms: ProgramKnowledge[] = dbPrograms.map((p: any) => {
+      const toHopMonList: string[] = Array.from(
+        new Set((p.ctdt_to_hop || []).map((ct: any) => String(ct.ma_to_hop)))
+      );
+
+      const diemChuanList: ProgramKnowledge["diemChuanGanNhat"] = [];
+      (p.lich_su_diem_chuan || []).forEach((ls: any) => {
+        (ls.diem_trung_tuyen || []).forEach((dt: any) => {
+          diemChuanList.push({
+            nam: ls.nam,
+            phuongThuc: dt.phuong_thuc?.ten_phuong_thuc || dt.ma_phuong_thuc,
+            diem: dt.diem,
+          });
+        });
+      });
+
+      return {
+        maChuongTrinh: p.ma_chuong_trinh,
+        tenChuongTrinh: p.ten_chuong_trinh,
+        maNganh: p.ma_nganh,
+        tenNganh: p.nganh?.ten_nganh,
+        khoiNganh: p.nganh?.khoi_nganh?.ten_khoi_nganh || "Trường ĐH Giao thông Vận tải",
+        moTaNgan: p.mo_ta_ngan,
+        toHopMon: toHopMonList,
+        chiTieu2026: p.lich_su_diem_chuan?.[0]?.chi_tieu || null,
+        diemChuanGanNhat: diemChuanList,
+      };
+    });
+
+    // Format FAQ Tri thức AI
+    const formattedFaqs: FaqKnowledge[] = dbFaqs.map((f) => ({
+      maTriThuc: f.ma_tri_thuc,
+      chuDe: f.chu_de,
+      cauHoiMau: f.cau_hoi_mau,
+      noiDung: f.noi_dung,
+    }));
+
+    // Format Phương thức tuyển sinh
+    const formattedMethods: MethodKnowledge[] = dbMethods.map((m) => ({
+      maPhuongThuc: m.ma_phuong_thuc,
+      tenPhuongThuc: m.ten_phuong_thuc,
+    }));
+
+    // Format Lộ trình sự kiện
+    const formattedMilestones: MilestoneKnowledge[] = dbMilestones.map((ms) => ({
+      tenSuKien: ms.ten_su_kien,
+      thoiGianBatDau: ms.thoi_gian_bat_dau.toISOString(),
+      thoiGianKetThuc: ms.thoi_gian_ket_thuc?.toISOString() || null,
+      ghiChu: ms.ghi_chu,
+    }));
+
+    const calculatedQuota =
+      quota2026._sum.chi_tieu || quota2025._sum.chi_tieu || 6000;
+
+    knowledgeBase = {
+      programs: formattedPrograms,
+      faqs: formattedFaqs,
+      methods: formattedMethods,
+      milestones: formattedMilestones,
+      totalMajors: countMajors || formattedPrograms.length,
+      totalQuota: calculatedQuota,
+    };
+  } catch (error) {
+    console.error("Lỗi truy vấn tri thức CSDL cho Chatbot AI:", error);
+    // Fallback tri thức cơ bản nếu CSDL tạm thời gián đoạn
+    knowledgeBase = {
+      programs: [
+        {
+          maChuongTrinh: "7480201",
+          tenChuongTrinh: "Công nghệ thông tin",
+          maNganh: "7480201",
+          khoiNganh: "Khoa Công nghệ Thông tin",
+          toHopMon: ["A00", "A01", "D01", "D07"],
+          chiTieu2026: 360,
+          diemChuanGanNhat: [
+            { nam: 2025, phuongThuc: "Thi THPT", diem: 25.85 },
+            { nam: 2024, phuongThuc: "Thi THPT", diem: 26.15 },
+          ],
+        },
+        {
+          maChuongTrinh: "7520216",
+          tenChuongTrinh: "Kỹ thuật Robot và Trí tuệ nhân tạo",
+          maNganh: "7520216",
+          khoiNganh: "Khoa Điện - Điện tử",
+          toHopMon: ["A00", "A01", "D07"],
+          chiTieu2026: 120,
+          diemChuanGanNhat: [
+            { nam: 2025, phuongThuc: "Thi THPT", diem: 26.0 },
+          ],
+        },
+        {
+          maChuongTrinh: "7510605",
+          tenChuongTrinh: "Logistics và Quản lý chuỗi cung ứng",
+          maNganh: "7510605",
+          khoiNganh: "Khoa Vận tải - Kinh tế",
+          toHopMon: ["A00", "A01", "D01", "D07"],
+          chiTieu2026: 250,
+          diemChuanGanNhat: [
+            { nam: 2025, phuongThuc: "Thi THPT", diem: 26.1 },
+          ],
+        },
+      ],
+      faqs: [
+        {
+          maTriThuc: "fb-1",
+          chuDe: "Quy đổi IELTS",
+          cauHoiMau: "Quy đổi chứng chỉ IELTS sang điểm môn Tiếng Anh?",
+          noiDung:
+            "IELTS 5.0 quy đổi thành 8.0 điểm, IELTS 5.5 = 8.5 điểm, IELTS 6.0 = 9.0 điểm, IELTS 6.5 trở lên = 10.0 điểm tuyệt đối.",
+        },
+      ],
+      methods: [
+        { maPhuongThuc: "PT1", tenPhuongThuc: "Xét tuyển theo kết quả thi tốt nghiệp THPT năm 2026" },
+        { maPhuongThuc: "PT2", tenPhuongThuc: "Xét tuyển kết hợp Chứng chỉ Tiếng Anh quốc tế & Học bạ" },
+        { maPhuongThuc: "PT3", tenPhuongThuc: "Xét tuyển theo kết quả học bạ THPT (5 học kỳ)" },
+        { maPhuongThuc: "PT4", tenPhuongThuc: "Xét tuyển theo kết quả Đánh giá tư duy (TSA - ĐHBK Hà Nội)" },
+      ],
+      milestones: [],
+      totalMajors: 35,
+      totalQuota: 6000,
+    };
+  }
+
   return (
-    <div className="flex flex-col w-full space-y-6 pb-12">
-      {/* Title */}
-      <div className="bg-[#fffdf7] p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[16px] relative">
-        <div className="absolute -top-3 left-6 px-3 py-0.5 bg-[#38bdf8] border-[2px] border-[#111827] font-stamp text-[11px] font-bold text-[#111827] uppercase rotate-[-2deg] shadow-[1px_1px_0px_#111827]">
-          TRỢ LÝ VẢO UTC 24/7
+    <Suspense
+      fallback={
+        <div className="min-h-[450px] flex items-center justify-center">
+          <LoadingSpinner />
         </div>
-        <h1 className="font-display font-extrabold text-[28px] lg:text-[34px] text-[#111827] uppercase mt-2">
-          HỎI ĐÁP AI TUYỂN SINH UTC
-        </h1>
-        <p className="text-[14px] text-[#4b5563] font-medium mt-1">
-          Hệ thống AI tự động giải đáp mọi thắc mắc về điểm chuẩn, phương thức xét tuyển, ngành học và thủ tục nhập học.
-        </p>
-      </div>
-
-      <DisclaimerBanner />
-
-      {/* Main Chat Box */}
-      <div className="bg-white border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-[16px] overflow-hidden flex flex-col h-[560px]">
-        {/* Header */}
-        <div className="bg-[#0284c7] text-white p-4 border-b-[3px] border-[#111827] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#fdb712] border-[2px] border-[#111827] text-[#111827] flex items-center justify-center font-bold">
-              <span className="material-symbols-outlined text-[24px]">smart_toy</span>
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-[18px]">UTC AI CONSULTANT</h3>
-              <p className="text-[11px] text-[#e0f2fe] font-mono">Model: Gemini UTC K66 Edition</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat History */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#faf3e6]">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex flex-col ${
-                m.sender === "user" ? "items-end" : "items-start"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] p-4 text-[14px] leading-relaxed border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] ${
-                  m.sender === "user"
-                    ? "bg-[#0284c7] text-white rounded-[14px] rounded-br-none"
-                    : "bg-white text-[#111827] rounded-[14px] rounded-bl-none"
-                }`}
-              >
-                {m.text}
-              </div>
-              <span className="text-[11px] text-[#6b7280] mt-1 px-1">{m.time}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Prompt Suggestions */}
-        <div className="px-4 py-2.5 bg-[#fffdf7] border-t-[2px] border-[#111827] flex gap-2 overflow-x-auto">
-          {[
-            "Điểm chuẩn ngành Logistics 2025?",
-            "Quy đổi điểm IELTS 6.5?",
-            "Chỉ tiêu K66 Hà Nội?",
-            "Hồ sơ xét tuyển học bạ?",
-          ].map((prompt, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSend(prompt)}
-              className="shrink-0 text-[12px] font-bold bg-white hover:bg-[#ffdea8] text-[#111827] px-3 py-1 border-[1.5px] border-[#111827] shadow-[1.5px_1.5px_0px_#111827] rounded-[6px] transition-colors"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-
-        {/* Form Input */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="p-4 bg-white border-t-[3px] border-[#111827] flex items-center gap-3"
-        >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Hỏi bất kỳ điều gì về tuyển sinh UTC..."
-            className="flex-1 px-4 py-2.5 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[10px] text-[14px] font-medium outline-none"
-          />
-          <button
-            type="submit"
-            className="px-5 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[14px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] active:translate-x-[1px] active:translate-y-[1px] rounded-[10px] flex items-center gap-1 transition-all"
-          >
-            <span>Gửi</span>
-            <span className="material-symbols-outlined text-[18px]">send</span>
-          </button>
-        </form>
-      </div>
-    </div>
+      }
+    >
+      <ChatbotClient knowledgeBase={knowledgeBase} />
+    </Suspense>
   );
 }
