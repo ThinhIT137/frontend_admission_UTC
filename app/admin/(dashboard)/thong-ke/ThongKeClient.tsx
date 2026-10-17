@@ -13,8 +13,8 @@ export interface OverallStats {
 }
 
 export interface MajorStatItem {
-  maChuongTrinh: string;
-  tenChuongTrinh: string;
+  maNganh: string;
+  tenNganh: string;
   tenKhoiNganh: string;
   chiTieu: number;
   soHoSo: number;
@@ -42,19 +42,23 @@ export interface DailyTrendItem {
 }
 
 interface ThongKeClientProps {
+  admissionYear: number;
   overall: OverallStats;
   majors: MajorStatItem[];
   methods: MethodStatItem[];
   combinations: CombinationStatItem[];
   dailyTrends: DailyTrendItem[];
+  errorMessage?: string;
 }
 
 export default function ThongKeClient({
+  admissionYear,
   overall,
   majors,
   methods,
   combinations,
   dailyTrends,
+  errorMessage,
 }: ThongKeClientProps) {
   const [activeTab, setActiveTab] = useState<"tong_quan" | "nganh_hoc" | "phuong_thuc">("tong_quan");
   const [searchMajor, setSearchMajor] = useState("");
@@ -62,8 +66,8 @@ export default function ThongKeClient({
 
   const filteredMajors = majors.filter((m) => {
     const matchSearch =
-      m.tenChuongTrinh.toLowerCase().includes(searchMajor.toLowerCase()) ||
-      m.maChuongTrinh.toLowerCase().includes(searchMajor.toLowerCase());
+      m.tenNganh.toLowerCase().includes(searchMajor.toLowerCase()) ||
+      m.maNganh.toLowerCase().includes(searchMajor.toLowerCase());
     const matchKhoi = filterKhoi === "all" || m.tenKhoiNganh === filterKhoi;
     return matchSearch && matchKhoi;
   });
@@ -89,7 +93,8 @@ export default function ThongKeClient({
             Thống Kê Tổng Quan Hồ Sơ Tuyển Sinh
           </h1>
           <p className="text-[13.5px] text-[#64748b] mt-1">
-            Báo cáo phân bổ nguyện vọng, tình hình đối soát giấy tờ và tỷ lệ cạnh tranh theo từng ngành học.
+            Dữ liệu năm {admissionYear}: phân bổ nguyện vọng, tình hình
+            đối soát và tỷ lệ cạnh tranh theo từng ngành học.
           </p>
         </div>
 
@@ -103,6 +108,16 @@ export default function ThongKeClient({
           </Link>
         </div>
       </div>
+
+      {errorMessage && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border-2 border-[#dc2626] bg-[#fef2f2] px-4 py-3 text-[13px] font-semibold text-[#991b1b]"
+        >
+          <span className="material-symbols-outlined text-[20px]">error</span>
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -123,8 +138,9 @@ export default function ThongKeClient({
             <span className="text-[12px] font-bold text-[#16a34a]">hồ sơ</span>
           </div>
           <div className="mt-2 text-[12px] text-[#64748b] flex items-center gap-1">
-            <span>Tổng chỉ tiêu toàn trường:</span>
-            <strong className="text-[#0d1b4e]">~{overall.totalQuota.toLocaleString()}</strong>
+            <span>Chỉ tiêu {admissionYear}:</span>
+            <strong className="text-[#0d1b4e]">{overall.totalQuota.toLocaleString()}</strong>
+            <span>• {overall.totalMajors} ngành</span>
           </div>
         </div>
 
@@ -250,7 +266,7 @@ export default function ThongKeClient({
               </p>
             </div>
             <span className="text-[8px] font-bold text-[#0284c7] bg-[#f0f9ff] px-2 py-1.5 rounded-lg border border-[#bae6fd]">
-              Cập nhật 15 phút/lần
+              Dữ liệu năm {admissionYear}
             </span>
           </div>
 
@@ -369,12 +385,18 @@ export default function ThongKeClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0] bg-white">
-                {filteredMajors.map((m) => (
-                  <tr key={m.maChuongTrinh} className="hover:bg-[#fffdf7] transition-colors">
+                {filteredMajors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-[#64748b]">
+                      Không có dữ liệu ngành học phù hợp.
+                    </td>
+                  </tr>
+                ) : filteredMajors.map((m) => (
+                  <tr key={m.maNganh} className="hover:bg-[#fffdf7] transition-colors">
                     <td className="py-3 px-4">
-                      <div className="font-bold text-[#0d1b4e]">{m.tenChuongTrinh}</div>
+                      <div className="font-bold text-[#0d1b4e]">{m.tenNganh}</div>
                       <span className="font-mono text-[11px] text-[#0284c7] font-semibold">
-                        Mã: {m.maChuongTrinh}
+                        Mã: {m.maNganh}
                       </span>
                     </td>
                     <td className="py-3 px-4 hidden md:table-cell text-[#64748b]">
@@ -437,11 +459,15 @@ export default function ThongKeClient({
               Tỷ Trọng Theo Phương Thức Xét Tuyển
             </h3>
             <p className="text-[13px] text-[#64748b]">
-              Phân tích cơ cấu lựa chọn phương thức nộp hồ sơ của thí sinh tuyển sinh K66.
+              Phân tích cơ cấu lựa chọn phương thức nộp hồ sơ năm {admissionYear}.
             </p>
 
             <div className="space-y-4 pt-2">
-              {methods.map((pm) => (
+              {methods.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[13px] text-[#64748b]">
+                  Chưa có dữ liệu phương thức xét tuyển.
+                </p>
+              ) : methods.map((pm) => (
                 <div key={pm.maPhuongThuc} className="space-y-1.5">
                   <div className="flex items-center justify-between text-[13px]">
                     <span className="font-bold text-[#0d1b4e]">
@@ -473,7 +499,11 @@ export default function ThongKeClient({
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2">
-              {combinations.map((comb) => (
+              {combinations.length === 0 ? (
+                <p className="col-span-2 rounded-xl border border-dashed border-[#cbd5e1] p-6 text-center text-[13px] text-[#64748b]">
+                  Chưa có hồ sơ sử dụng tổ hợp xét tuyển.
+                </p>
+              ) : combinations.map((comb) => (
                 <div
                   key={comb.maToHop}
                   className="p-4 bg-[#fffdf7] border-[2px] border-[#0d1b4e] rounded-xl shadow-[2px_2px_0px_#0d1b4e] flex items-center justify-between"
