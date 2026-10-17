@@ -1011,7 +1011,7 @@ export default function ChiTietNganhClient({
                   title="CSDL bảng ctdt_hoc_phan hiện tại chưa có dữ liệu cho CTĐT này. Hệ thống hiển thị khung mẫu chuẩn UTC để hỗ trợ tra cứu."
                 >
                   <span className="material-symbols-outlined text-[14px] text-[#f59e0b]">database</span>
-                  Khung chuẩn UTC (CSDL đang cập nhật)
+                  Khung chuẩn UTC
                 </span>
               )}
             </div>

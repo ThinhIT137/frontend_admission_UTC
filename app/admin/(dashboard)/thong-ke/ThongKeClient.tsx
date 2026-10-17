@@ -79,11 +79,11 @@ export default function ThongKeClient({
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11px] font-black uppercase">
-              Hội Đồng Tuyển Sinh UTC K66
+              Hội Đồng Tuyển Sinh UTC
             </span>
-            <span className="px-2.5 py-0.5 rounded bg-[#e0f2fe] text-[#0284c7] font-bold text-[11px] border border-[#bae6fd]">
+            {/* <span className="px-2.5 py-0.5 rounded bg-[#e0f2fe] text-[#0284c7] font-bold text-[11px] border border-[#bae6fd]">
               Dữ Liệu Thống Kê Thời Gian Thực
-            </span>
+            </span> */}
           </div>
           <h1 className="font-display font-black text-[28px] sm:text-[32px] text-[#0d1b4e] leading-tight tracking-tight">
             Thống Kê Tổng Quan Hồ Sơ Tuyển Sinh
@@ -249,7 +249,7 @@ export default function ThongKeClient({
                 Số lượng hồ sơ thí sinh đăng ký theo từng ngày trong giai đoạn tuyển sinh.
               </p>
             </div>
-            <span className="text-[12px] font-bold text-[#0284c7] bg-[#f0f9ff] px-3 py-1.5 rounded-lg border border-[#bae6fd]">
+            <span className="text-[8px] font-bold text-[#0284c7] bg-[#f0f9ff] px-2 py-1.5 rounded-lg border border-[#bae6fd]">
               Cập nhật 15 phút/lần
             </span>
           </div>
@@ -310,7 +310,7 @@ export default function ThongKeClient({
             <div className="p-8 text-center bg-[#fffdf7] border-[2px] border-dashed border-[#cbd5e1] rounded-xl space-y-2">
               <span className="material-symbols-outlined text-[36px] text-[#64748b]">hourglass_empty</span>
               <p className="font-display font-bold text-[15px] text-[#0d1b4e]">
-                Chưa có dữ liệu hồ sơ thí sinh ghi nhận trong bảng `nguyen_vong_sinh_vien`
+                Chưa có dữ liệu hồ sơ thí sinh ghi nhận
               </p>
               <p className="text-[12.5px] text-[#64748b] max-w-md mx-auto">
                 Dữ liệu tiến độ theo ngày sẽ tự động vẽ biểu đồ khi thí sinh bắt đầu nộp hồ sơ xét tuyển trực tuyến trên hệ thống.

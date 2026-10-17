@@ -163,7 +163,7 @@ export function ChatWidget() {
           {/* Disclaimer Banner Inside Chat */}
           <div className="bg-[#fef08a] px-3 py-1.5 border-b-[2px] border-[#111827] text-[11px] font-bold text-[#111827] flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[#ba1a1a] text-[16px]">info</span>
-            <span>AI đồng bộ dữ liệu Tuyển sinh UTC K66 (Hà Nội).</span>
+            <span>AI đồng bộ dữ liệu Tuyển sinh UTC (Hà Nội).</span>
           </div>
 
           {/* Messages Body */}

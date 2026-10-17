@@ -21,17 +21,19 @@ export default function ClientLayout({
   return (
     <div className="bg-[#f4ede0] font-body-md text-[#1e1b14] antialiased min-h-screen relative selection:bg-[#fdb712] selection:text-[#000525] overflow-x-clip">
       {/* Sidebar with slide transition */}
-      <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+      <div className="print:hidden">
+        <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+      </div>
 
       {/* Main Content Wrapper (shifted when sidebar is open) */}
       <div
-        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
+        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out print:pl-0 print:m-0 print:bg-white ${
           isSidebarOpen ? "pl-72" : "pl-0"
         }`}
       >
         {/* Fixed Header with transition */}
         <div
-          className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out ${
+          className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out print:hidden ${
             isSidebarOpen ? "left-72" : "left-0"
           }`}
         >
@@ -39,16 +41,20 @@ export default function ClientLayout({
         </div>
 
         {/* Dynamic Page Content */}
-        <main className="w-full pt-16 bg-[#f4ede0] flex-1 relative px-4 sm:px-6 py-6">
+        <main className="w-full pt-16 bg-[#f4ede0] flex-1 relative px-4 sm:px-6 py-6 print:p-0 print:pt-0 print:bg-white">
           <LoadingProvider>{children}</LoadingProvider>
         </main>
 
         {/* Client Footer */}
-        <Footer />
+        <div className="print:hidden">
+          <Footer />
+        </div>
       </div>
 
       {/* Floating AI Consultation Chatbot */}
-      <ChatWidget />
+      <div className="print:hidden">
+        <ChatWidget />
+      </div>
     </div>
   );
 }

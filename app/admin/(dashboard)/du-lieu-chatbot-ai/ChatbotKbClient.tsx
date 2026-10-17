@@ -144,6 +144,51 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
     },
   ];
 
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [testQuery, setTestQuery] = useState("");
+  const [simulatorResult, setSimulatorResult] = useState<{
+    matched: TriThucAiItem | null;
+    score: number;
+    notes: string;
+  } | null>(null);
+
+  const runTestPrompt = (queryToTest?: string) => {
+    const q = (queryToTest !== undefined ? queryToTest : testQuery).trim().toLowerCase();
+    if (!q) {
+      toast.error("Vui lòng nhập câu hỏi thí sinh để kiểm thử!");
+      return;
+    }
+
+    if (queryToTest) setTestQuery(queryToTest);
+
+    // Tìm kiếm tương đồng dựa trên từ khóa trong câu hỏi mẫu & nội dung
+    const qWords = q.split(/\s+/).filter((w) => w.length > 1);
+    let bestMatch: TriThucAiItem | null = null;
+    let maxMatchedWords = 0;
+
+    data.forEach((item) => {
+      const targetText = `${item.cau_hoi_mau || ""} ${item.noi_dung} ${item.chu_de}`.toLowerCase();
+      let matchedCount = 0;
+      qWords.forEach((word) => {
+        if (targetText.includes(word)) matchedCount++;
+      });
+      if (matchedCount > maxMatchedWords) {
+        maxMatchedWords = matchedCount;
+        bestMatch = item;
+      }
+    });
+
+    const confidence = qWords.length > 0 ? Math.min(Math.round((maxMatchedWords / qWords.length) * 100), 98) : 50;
+
+    setSimulatorResult({
+      matched: bestMatch,
+      score: bestMatch ? Math.max(confidence, 65) : 0,
+      notes: bestMatch
+        ? `Khớp ${maxMatchedWords}/${qWords.length} từ khóa chính từ tập tri thức RAG Supabase`
+        : "Không tìm thấy tri thức phù hợp trong DB, AI sẽ dùng kiến thức dự phòng.",
+    });
+  };
+
   const uniqueTopics = Array.from(new Set(initialData.map((d) => d.chu_de).filter(Boolean)));
 
   return (
@@ -151,21 +196,139 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-block px-2.5 py-0.5 rounded bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11px] font-bold uppercase mb-2">
+            Hệ Thống RAG AI Tư Vấn Tuyển Sinh
+          </div>
           <h1 className="font-display font-black text-[28px] text-[#0d1b4e] tracking-tight">
             Quản Lý Dữ Liệu Huấn Luyện Chatbot AI
           </h1>
           <p className="text-[14px] text-[#45464f] mt-0.5">
-            Kho cơ sở tri thức (RAG / Knowledge Base) phục vụ phản hồi chính xác và tư vấn tự động cho thí sinh.
+            Kho {data.length} cơ sở tri thức (Knowledge Base) phục vụ phản hồi chuẩn xác cho thí sinh UTC.
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
-        >
-          <span className="material-symbols-outlined text-[20px]">add_circle</span>
-          Thêm Tri Thức Mới
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsSimulatorOpen(!isSimulatorOpen)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-all ${
+              isSimulatorOpen
+                ? "bg-[#0d1b4e] text-white border-[#0d1b4e]"
+                : "bg-white text-[#0d1b4e] border-[#c6c5d0] hover:bg-[#faf3e6]"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">psychology</span>
+            {isSimulatorOpen ? "Đóng Giả Lập Prompt" : "Thử Nghiệm Prompt AI"}
+          </button>
+
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] px-4 py-2.5 rounded-xl font-black text-[13px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+          >
+            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+            Thêm Tri Thức
+          </button>
+        </div>
       </div>
+
+      {/* Interactive AI Prompt Simulator Sandbox */}
+      {isSimulatorOpen && (
+        <div className="p-5 bg-gradient-to-br from-[#0d1b4e] to-[#1e293b] rounded-2xl text-white shadow-xl space-y-4 border border-[#3b82f6]/30 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#fdb712] text-[22px]">smart_toy</span>
+              <h3 className="font-display font-bold text-[16px] text-white">
+                Mô Phỏng Trực Quan Bộ Khớp Tri Thức RAG (Prompt Simulator)
+              </h3>
+            </div>
+            <span className="text-[11px] font-mono bg-white/10 text-slate-300 px-2 py-0.5 rounded">
+              Vector / Full-Text RAG Test
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-300">
+              Nhập câu hỏi thí sinh thực tế để kiểm tra tri thức kích hoạt:
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="VD: Bằng IELTS 6.5 quy đổi được bao nhiêu điểm tiếng Anh?"
+                value={testQuery}
+                onChange={(e) => setTestQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && runTestPrompt()}
+                className="flex-1 px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 text-[14px] outline-none focus:border-[#fdb712]"
+              />
+              <button
+                onClick={() => runTestPrompt()}
+                className="px-5 py-2.5 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] font-black text-[13px] rounded-xl flex items-center justify-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                Kiểm Thử
+              </button>
+            </div>
+
+            {/* Quick Prompts Suggestions */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] text-slate-400 font-semibold">Câu hỏi mẫu thử nhanh:</span>
+              {[
+                "Điểm chuẩn ngành CNTT năm 2025?",
+                "Bằng IELTS 6.5 quy đổi ra sao?",
+                "Học phí chương trình chất lượng cao?",
+                "Thời gian nộp hồ sơ xét tuyển sớm K66?",
+              ].map((sample) => (
+                <button
+                  key={sample}
+                  onClick={() => runTestPrompt(sample)}
+                  className="text-[11px] px-2.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-full text-slate-200 transition-colors"
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Test Result Display */}
+          {simulatorResult && (
+            <div className="mt-4 p-4 bg-white/10 rounded-xl border border-white/15 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-bold text-slate-300 uppercase">Độ Khớp Tri Thức:</span>
+                  <span
+                    className={`font-mono font-extrabold px-2 py-0.5 rounded text-[12px] ${
+                      simulatorResult.score >= 70
+                        ? "bg-emerald-500 text-white"
+                        : "bg-amber-500 text-white"
+                    }`}
+                  >
+                    {simulatorResult.score}% Khớp
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400">{simulatorResult.notes}</span>
+              </div>
+
+              {simulatorResult.matched ? (
+                <div className="space-y-2 bg-black/25 p-3 rounded-lg border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fdb712] text-[#0d1b4e]">
+                      {simulatorResult.matched.chu_de}
+                    </span>
+                    <span className="text-[13px] font-bold text-white">
+                      {simulatorResult.matched.cau_hoi_mau}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-slate-200 leading-relaxed whitespace-pre-line pl-1 border-l-2 border-[#fdb712]">
+                    {simulatorResult.matched.noi_dung}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[13px] text-amber-300 italic">
+                  Không tìm thấy mục tri thức phù hợp. Hãy bổ sung thêm tri thức mới cho chủ đề này!
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

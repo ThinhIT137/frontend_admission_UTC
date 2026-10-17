@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import { traCuuHoSoDbAction } from "./tra-cuu.server";
 
 export interface GiayToMinhChung {
   id: string;
@@ -26,6 +27,7 @@ export interface TimelineEvent {
 }
 
 export interface HoSoTuyenSinh {
+  source?: "db" | "local" | "mock";
   maHoSo: string;
   cccd: string;
   hoTen: string;
@@ -172,7 +174,7 @@ const MOCK_HO_SO_DATABASE: HoSoTuyenSinh[] = [
         step: 3,
         tieuDe: "Hội đồng Tuyển sinh xét duyệt sơ tuyển",
         thoiGian: "16:30 - 05/06/2026",
-        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC K66",
+        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC",
         noiDung: "Điểm quy đổi đạt 28.50 điểm (vượt ngưỡng điểm chuẩn điều kiện). Phê duyệt diện: ĐỦ ĐIỀU KIỆN TRÚNG TUYỂN SỚM.",
         trangThai: "COMPLETED",
       },
@@ -281,7 +283,7 @@ const MOCK_HO_SO_DATABASE: HoSoTuyenSinh[] = [
         step: 3,
         tieuDe: "Xét duyệt và Công bố kết quả sơ tuyển",
         thoiGian: "Dự kiến 25/06/2026",
-        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC K66",
+        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC",
         noiDung: "Tổng hợp danh sách đạt ngưỡng điểm chuẩn điều kiện.",
         trangThai: "PENDING",
       },
@@ -382,7 +384,7 @@ const MOCK_HO_SO_DATABASE: HoSoTuyenSinh[] = [
         step: 4,
         tieuDe: "Xét duyệt và Công bố kết quả sơ tuyển",
         thoiGian: "Dự kiến 30/06/2026",
-        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC K66",
+        boPhanXuLy: "Hội đồng Tuyển sinh Đại học UTC",
         noiDung: "Đánh giá đạt ngưỡng điểm chuẩn khi đã hoàn thiện minh chứng.",
         trangThai: "PENDING",
       },
@@ -428,7 +430,7 @@ export default function TraCuuHoSoClient() {
     }
   };
 
-  const executeSearch = (rawVal: string) => {
+  const executeSearch = async (rawVal: string) => {
     const q = rawVal.trim().toUpperCase();
     if (!q) {
       setErrorMessage("Vui lòng nhập Mã hồ sơ (VD: UTC26-HN0088) hoặc Số CCCD/Định danh (12 chữ số)!");
@@ -440,103 +442,126 @@ export default function TraCuuHoSoClient() {
     setHasSearched(true);
     saveRecentQuery(q);
 
-    // 1. Tìm trong DB Mock
-    const mockMatches = MOCK_HO_SO_DATABASE.filter((item) => {
-      const matchMa = item.maHoSo.toUpperCase().includes(q);
-      const matchCccd = item.cccd.includes(q);
-      const matchPhone = item.soDienThoai.replace(/\s+/g, "").includes(q.replace(/\s+/g, ""));
-      return matchMa || matchCccd || matchPhone;
-    });
+    try {
+      // 1. Tra cứu trực tiếp từ Supabase Database qua Server Action
+      const dbRes = await traCuuHoSoDbAction(q);
+      const dbMatches: HoSoTuyenSinh[] =
+        dbRes.success && dbRes.data
+          ? (dbRes.data.map((item) => ({ ...item, source: "db" as const })) as any)
+          : [];
 
-    // 2. Tìm trong localStorage nếu người dùng từng nộp hồ sơ ở trang /nop-ho-so
-    let localMatches: HoSoTuyenSinh[] = [];
-    if (typeof window !== "undefined") {
-      try {
-        const localListStr = localStorage.getItem("UTC_SUBMITTED_APPLICATIONS");
-        if (localListStr) {
-          const localList = JSON.parse(localListStr);
-          if (Array.isArray(localList)) {
-            const matchedRaw = localList.filter((item: any) => {
-              const itemMa = (item.maHoSo || "").toUpperCase();
-              const itemCccd = item.cccd || "";
-              return itemMa.includes(q) || itemCccd.includes(q);
-            });
+      // 2. Tìm trong localStorage nếu người dùng từng nộp hồ sơ ở trang /nop-ho-so trên trình duyệt này
+      let localMatches: HoSoTuyenSinh[] = [];
+      if (typeof window !== "undefined") {
+        try {
+          const localListStr = localStorage.getItem("UTC_SUBMITTED_APPLICATIONS");
+          if (localListStr) {
+            const localList = JSON.parse(localListStr);
+            if (Array.isArray(localList)) {
+              const matchedRaw = localList.filter((item: any) => {
+                const itemMa = (item.maHoSo || "").toUpperCase();
+                const itemCccd = item.cccd || "";
+                return itemMa.includes(q) || itemCccd.includes(q);
+              });
 
-            // Chuyển đổi sang format HoSoTuyenSinh
-            localMatches = matchedRaw.map((item: any): HoSoTuyenSinh => ({
-              maHoSo: item.maHoSo || "UTC26-CUSTOM",
-              cccd: item.cccd || "001206xxxxxx",
-              hoTen: item.hoTen || "Thí sinh tự do",
-              ngaySinh: "01/01/2008",
-              gioiTinh: "Chưa cập nhật",
-              soDienThoai: item.soDienThoai || "",
-              email: "thisinh@utc.edu.vn",
-              truongThpt: "Trường THPT Thí sinh",
-              tinhThanh: "Toàn quốc",
-              khuVuc: item.khuVuc || "KV3",
-              diemKhuVuc: 0.0,
-              doiTuongUuTien: item.doiTuongUuTien || "Không",
-              diemDoiTuong: 0.0,
-              soThuTuNv: 1,
-              maChuongTrinh: item.maChuongTrinh || "K66",
-              tenChuongTrinh: item.tenChuongTrinh || "Chương trình Đào tạo UTC",
-              maNganhBoGddt: item.maChuongTrinh || "GHA",
-              khoaQuanLy: "Hội đồng Tuyển sinh UTC",
-              maPhuongThuc: item.maPhuongThuc || "PT",
-              tenPhuongThuc: item.tenPhuongThuc || "Xét tuyển Trực tuyến K66",
-              maToHop: item.maToHop || "A00",
-              tenToHop: `Tổ hợp ${item.maToHop || "A00"}`,
-              diemChiTiet: [
-                { mon: "Điểm xét tuyển hồ sơ", diem: "Đang tính toán" },
-              ],
-              tongDiemHocTap: 0,
-              tongDiemUuTien: 0,
-              tongDiemXetTuyen: 0,
-              trangThai: (item.trangThai === "hop_le" ? "DAT_SO_TUYEN" : item.trangThai === "tu_choi" ? "CAN_BO_SUNG" : "CHO_DOI_SOAT"),
-              ngayNop: item.ngayNop || "Hôm nay",
-              ngayCapNhatCuoi: item.ngayNop || "Hôm nay",
-              ghiChuHoiDong: "Hồ sơ được gửi trực tuyến qua Cổng Thí sinh. Đang chờ Ban Tuyển sinh tiếp nhận và đối soát minh chứng.",
-              huongDanTiepTheo: "Vui lòng giữ lại biên nhận và kiểm tra lại trạng thái sau 2-3 ngày làm việc.",
-              danhSachMinhChung: (item.giayToDinhKem || []).map((doc: any, dIdx: number) => ({
-                id: `loc-mc-${dIdx}`,
-                tenGiayTo: doc.loai_chung_chi || "Minh chứng đính kèm",
-                maLoai: "FILE",
-                tenTep: doc.file_dinh_kem || "tep_dinh_kem.pdf",
-                dungLuong: "1.5 MB",
-                ngayUpload: item.ngayNop || "Hôm nay",
-                trangThai: "CHO_DUYET",
-              })),
-              lichSuXuLy: (item.historyTimeline || []).map((tl: any) => ({
-                step: tl.step,
-                tieuDe: tl.title,
-                thoiGian: tl.time,
-                boPhanXuLy: "Ban Thư ký Tuyển sinh UTC",
-                noiDung: tl.description,
-                trangThai: tl.status,
-              })),
-            }));
+              // Chuyển đổi sang format HoSoTuyenSinh
+              localMatches = matchedRaw.map(
+                (item: any): HoSoTuyenSinh => ({
+                  source: "local",
+                  maHoSo: item.maHoSo || "UTC26-CUSTOM",
+                  cccd: item.cccd || "001206xxxxxx",
+                  hoTen: item.hoTen || "Thí sinh tự do",
+                  ngaySinh: "01/01/2008",
+                  gioiTinh: "Chưa cập nhật",
+                  soDienThoai: item.soDienThoai || "",
+                  email: "thisinh@utc.edu.vn",
+                  truongThpt: "Trường THPT Thí sinh",
+                  tinhThanh: "Toàn quốc",
+                  khuVuc: item.khuVuc || "KV3",
+                  diemKhuVuc: 0.0,
+                  doiTuongUuTien: item.doiTuongUuTien || "Không",
+                  diemDoiTuong: 0.0,
+                  soThuTuNv: 1,
+                  maChuongTrinh: item.maChuongTrinh || "K66",
+                  tenChuongTrinh: item.tenChuongTrinh || "Chương trình Đào tạo UTC",
+                  maNganhBoGddt: item.maChuongTrinh || "GHA",
+                  khoaQuanLy: "Hội đồng Tuyển sinh UTC",
+                  maPhuongThuc: item.maPhuongThuc || "PT",
+                  tenPhuongThuc: item.tenPhuongThuc || "Xét tuyển Trực tuyến K66",
+                  maToHop: item.maToHop || "A00",
+                  tenToHop: `Tổ hợp ${item.maToHop || "A00"}`,
+                  diemChiTiet: [
+                    { mon: "Điểm xét tuyển hồ sơ", diem: "Đang tính toán" },
+                  ],
+                  tongDiemHocTap: 0,
+                  tongDiemUuTien: 0,
+                  tongDiemXetTuyen: 0,
+                  trangThai:
+                    item.trangThai === "hop_le"
+                      ? "DAT_SO_TUYEN"
+                      : item.trangThai === "tu_choi"
+                      ? "CAN_BO_SUNG"
+                      : "CHO_DOI_SOAT",
+                  ngayNop: item.ngayNop || "Hôm nay",
+                  ngayCapNhatCuoi: item.ngayNop || "Hôm nay",
+                  ghiChuHoiDong:
+                    "Hồ sơ được gửi trực tuyến qua Cổng Thí sinh. Đang chờ Ban Tuyển sinh tiếp nhận và đối soát minh chứng.",
+                  huongDanTiepTheo:
+                    "Vui lòng giữ lại biên nhận và kiểm tra lại trạng thái sau 2-3 ngày làm việc.",
+                  danhSachMinhChung: (item.giayToDinhKem || []).map(
+                    (doc: any, dIdx: number) => ({
+                      id: `loc-mc-${dIdx}`,
+                      tenGiayTo: doc.loai_chung_chi || "Minh chứng đính kèm",
+                      maLoai: "FILE",
+                      tenTep: doc.file_dinh_kem || "tep_dinh_kem.pdf",
+                      dungLuong: "1.5 MB",
+                      ngayUpload: item.ngayNop || "Hôm nay",
+                      trangThai: "CHO_DUYET",
+                    })
+                  ),
+                  lichSuXuLy: (item.historyTimeline || []).map((tl: any) => ({
+                    step: tl.step,
+                    tieuDe: tl.title,
+                    thoiGian: tl.time,
+                    boPhanXuLy: "Ban Thư ký Tuyển sinh UTC",
+                    noiDung: tl.description,
+                    trangThai: tl.status,
+                  })),
+                })
+              );
+            }
           }
+        } catch (e) {
+          // ignore
         }
-      } catch (e) {
-        // ignore
       }
-    }
 
-    // Kết hợp kết quả (ưu tiên mock database chuẩn trước, sau đó là local)
-    const combined = [...mockMatches, ...localMatches];
+      // 3. Tìm trong DB Mock nếu cả DB và localStorage đều chưa có
+      const mockMatches: HoSoTuyenSinh[] =
+        dbMatches.length === 0 && localMatches.length === 0
+          ? MOCK_HO_SO_DATABASE.filter((item) => {
+              const matchMa = item.maHoSo.toUpperCase().includes(q);
+              const matchCccd = item.cccd.includes(q);
+              const matchPhone = item.soDienThoai
+                .replace(/\s+/g, "")
+                .includes(q.replace(/\s+/g, ""));
+              return matchMa || matchCccd || matchPhone;
+            }).map((item) => ({ ...item, source: "mock" as const }))
+          : [];
 
-    // Loại bỏ trùng mã hồ sơ nếu có
-    const uniqueMap = new Map<string, HoSoTuyenSinh>();
-    combined.forEach((item) => {
-      if (!uniqueMap.has(item.maHoSo)) {
-        uniqueMap.set(item.maHoSo, item);
-      }
-    });
+      // Kết hợp kết quả: Ưu tiên dữ liệu thực tế từ Supabase DB
+      const combined = [...dbMatches, ...localMatches, ...mockMatches];
 
-    const finalResults = Array.from(uniqueMap.values());
+      // Loại bỏ trùng mã hồ sơ nếu có
+      const uniqueMap = new Map<string, HoSoTuyenSinh>();
+      combined.forEach((item) => {
+        if (!uniqueMap.has(item.maHoSo)) {
+          uniqueMap.set(item.maHoSo, item);
+        }
+      });
 
-    setTimeout(() => {
-      setIsLoading(false);
+      const finalResults = Array.from(uniqueMap.values());
+
       if (finalResults.length > 0) {
         setResults(finalResults);
       } else {
@@ -545,7 +570,11 @@ export default function TraCuuHoSoClient() {
           `Không tìm thấy hồ sơ nào khớp với từ khóa "${rawVal}". Vui lòng kiểm tra lại chính xác 12 chữ số CCCD hoặc Mã hồ sơ (VD: UTC26-HN0088).`
         );
       }
-    }, 250);
+    } catch (e: any) {
+      setErrorMessage("Lỗi kết nối cơ sở dữ liệu tuyển sinh. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -632,7 +661,7 @@ export default function TraCuuHoSoClient() {
   return (
     <div className="flex flex-col w-full space-y-7 pb-20">
       {/* 1. Header Banner Neo-Brutalism */}
-      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
+      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden print:hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#fdb712]/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -656,10 +685,12 @@ export default function TraCuuHoSoClient() {
         </p>
       </div>
 
-      <DisclaimerBanner />
+      <div className="print:hidden">
+        <DisclaimerBanner />
+      </div>
 
       {/* 2. Hộp Tìm Kiếm & Quick Demo Buttons */}
-      <div className="bg-white p-6 lg:p-7 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-4">
+      <div className="bg-white p-6 lg:p-7 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-4 print:hidden">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -762,7 +793,28 @@ export default function TraCuuHoSoClient() {
       {/* 3. Hiển thị Kết Quả Chi Tiết Hồ Sơ */}
       {hasSearched && !isLoading && results.length > 0 && (
         <div className="space-y-8">
-          <div className="flex items-center justify-between">
+          {/* Header In Ấn Trang Trọng (Chỉ xuất hiện khi In) */}
+          <div className="hidden print:block mb-6 border-b-2 border-black pb-4 text-center">
+            <div className="flex justify-between items-start text-[12px] leading-snug">
+              <div className="text-center font-bold">
+                <p>BỘ GIÁO DỤC VÀ ĐÀO TẠO</p>
+                <p className="font-extrabold text-[13px]">TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI</p>
+                <p className="text-[11px] font-normal">HỘI ĐỒNG TUYỂN SINH ĐẠI HỌC CHÍNH QUY K66</p>
+              </div>
+              <div className="text-center font-bold">
+                <p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+                <p className="underline decoration-1 underline-offset-4">Độc lập - Tự do - Hạnh phúc</p>
+                <p className="text-[11px] font-normal italic mt-1">
+                  Hà Nội, ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}
+                </p>
+              </div>
+            </div>
+            <h2 className="text-[18px] font-black uppercase mt-5 tracking-wide">
+              PHIẾU TRA CỨU TIẾN TRÌNH & KẾT QUẢ XÉT TUYỂN TRỰC TUYẾN K66
+            </h2>
+          </div>
+
+          <div className="flex items-center justify-between print:hidden">
             <h3 className="font-display font-black text-[20px] text-[#0d1b4e] uppercase flex items-center gap-2">
               <span className="material-symbols-outlined text-[#16a34a] text-[24px]">verified_user</span>
               <span>Hồ Sơ Xét Tuyển Khớp Với Dữ Liệu ({results.length} hồ sơ):</span>
@@ -783,16 +835,27 @@ export default function TraCuuHoSoClient() {
             return (
               <div
                 key={rec.maHoSo}
-                className="bg-white border-[3px] border-[#111827] shadow-[8px_8px_0px_#111827] rounded-2xl overflow-hidden space-y-0"
+                className="bg-white border-[3px] border-[#111827] shadow-[8px_8px_0px_#111827] rounded-2xl overflow-hidden space-y-0 print:border-none print:shadow-none print:rounded-none"
               >
                 {/* Header Profile Bar */}
-                <div className="p-6 lg:p-7 bg-[#fffdf7] border-b-[3px] border-[#111827]">
+                <div className="p-6 lg:p-7 bg-[#fffdf7] border-b-[3px] border-[#111827] print:border-b-2 print:border-black print:p-0 print:bg-white">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="px-3 py-1 bg-[#0d1b4e] text-white font-mono font-black text-[12px] rounded-lg border border-[#111827]">
                           MÃ HỒ SƠ: {rec.maHoSo}
                         </span>
+                        {rec.source === "db" ? (
+                          <span className="px-2.5 py-1 bg-[#dbeafe] text-[#1e40af] text-[11px] font-bold rounded-lg border border-[#93c5fd] flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-[#2563eb]" />
+                            CSDL Supabase UTC
+                          </span>
+                        ) : rec.source === "local" ? (
+                          <span className="px-2.5 py-1 bg-[#fef3c7] text-[#92400e] text-[11px] font-bold rounded-lg border border-[#f59e0b] flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                            Hồ sơ vừa nộp
+                          </span>
+                        ) : null}
                         <span className="px-2.5 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11px] font-black rounded-lg border border-[#111827]">
                           NGÀY NỘP: {rec.ngayNop}
                         </span>
@@ -876,7 +939,7 @@ export default function TraCuuHoSoClient() {
                 </div>
 
                 {/* Tab Điều Hướng Chi Tiết */}
-                <div className="bg-[#f8fafc] px-6 pt-3 border-b-[2px] border-[#111827] flex gap-2 overflow-x-auto">
+                <div className="bg-[#f8fafc] px-6 pt-3 border-b-[2px] border-[#111827] flex gap-2 overflow-x-auto print:hidden">
                   <button
                     type="button"
                     onClick={() => setActiveTab(rec.maHoSo, "chi_tiet")}
@@ -1183,8 +1246,29 @@ export default function TraCuuHoSoClient() {
                   )}
                 </div>
 
+                {/* Phần Chữ Ký Chuẩn Văn Bản (Chỉ xuất hiện khi In A4) */}
+                <div className="hidden print:grid grid-cols-2 mt-8 text-center text-[12px] pt-4">
+                  <div>
+                    <p className="font-bold uppercase">THÍ SINH XÁC NHẬN</p>
+                    <p className="italic text-[11px]">(Ký và ghi rõ họ tên)</p>
+                    <div className="h-16" />
+                    <p className="font-bold">{rec.hoTen}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase">TM. HỘI ĐỒNG TUYỂN SINH UTC</p>
+                    <p className="font-bold">TRƯỞNG BAN THƯ KÝ</p>
+                    <p className="italic text-[11px]">(Đã xác thực chữ ký số trên hệ thống)</p>
+                    <div className="h-16 flex items-center justify-center">
+                      <span className="text-[11px] font-mono border border-green-600 text-green-700 px-2 py-1 rounded font-bold">
+                        [ĐÃ KÝ SỐ ĐIỆN TỬ]
+                      </span>
+                    </div>
+                    <p className="font-bold">HỘI ĐỒNG TUYỂN SINH K66</p>
+                  </div>
+                </div>
+
                 {/* Footer Thẻ Hồ Sơ: Hỗ Trợ & Hotline */}
-                <div className="p-4 sm:p-5 bg-[#fffdf7] border-t-[2px] border-[#111827] flex flex-col sm:flex-row items-center justify-between gap-3 text-[12.5px] text-[#64748b]">
+                <div className="p-4 sm:p-5 bg-[#fffdf7] border-t-[2px] border-[#111827] flex flex-col sm:flex-row items-center justify-between gap-3 text-[12.5px] text-[#64748b] print:hidden">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px] text-[#f59e0b]">help</span>
                     <span>Thắc mắc về tiến độ? Liên hệ Ban Thư ký Tuyển sinh ĐH Giao thông Vận tải</span>

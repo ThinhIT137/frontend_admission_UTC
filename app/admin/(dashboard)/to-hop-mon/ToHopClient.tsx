@@ -257,7 +257,14 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
-        <DataTable columns={columns} data={paginatedData} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} onClickRow={openProgramsModal} />
+        <DataTable
+          columns={columns}
+          data={paginatedData}
+          keyExtractor={(row) => row.ma_to_hop}
+          onEdit={openEdit}
+          onDelete={(row) => setDeletingRow(row)}
+          onClickRow={openProgramsModal}
+        />
 
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-[#e9e2d5] flex items-center justify-between bg-white">

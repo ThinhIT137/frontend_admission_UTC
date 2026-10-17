@@ -146,7 +146,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       qNorm.includes("lich xet tuyen")
     ) {
       if (knowledgeBase.milestones && knowledgeBase.milestones.length > 0) {
-        let reply = `Dưới đây là các mốc thời gian tuyển sinh quan trọng được ghi nhận trong CSDL Tuyển sinh UTC K66:\n\n`;
+        let reply = `Dưới đây là các mốc thời gian tuyển sinh quan trọng được ghi nhận trong CSDL Tuyển sinh UTC:\n\n`;
         knowledgeBase.milestones.forEach((ms) => {
           const start = new Date(ms.thoiGianBatDau).toLocaleDateString("vi-VN");
           const end = ms.thoiGianKetThuc ? ` đến ${new Date(ms.thoiGianKetThuc).toLocaleDateString("vi-VN")}` : "";
@@ -358,7 +358,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       {
         id: "reset",
         sender: "bot",
-        text: "Hội thoại đã được làm mới. Mình đã sẵn sàng hỗ trợ bạn câu hỏi tiếp theo về Tuyển sinh UTC K66!",
+        text: "Hội thoại đã được làm mới. Mình đã sẵn sàng hỗ trợ bạn câu hỏi tiếp theo về Tuyển sinh UTC!",
         time: "Vừa xong",
         richData: { type: "general" },
       },

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import { submitHoSoAction } from "./nop-ho-so.server";
 
 export interface MethodOption {
   ma_phuong_thuc: string;
@@ -56,6 +57,15 @@ export default function NopHoSoClient({ methods, programs }: Props) {
     cccd: string;
     hoTen: string;
   } | null>(null);
+  const [hasCopied, setHasCopied] = useState(false);
+
+  const copyMaHoSo = (code: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+      setHasCopied(true);
+      setTimeout(() => setHasCopied(false), 2500);
+    }
+  };
 
   // Lấy danh sách tổ hợp của chương trình đào tạo đang chọn
   const currentProgramData = programs.find((p) => p.ma_chuong_trinh === selectedProgram);
@@ -118,97 +128,109 @@ export default function NopHoSoClient({ methods, programs }: Props) {
     setUploadedFiles((prev) => prev.filter((f) => f.loaiGiayTo !== docTitle));
   };
 
-  // Xác nhận nộp hồ sơ (Thuần Frontend UI/Client)
+  // Xác nhận nộp hồ sơ (Kết nối trực tiếp CSDL Supabase qua Server Action)
   const handleFinalSubmit = async () => {
     setSubmitError("");
+
+    const trimmedCccd = cccd.trim();
+    const trimmedHoTen = hoTen.trim();
+    const trimmedPhone = soDienThoai.trim();
+
+    if (!trimmedHoTen) {
+      setSubmitError("Vui lòng nhập đầy đủ Họ và tên thí sinh.");
+      return;
+    }
+    if (!trimmedCccd || trimmedCccd.length < 9) {
+      setSubmitError("Vui lòng nhập đúng Số CCCD / Số định danh cá nhân hợp lệ (9-12 chữ số).");
+      return;
+    }
+    if (!trimmedPhone || trimmedPhone.length < 10) {
+      setSubmitError("Vui lòng nhập Số điện thoại liên lạc chính xác (tối thiểu 10 chữ số).");
+      return;
+    }
+    if (!selectedProgram || !selectedMethod) {
+      setSubmitError("Vui lòng chọn Nguyện vọng Chương trình đào tạo và Phương thức xét tuyển.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Giả lập độ trễ xử lý nộp hồ sơ của hệ thống (500ms)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const generatedMaHoSo = `UTC26-${randomSuffix}`;
-
-      const newSubmission = {
-        maHoSo: generatedMaHoSo,
-        cccd: cccd.trim(),
-        hoTen: hoTen.trim(),
-        soDienThoai: soDienThoai.trim(),
+      const result = await submitHoSoAction({
+        hoTen: trimmedHoTen,
+        cccd: trimmedCccd,
+        soDienThoai: trimmedPhone,
         email: email.trim(),
         khuVuc,
         doiTuongUuTien,
         maPhuongThuc: selectedMethod,
-        tenPhuongThuc: methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc || selectedMethod,
         maChuongTrinh: selectedProgram,
-        tenChuongTrinh: currentProgramData?.ten_chuong_trinh || selectedProgram,
         maToHop: selectedToHop || availableToHops[0] || "A00",
         tongDiemXetTuyen: rawScore ? Number(rawScore) : null,
-        trangThai: "cho" as const,
-        ketQuaGhiChu: "Đã tiếp nhận hồ sơ trực tuyến, đang chờ Hội đồng Tuyển sinh đối soát",
-        ngayNop: new Date().toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
         giayToDinhKem: uploadedFiles.map((f) => ({
-          ma_chung_chi: f.id,
-          loai_chung_chi: f.loaiGiayTo,
-          diem_hoac_hang: "Đã tải lên",
-          file_dinh_kem: f.fileName,
-          trang_thai_duyet: "cho",
+          loaiGiayTo: f.loaiGiayTo,
+          fileName: f.fileName,
+          fileSize: f.fileSize,
         })),
-        historyTimeline: [
-          {
-            step: 1,
-            title: "Nộp hồ sơ trực tuyến",
-            time: new Date().toLocaleDateString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
+      });
+
+      if (!result.success || !result.maHoSo) {
+        setSubmitError(result.error || "Lỗi lưu hồ sơ vào hệ thống tuyển sinh. Vui lòng kiểm tra lại kết nối.");
+        return;
+      }
+
+      const generatedMaHoSo = result.maHoSo;
+
+      // Đồng bộ bản lưu vào localStorage để hiển thị offline tức thời nếu cần
+      if (typeof window !== "undefined") {
+        try {
+          const newSubmission = {
+            maHoSo: generatedMaHoSo,
+            cccd: trimmedCccd,
+            hoTen: trimmedHoTen,
+            soDienThoai: trimmedPhone,
+            email: email.trim(),
+            khuVuc,
+            doiTuongUuTien,
+            maPhuongThuc: selectedMethod,
+            tenPhuongThuc: methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc || selectedMethod,
+            maChuongTrinh: selectedProgram,
+            tenChuongTrinh: currentProgramData?.ten_chuong_trinh || selectedProgram,
+            maToHop: selectedToHop || availableToHops[0] || "A00",
+            tongDiemXetTuyen: rawScore ? Number(rawScore) : null,
+            trangThai: "cho" as const,
+            ketQuaGhiChu: "Đã tiếp nhận hồ sơ trực tuyến, đang chờ Hội đồng Tuyển sinh đối soát",
+            ngayNop: new Date().toLocaleDateString("vi-VN", {
               day: "2-digit",
               month: "2-digit",
               year: "numeric",
             }),
-            description: "Thí sinh đã hoàn tất nộp thông tin và tải lên các bản scan giấy tờ trên cổng tuyển sinh.",
-            status: "COMPLETED" as const,
-          },
-          {
-            step: 2,
-            title: "Tiếp nhận & Kiểm tra tính hợp lệ",
-            time: "Đang tiến hành",
-            description: "Ban Thư ký tuyển sinh đang tiến hành đối soát minh chứng học bạ / chứng chỉ / điểm thi.",
-            status: "CURRENT" as const,
-          },
-          {
-            step: 3,
-            title: "Công bố kết quả xét tuyển",
-            time: "Theo kế hoạch",
-            description: "Kết quả trúng tuyển chính thức sẽ được phê duyệt và gửi thông báo qua SMS/Email.",
-            status: "PENDING" as const,
-          },
-        ],
-      };
+            giayToDinhKem: uploadedFiles.map((f) => ({
+              ma_chung_chi: f.id,
+              loai_chung_chi: f.loaiGiayTo,
+              diem_hoac_hang: "Bản số hóa trực tuyến",
+              file_dinh_kem: f.fileName,
+              trang_thai_duyet: "cho",
+            })),
+          };
 
-      // Lưu tạm vào localStorage / sessionStorage để trang /tra-cuu-ho-so có thể tra cứu ngay phía Client
-      if (typeof window !== "undefined") {
-        try {
           const existingListStr = localStorage.getItem("UTC_SUBMITTED_APPLICATIONS") || "[]";
           const existingList = JSON.parse(existingListStr);
           existingList.unshift(newSubmission);
           localStorage.setItem("UTC_SUBMITTED_APPLICATIONS", JSON.stringify(existingList));
         } catch (e) {
-          // ignore
+          // ignore localstorage error
         }
       }
 
       setSubmitSuccess({
         maHoSo: generatedMaHoSo,
-        cccd: cccd.trim(),
-        hoTen: hoTen.trim(),
+        cccd: trimmedCccd,
+        hoTen: trimmedHoTen,
       });
       setCurrentStep(4);
     } catch (e: any) {
-      setSubmitError("Lỗi xử lý nộp hồ sơ. Vui lòng thử lại.");
+      setSubmitError(e?.message || "Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau.");
     } finally {
       setIsSubmitting(false);
     }
@@ -652,37 +674,64 @@ export default function NopHoSoClient({ methods, programs }: Props) {
           <div className="space-y-6 animate-in fade-in duration-200">
             {submitSuccess ? (
               /* Màn hình thông báo NỘP THÀNH CÔNG */
-              <div className="p-6 bg-[#f0fdf4] border-[3px] border-[#16a34a] rounded-2xl shadow-[6px_6px_0px_#16a34a] space-y-5 text-center sm:text-left">
+              <div className="p-6 bg-[#f0fdf4] border-[3px] border-[#16a34a] rounded-2xl shadow-[6px_6px_0px_#16a34a] space-y-5 text-center sm:text-left print:border-none print:shadow-none print:p-0">
                 <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-[#bbf7d0] pb-4">
-                  <div className="w-16 h-16 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0 border-[3px] border-[#111827] shadow-[2px_2px_0px_#111827]">
+                  <div className="w-16 h-16 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0 border-[3px] border-[#111827] shadow-[2px_2px_0px_#111827] print:hidden">
                     <span className="material-symbols-outlined text-[36px]">check</span>
                   </div>
                   <div>
-                    <span className="px-3 py-0.5 bg-[#86efac] text-[#065f46] font-stamp text-[12px] font-black rounded-md border border-[#16a34a] uppercase">
-                      ĐÃ TIẾP NHẬN HỒ SƠ
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2 mb-1 justify-center sm:justify-start">
+                      <span className="px-3 py-0.5 bg-[#86efac] text-[#065f46] font-stamp text-[12px] font-black rounded-md border border-[#16a34a] uppercase">
+                        ĐÃ LƯU CSDL TUYỂN SINH UTC
+                      </span>
+                      <span className="px-2.5 py-0.5 bg-[#dbeafe] text-[#1e40af] text-[11px] font-bold rounded-md border border-[#93c5fd]">
+                        Bảng nguyen_vong_sinh_vien
+                      </span>
+                    </div>
                     <h3 className="font-display font-black text-[24px] sm:text-[28px] text-[#14532d] mt-1">
                       NỘP HỒ SƠ XÉT TUYỂN TRỰC TUYẾN THÀNH CÔNG!
                     </h3>
                     <p className="text-[13.5px] text-[#166534]">
-                      Hệ thống tuyển sinh Trường ĐH Giao thông Vận tải đã ghi nhận hồ sơ của bạn vào cơ sở dữ liệu.
+                      Hệ thống tuyển sinh Trường ĐH Giao thông Vận tải đã tiếp nhận và cấp mã hồ sơ chính thức cho thí sinh.
                     </p>
                   </div>
                 </div>
 
+                {/* Thẻ hiển thị mã hồ sơ nổi bật */}
+                <div className="bg-[#fffdf7] p-5 border-[2.5px] border-[#111827] rounded-xl shadow-[4px_4px_0px_#111827] flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[12px] font-bold text-[#64748b] uppercase tracking-wider block">
+                      MÃ HỒ SƠ XÉT TUYỂN (DÙNG ĐỂ TRA CỨU ĐỐI SOÁT):
+                    </span>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="font-mono font-black text-[28px] sm:text-[32px] text-[#0284c7] tracking-wider select-all">
+                        {submitSuccess.maHoSo}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyMaHoSo(submitSuccess.maHoSo)}
+                        className="px-3 py-1.5 bg-white hover:bg-[#f1f5f9] text-[#0f172a] text-[12px] font-bold rounded-lg border-[1.5px] border-[#111827] shadow-[1.5px_1.5px_0px_#111827] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 print:hidden"
+                        title="Sao chép mã hồ sơ"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {hasCopied ? "check" : "content_copy"}
+                        </span>
+                        <span>{hasCopied ? "Đã chép!" : "Sao chép"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right sm:border-l-[2px] sm:border-[#e2e8f0] sm:pl-6 w-full sm:w-auto">
+                    <span className="text-[12px] font-bold text-[#64748b] block">THỜI GIAN TIẾP NHẬN:</span>
+                    <span className="text-[14px] font-mono font-bold text-[#1e293b]">
+                      {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} -{" "}
+                      {new Date().toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Thông tin tóm tắt hồ sơ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-5 border-[2px] border-[#16a34a] rounded-xl text-[13.5px]">
-                  <div>
-                    <span className="text-[#64748b] block text-[12px] font-bold">MÃ HỒ SƠ CỦA BẠN:</span>
-                    <span className="font-mono font-black text-[22px] text-[#0284c7] tracking-wider">
-                      {submitSuccess.maHoSo}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#64748b] block text-[12px] font-bold">SỐ CCCD / ĐỊNH DANH:</span>
-                    <span className="font-mono font-black text-[18px] text-[#0d1b4e]">
-                      {submitSuccess.cccd}
-                    </span>
-                  </div>
                   <div>
                     <span className="text-[#64748b] block text-[12px] font-bold">HỌ VÀ TÊN THÍ SINH:</span>
                     <span className="font-bold text-[16px] text-[#0d1b4e]">
@@ -690,22 +739,51 @@ export default function NopHoSoClient({ methods, programs }: Props) {
                     </span>
                   </div>
                   <div>
+                    <span className="text-[#64748b] block text-[12px] font-bold">SỐ CCCD / ĐỊNH DANH:</span>
+                    <span className="font-mono font-black text-[16px] text-[#0d1b4e]">
+                      {submitSuccess.cccd}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748b] block text-[12px] font-bold">CHƯƠNG TRÌNH XÉT TUYỂN:</span>
+                    <span className="font-bold text-[#0d1b4e]">
+                      {currentProgramData?.ten_chuong_trinh || selectedProgram}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748b] block text-[12px] font-bold">PHƯƠNG THỨC & TỔ HỢP:</span>
+                    <span className="font-bold text-[#0d1b4e]">
+                      {methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc} ({selectedToHop || availableToHops[0] || "A00"})
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 pt-2 border-t border-[#e2e8f0]">
                     <span className="text-[#64748b] block text-[12px] font-bold">TRẠNG THÁI HIỆN TẠI:</span>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#fef3c7] text-[#92400e] font-bold text-[12px] rounded-lg border border-[#f59e0b]">
-                      <span className="w-2 h-2 rounded-full bg-[#f59e0b] animate-pulse" />
-                      Chờ Thư ký Tuyển sinh đối soát hồ sơ
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#fef3c7] text-[#92400e] font-bold text-[12.5px] rounded-lg border border-[#f59e0b] mt-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] animate-pulse" />
+                      Chờ Thư ký Tuyển sinh đối soát minh chứng (Dữ liệu đã sẵn sàng trên hệ thống)
                     </span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-3 pt-2 print:hidden">
                   <Link
                     href={`/tra-cuu-ho-so?q=${encodeURIComponent(submitSuccess.maHoSo)}`}
-                    className="px-6 py-3 bg-[#0284c7] hover:bg-[#0369a1] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
+                    className="px-6 py-3.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[18px]">search_check</span>
-                    <span>Tra Cứu Tiến Độ Hồ Sơ Ngay</span>
+                    <span className="material-symbols-outlined text-[20px]">search_check</span>
+                    <span>Tra Cứu Tiến Độ Hồ Sơ Này Ngay →</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") window.print();
+                    }}
+                    className="px-5 py-3.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#0f172a] font-bold text-[13.5px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-xl flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">print</span>
+                    <span>In Phiếu Biên Nhận</span>
+                  </button>
 
                   <button
                     type="button"
@@ -714,7 +792,7 @@ export default function NopHoSoClient({ methods, programs }: Props) {
                       setCurrentStep(1);
                       setUploadedFiles([]);
                     }}
-                    className="px-5 py-3 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
+                    className="px-5 py-3.5 bg-white text-[#475569] font-bold text-[13.5px] border-[2px] border-[#cbd5e1] rounded-xl hover:bg-[#f8fafc] ml-auto"
                   >
                     Nộp thêm hồ sơ khác
                   </button>

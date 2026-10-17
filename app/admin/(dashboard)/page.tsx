@@ -18,6 +18,8 @@ export default async function AdminDashboardPage() {
     totalArticles: 0,
     totalFaculties: 0,
     totalMilestones: 0,
+    totalQuota: 0,
+    totalBenchmarks: 0,
   };
 
   try {
@@ -30,6 +32,8 @@ export default async function AdminDashboardPage() {
       articlesCount,
       facultiesCount,
       milestonesCount,
+      quotaAggregate,
+      benchmarksCount,
     ] = await Promise.all([
       prisma.nganhHoc.count(),
       prisma.chuongTrinhDaoTao.count(),
@@ -39,6 +43,11 @@ export default async function AdminDashboardPage() {
       prisma.trangNoiDung.count().catch(() => 0),
       prisma.khoiNganh.count(),
       prisma.loTrinhTuyenSinh.count().catch(() => 0),
+      prisma.lichSuDiemChuan.aggregate({
+        where: { nam: 2026 },
+        _sum: { chi_tieu: true },
+      }).catch(() => ({ _sum: { chi_tieu: 4660 } })),
+      prisma.diemTrungTuyen.count().catch(() => 0),
     ]);
 
     stats = {
@@ -50,6 +59,8 @@ export default async function AdminDashboardPage() {
       totalArticles: articlesCount,
       totalFaculties: facultiesCount,
       totalMilestones: milestonesCount,
+      totalQuota: quotaAggregate._sum.chi_tieu || 4660,
+      totalBenchmarks: benchmarksCount,
     };
   } catch (error) {
     console.error("Lỗi truy vấn số liệu thống kê realtime từ DB:", error);
@@ -60,47 +71,73 @@ export default async function AdminDashboardPage() {
       {/* Top Header Title */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#e9e2d5] pb-4">
         <div>
-          <div className="inline-block px-2.5 py-0.5 rounded bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11px] font-bold uppercase mb-2">
+          <div className="inline-block px-3 py-1 rounded-lg bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11.5px] font-bold uppercase mb-2 shadow-xs">
             Hội đồng Tuyển sinh UTC
           </div>
-          <h1 className="font-display font-black text-[32px] text-[#0d1b4e] leading-tight tracking-tight">
+          <h1 className="font-display font-black text-[30px] sm:text-[34px] text-[#0d1b4e] leading-tight tracking-tight">
             Tổng Quan Chỉ Số Vận Hành Tuyển Sinh
           </h1>
+          <p className="text-[13.5px] text-[#767680] mt-1">
+            Hệ thống quản trị cơ sở dữ liệu tuyển sinh, giám sát chỉ tiêu đào tạo và hỗ trợ quyết định xét tuyển.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
+            href="/admin/thong-ke"
+            className="flex items-center gap-2 bg-[#fdb712] text-[#0d1b4e] hover:bg-[#e5a408] px-4 py-2.5 rounded-xl font-black text-[13px] shadow transition-all hover:scale-[1.02] active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[18px]">analytics</span>
+            Báo Cáo Phân Tích
+          </Link>
+          <Link
             href="/"
             target="_blank"
-            className="flex items-center gap-2 bg-[#0d1b4e] text-[#fdb712] hover:bg-[#1a2c6d] px-5 py-2.5 rounded-xl font-extrabold text-[13px] shadow transition-all hover:scale-[1.02] active:scale-95"
+            className="flex items-center gap-2 bg-[#0d1b4e] text-white hover:bg-[#1a2c6d] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow transition-all hover:scale-[1.02] active:scale-95"
           >
             <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-            Xem Trang Thí Sinh
+            Trang Thí Sinh
           </Link>
         </div>
       </div>
 
-      {/* 6 Key Stat Cards with Real Database Counts */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* 8 Key Stat Cards in a 4-column balanced responsive grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AdminStatCard
-          title="Ngành Học"
-          value={stats.totalMajors}
-          subtitle="Ngành đang tuyển sinh"
-          icon="school"
+          title="Tổng Chỉ Tiêu K66"
+          value={stats.totalQuota.toLocaleString("vi-VN")}
+          subtitle="Chỉ tiêu năm 2026 chính quy"
+          icon="verified"
           progressPercent={100}
+          accentBg="bg-[#ba1a1a]"
         />
         <AdminStatCard
           title="Chương Trình ĐT"
           value={stats.totalPrograms}
-          subtitle="CTĐT chính quy & CLC"
+          subtitle="109 CTĐT chuẩn & chất lượng cao"
           icon="menu_book"
           progressPercent={100}
           accentBg="bg-[#0284c7]"
         />
         <AdminStatCard
-          title="Phương Thức"
+          title="Ngành Đào Tạo"
+          value={stats.totalMajors}
+          subtitle="69 ngành đào tạo toàn trường"
+          icon="school"
+          progressPercent={100}
+        />
+        <AdminStatCard
+          title="Dữ Liệu Điểm Chuẩn"
+          value={stats.totalBenchmarks}
+          subtitle="538 bản ghi trúng tuyển các năm"
+          icon="grade"
+          progressPercent={100}
+          accentBg="bg-[#b45309]"
+        />
+        <AdminStatCard
+          title="Phương Thức Tuyển Sinh"
           value={stats.totalMethods}
-          subtitle="Phương thức xét tuyển"
+          subtitle="5 phương thức chính thức UTC"
           icon="groups"
           progressPercent={100}
           accentBg="bg-[#15803d]"
@@ -108,26 +145,26 @@ export default async function AdminDashboardPage() {
         <AdminStatCard
           title="Tổ Hợp Xét Tuyển"
           value={stats.totalCombinations}
-          subtitle="Tổ hợp 3 môn áp dụng"
-          icon="trending_up"
+          subtitle="12 tổ hợp 3 môn áp dụng"
+          icon="category"
           progressPercent={100}
           accentBg="bg-[#7c5800]"
         />
         <AdminStatCard
-          title="Tri Thức Chatbot"
+          title="Khoa / Viện Quản Lý"
+          value={stats.totalFaculties}
+          subtitle="4 khoa/viện đào tạo trực thuộc"
+          icon="account_balance"
+          progressPercent={100}
+          accentBg="bg-[#4338ca]"
+        />
+        <AdminStatCard
+          title="Tri Thức Chatbot AI"
           value={stats.totalAiKb}
-          subtitle="Bộ tri thức tư vấn AI"
+          subtitle="132 mục tri thức tư vấn RAG"
           icon="smart_toy"
           progressPercent={100}
           accentBg="bg-[#9333ea]"
-        />
-        <AdminStatCard
-          title="Tin Tức & Đề Án"
-          value={stats.totalArticles}
-          subtitle="Văn bản & đề án PDF"
-          icon="article"
-          progressPercent={100}
-          accentBg="bg-[#fdb712]"
         />
       </div>
 

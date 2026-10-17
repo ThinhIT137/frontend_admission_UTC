@@ -9,10 +9,19 @@ export default async function ManageProgramPage() {
   const [ctdts, nganhHocs] = await Promise.all([
     prisma.chuongTrinhDaoTao.findMany({
       include: {
-        nganh: true,
+        nganh: {
+          include: {
+            khoi_nganh: true,
+          },
+        },
+        ctdt_to_hop: {
+          include: {
+            to_hop: true,
+          },
+        },
       },
       orderBy: {
-        create_at: "desc",
+        ten_chuong_trinh: "asc",
       },
     }),
     prisma.nganhHoc.findMany({

@@ -27,7 +27,7 @@ export function AdminStatCard({
     <div className="bg-white p-4 rounded-2xl shadow-xs border border-[#e9e2d5] hover:shadow-md hover:border-[#0d1b4e]/30 transition-all flex flex-col justify-between group">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-stamp text-[11px] font-bold text-[#45464f] uppercase tracking-wider truncate">
+        <span className="font-stamp text-[11.5px] font-bold text-[#45464f] uppercase tracking-wider leading-tight">
           {title}
         </span>
         <div className="w-8 h-8 rounded-xl bg-[#faf3e6] group-hover:bg-[#0d1b4e] group-hover:text-[#fdb712] flex items-center justify-center text-[#0d1b4e] transition-colors shrink-0">
@@ -36,12 +36,12 @@ export function AdminStatCard({
       </div>
 
       {/* Main Number Value */}
-      <div className="my-2.5">
-        <div className="font-display font-black text-[30px] text-[#0d1b4e] leading-none tracking-tight">
+      <div className="my-2">
+        <div className="font-display font-black text-[28px] sm:text-[30px] text-[#0d1b4e] leading-none tracking-tight">
           {value}
         </div>
         {subtitle && (
-          <p className="text-[12px] font-medium text-[#767680] mt-1 truncate">
+          <p className="text-[12px] font-medium text-[#767680] mt-1.5 leading-snug">
             {subtitle}
           </p>
         )}

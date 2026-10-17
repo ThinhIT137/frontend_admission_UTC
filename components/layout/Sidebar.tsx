@@ -8,19 +8,83 @@ interface NavItem {
   href: string;
   icon: string;
   badge?: string;
+  group?: string;
 }
 
 const navItems: NavItem[] = [
-  { label: "Trang chủ", href: "/", icon: "home" },
-  { label: "Nộp hồ sơ trực tuyến", href: "/nop-ho-so", icon: "upload_file", badge: "K66" },
-  { label: "Tra cứu hồ sơ", href: "/tra-cuu-ho-so", icon: "search_check" },
-  { label: "Tính điểm quy đổi", href: "/tinh-diem-quy-doi", icon: "calculate" },
-  { label: "Tra cứu ngành học", href: "/tra-cuu-nganh-hoc", icon: "directions_railway" },
-  { label: "Lộ trình tuyển sinh", href: "/lo-trinh-tuyen-sinh", icon: "timeline" },
-  { label: "Trắc nghiệm MBTI", href: "/trac-nghiem-mbti", icon: "psychology" },
-  { label: "Thông tin tuyển sinh", href: "/thong-tin-tuyen-sinh", icon: "article" },
-  { label: "Hỏi đáp AI UTC", href: "/hoi-dap-ai", icon: "smart_toy" },
-  { label: "Cổng Quản trị viên", href: "/admin", icon: "admin_panel_settings", badge: "Admin" },
+  // Giai đoạn 1: Tìm hiểu & Định hướng nghề nghiệp
+  {
+    group: "1. Tìm hiểu trường & Ngành",
+    label: "1. Trang chủ",
+    href: "/",
+    icon: "home",
+  },
+  {
+    group: "1. Tìm hiểu trường & Ngành",
+    label: "2. Thông tin tuyển sinh",
+    href: "/thong-tin-tuyen-sinh",
+    icon: "article",
+    badge: "Đề án",
+  },
+  {
+    group: "1. Tìm hiểu trường & Ngành",
+    label: "3. Tra cứu ngành học",
+    href: "/tra-cuu-nganh-hoc",
+    icon: "directions_railway",
+  },
+  {
+    group: "1. Tìm hiểu trường & Ngành",
+    label: "4. Trắc nghiệm MBTI",
+    href: "/trac-nghiem-mbti",
+    icon: "psychology",
+    badge: "Gợi ý",
+  },
+
+  // Giai đoạn 2: Đánh giá điểm & Kế hoạch thời gian
+  {
+    group: "2. Tính điểm & Lịch trình",
+    label: "5. Tính điểm quy đổi",
+    href: "/tinh-diem-quy-doi",
+    icon: "calculate",
+  },
+  {
+    group: "2. Tính điểm & Lịch trình",
+    label: "6. Lộ trình tuyển sinh",
+    href: "/lo-trinh-tuyen-sinh",
+    icon: "timeline",
+    badge: "K66",
+  },
+
+  // Giai đoạn 3: Thực hiện nộp & Theo dõi kết quả
+  {
+    group: "3. Nộp hồ sơ & Tra cứu",
+    label: "7. Nộp hồ sơ trực tuyến",
+    href: "/nop-ho-so",
+    icon: "upload_file",
+    badge: "Mở cổng",
+  },
+  {
+    group: "3. Nộp hồ sơ & Tra cứu",
+    label: "8. Tra cứu hồ sơ",
+    href: "/tra-cuu-ho-so",
+    icon: "search_check",
+  },
+
+  // Giai đoạn 4: Hỗ trợ & Quản trị hệ thống
+  {
+    group: "4. Hỗ trợ & Hệ thống",
+    label: "9. Hỏi đáp AI UTC",
+    href: "/hoi-dap-ai",
+    icon: "smart_toy",
+    badge: "24/7",
+  },
+  {
+    group: "4. Hỗ trợ & Hệ thống",
+    label: "Cổng Quản trị viên",
+    href: "/admin",
+    icon: "admin_panel_settings",
+    badge: "Admin",
+  },
 ];
 
 interface SidebarProps {
@@ -84,50 +148,64 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="space-y-2 flex flex-col">
-          {navItems.map((item) => {
+        <nav className="space-y-1.5 flex flex-col">
+          {navItems.map((item, idx) => {
             const isActive =
               item.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(item.href);
 
+            const isFirstInGroup = idx === 0 || item.group !== navItems[idx - 1]?.group;
+
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3.5 py-2.5 border-[2.5px] border-[#111827] transition-all flex items-center justify-between group rounded-[8px] ${
-                  isActive
-                    ? "bg-[#0284c7] text-white font-bold shadow-[3px_3px_0px_#111827] translate-x-1"
-                    : "bg-[#fff9ee] text-[#1e1b14] font-medium shadow-[2px_2px_0px_#000525] hover:bg-[#ffdea8] hover:text-[#000525]"
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <span
-                    className={`material-symbols-outlined text-[20px] ${
-                      isActive ? "text-white" : "text-[#000525]"
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="text-[14px]">{item.label}</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  {item.badge && (
-                    <span className="text-[10px] bg-[#fdb712] text-[#000525] px-1.5 py-0.5 font-bold border border-[#111827] rounded">
-                      {item.badge}
+              <div key={item.href} className="space-y-1">
+                {isFirstInGroup && item.group && (
+                  <div className={`px-1 flex items-center gap-1.5 ${idx === 0 ? "pb-1" : "pt-3 pb-1"}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a]" />
+                    <span className="font-stamp text-[10.5px] font-black text-[#57534e] uppercase tracking-wider">
+                      {item.group}
                     </span>
-                  )}
-                  <span
-                    className={`material-symbols-outlined text-[16px] ${
-                      isActive
-                        ? "text-white"
-                        : "text-[#000525] opacity-0 group-hover:opacity-100 transition-opacity"
-                    }`}
-                  >
-                    arrow_forward
+                  </div>
+                )}
+
+                <Link
+                  href={item.href}
+                  className={`px-3 py-2.5 border-[2px] border-[#111827] transition-all flex items-center justify-between group rounded-[8px] ${
+                    isActive
+                      ? "bg-[#0284c7] text-white font-bold shadow-[3px_3px_0px_#111827] translate-x-1"
+                      : "bg-[#fff9ee] text-[#1e1b14] font-medium shadow-[2px_2px_0px_#000525] hover:bg-[#ffdea8] hover:text-[#000525]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className={`material-symbols-outlined text-[20px] ${
+                        isActive ? "text-white" : "text-[#000525]"
+                      }`}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="text-[13.5px] leading-tight font-display font-bold">
+                      {item.label}
+                    </span>
                   </span>
-                </span>
-              </Link>
+                  <span className="flex items-center gap-1">
+                    {item.badge && (
+                      <span className="text-[10px] bg-[#fdb712] text-[#000525] px-1.5 py-0.5 font-bold border border-[#111827] rounded shadow-[1px_1px_0px_#111827]">
+                        {item.badge}
+                      </span>
+                    )}
+                    <span
+                      className={`material-symbols-outlined text-[15px] ${
+                        isActive
+                          ? "text-white"
+                          : "text-[#000525] opacity-0 group-hover:opacity-100 transition-opacity"
+                      }`}
+                    >
+                      arrow_forward
+                    </span>
+                  </span>
+                </Link>
+              </div>
             );
           })}
         </nav>

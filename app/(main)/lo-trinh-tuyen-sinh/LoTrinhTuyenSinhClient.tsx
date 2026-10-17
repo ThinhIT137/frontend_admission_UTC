@@ -60,7 +60,7 @@ export const ADMISSION_STAGES = [
   },
 ];
 
-// Danh sách các mốc chi tiết chuẩn hóa theo kế hoạch Bộ GD&ĐT và Đề án UTC K66
+// Danh sách các mốc chi tiết chuẩn hóa theo kế hoạch Bộ GD&ĐT và Đề án UTC
 const DEFAULT_DETAILED_MILESTONES: MilestoneItem[] = [
   // GIAI ĐOẠN 1: Trước xét tuyển & Xét tuyển sớm
   {

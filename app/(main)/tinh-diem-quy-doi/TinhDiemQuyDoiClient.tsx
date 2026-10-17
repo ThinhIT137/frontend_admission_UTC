@@ -1054,7 +1054,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops }:
                         {calculationResult && p.benchmarkScore !== null ? (
                           p.chance === "high" ? (
                             <span className="px-2.5 py-0.5 bg-[#dcfce7] text-[#15803d] border border-[#86efac] rounded-full text-[11px] font-black inline-block">
-                              🟢 Khả năng đỗ cao
+                              🟢  cao
                             </span>
                           ) : p.chance === "medium" ? (
                             <span className="px-2.5 py-0.5 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded-full text-[11px] font-black inline-block">

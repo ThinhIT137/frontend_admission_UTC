@@ -16,6 +16,7 @@ export interface DataTableProps<T> {
   actions?: (row: T) => ReactNode;
   emptyText?: string;
   onClickRow?: (row: T) => void;
+  keyExtractor?: (row: T, index: number) => string | number;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -26,6 +27,7 @@ export function DataTable<T extends Record<string, any>>({
   actions,
   emptyText = "Không tìm thấy dữ liệu phù hợp",
   onClickRow,
+  keyExtractor,
 }: DataTableProps<T>) {
   return (
     <div className="w-full bg-white rounded-xl border border-[#e9e2d5] shadow-sm overflow-hidden">
@@ -59,22 +61,35 @@ export function DataTable<T extends Record<string, any>>({
                 </td>
               </tr>
             ) : (
-              data.map((row, rowIdx) => (
-                <tr
-                  key={
-                    row.id ??
-                    row.ma_nganh ??
-                    row.ma_chuong_trinh ??
-                    row.ma_to_hop ??
-                    row.ma_phuong_thuc ??
-                    row.ma_su_kien ??
-                    row.ma_bai_viet ??
-                    row.ma_tri_thuc ??
-                    rowIdx
-                  }
-                  className={`hover:bg-[#faf3e6]/60 transition-colors font-medium ${onClickRow ? 'cursor-pointer' : ''}`}
-                  onClick={() => onClickRow && onClickRow(row)}
-                >
+              data.map((row, rowIdx) => {
+                const rawKey = keyExtractor
+                  ? keyExtractor(row, rowIdx)
+                  : (row?.id ??
+                     row?.ma_khoi_nganh ??
+                     row?.ma_nganh ??
+                     row?.ma_chuong_trinh ??
+                     row?.ma_mon ??
+                     row?.ma_to_hop ??
+                     row?.ma_phuong_thuc ??
+                     row?.ma_ls_dc ??
+                     row?.ma_su_kien ??
+                     row?.ma_bai_viet ??
+                     row?.ma_tri_thuc ??
+                     row?.ma_vai_tro ??
+                     row?.ma_admin ??
+                     row?.ma_ho_so ??
+                     null);
+
+                const finalKey = rawKey !== null && rawKey !== undefined 
+                  ? `${String(rawKey)}-${rowIdx}` 
+                  : `row-${rowIdx}`;
+
+                return (
+                  <tr
+                    key={finalKey}
+                    className={`hover:bg-[#faf3e6]/60 transition-colors font-medium ${onClickRow ? 'cursor-pointer' : ''}`}
+                    onClick={() => onClickRow && onClickRow(row)}
+                  >
                   {columns.map((col, colIdx) => (
                     <td key={colIdx} className={`py-3 px-4 ${col.className || ""}`}>
                       {typeof col.accessor === "function"
@@ -112,9 +127,10 @@ export function DataTable<T extends Record<string, any>>({
                     </td>
                   )}
                 </tr>
-              ))
-            )}
-          </tbody>
+              );
+            })
+          )}
+        </tbody>
         </table>
       </div>
     </div>
