@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import { MBTI_QUESTIONS, MbtiQuestion, calculateMbtiType } from "./mbtiData";
+import { aiService } from "@/libs/api-services/aiService";
 
 interface MBTITestClientProps {
   initialQuestions?: MbtiQuestion[];
@@ -32,7 +33,21 @@ export default function MBTITestClient({ initialQuestions = MBTI_QUESTIONS }: MB
     setIsSubmitting(true);
     const { type, scores } = calculateMbtiType(answers, questionsList);
 
-    // 1. Lưu vào CSDL Supabase thông qua API /api/mbti/submit
+    // 1. Thử gửi tới backend_ai_ml (/api/mbti/submit)
+    try {
+      const answersDict: Record<string, string> = {};
+      Object.entries(answers).forEach(([k, v]) => {
+        answersDict[k] = v === 1 ? "A" : "B";
+      });
+      await aiService.submitMBTI({
+        studentName: studentName.trim() || "Thí sinh 2k8",
+        answers: answersDict,
+      });
+    } catch {
+      // Offline fallback
+    }
+
+    // 2. Lưu vào CSDL Supabase thông qua API /api/mbti/submit
     let savedResultId: string | null = null;
     let savedSessionId: string | null = null;
     try {
@@ -55,7 +70,7 @@ export default function MBTITestClient({ initialQuestions = MBTI_QUESTIONS }: MB
       console.warn("Không thể lưu kết quả trắc nghiệm vào DB, tiếp tục với bộ nhớ phiên:", e);
     }
 
-    // 2. Lưu vào sessionStorage để truyền sang trang /ket-qua-tu-van
+    // 3. Lưu vào sessionStorage để truyền sang trang /ket-qua-tu-van
     if (typeof window !== "undefined") {
       const payload = {
         type,

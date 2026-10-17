@@ -1,8 +1,8 @@
 "use client";
-
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import { aiService } from "@/libs/api-services/aiService";
 
 export interface ProgramKnowledge {
   maChuongTrinh: string;
@@ -303,7 +303,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     };
   };
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const q = (textToSend || input).trim();
     if (!q) return;
 
@@ -318,7 +318,26 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     if (!textToSend) setInput("");
     setIsTyping(true);
 
-    // Mô phỏng độ trễ suy luận AI Consultant
+    try {
+      // 1. Thử gọi Microservice AI backend (backend_ai_ml /api/chat)
+      const aiRes = await aiService.askChat({ message: q });
+      if (aiRes.success && aiRes.data?.reply) {
+        const botMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          sender: "bot",
+          text: aiRes.data.reply,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          richData: { type: "general" },
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setIsTyping(false);
+        return;
+      }
+    } catch {
+      // Fallback sang CSDL tri thức tuyển sinh nội bộ
+    }
+
+    // 2. Fallback sang Engine phân tích CSDL Tuyển sinh nội bộ
     setTimeout(() => {
       const response = processQueryWithDatabase(q);
       const botMsg: Message = {
@@ -331,7 +350,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
 
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
-    }, 600);
+    }, 500);
   };
 
   const handleClearHistory = () => {

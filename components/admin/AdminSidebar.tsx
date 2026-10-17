@@ -51,6 +51,13 @@ const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
+    groupName: "Thống Kê & Báo Cáo",
+    items: [
+      { label: "Thống Kê Hồ Sơ", href: "/admin/thong-ke", icon: "monitoring" },
+      { label: "Báo Cáo Trúng Tuyển", href: "/admin/bao-cao-trung-tuyen", icon: "summarize" },
+    ],
+  },
+  {
     groupName: "Nội Dung & Tiến Độ",
     items: [
       { label: "Mốc Thời Gian Lộ Trình", href: "/admin/moc-thoi-gian", icon: "calendar_month" },
