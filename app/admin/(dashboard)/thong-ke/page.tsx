@@ -10,14 +10,41 @@ import ThongKeClient, {
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export const metadata = {
-  title: "Thống Kê Tổng Quan Tuyển Sinh K66 (Realtime DB) | UTC Admin",
+  title: "Thống Kê Tổng Quan Tuyển Sinh | UTC Admin",
   description:
-    "Dashboard báo cáo thống kê tuyển sinh trích xuất trực tiếp từ Cơ sở dữ liệu Supabase UTC: chỉ tiêu K66, tỷ lệ lấp đầy, hồ sơ và phân tích phương thức.",
+    "Dashboard thống kê hồ sơ, ngành học, phương thức và tổ hợp xét tuyển từ dữ liệu tuyển sinh UTC.",
 };
 
 export const revalidate = 0; // Luôn nạp realtime trên trang Admin
 
+const admissionTimeZone = "Asia/Ho_Chi_Minh";
+const dayFormatter = new Intl.DateTimeFormat("en-US", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: admissionTimeZone,
+});
+
+function getDayParts(value: Date) {
+  const parts = Object.fromEntries(
+    dayFormatter
+      .formatToParts(value)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  return {
+    key: `${parts.year}-${parts.month}-${parts.day}`,
+    label: `${parts.day}/${parts.month}`,
+  };
+}
+
 export default async function ThongKePage() {
+  const admissionYear = Number(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      timeZone: admissionTimeZone,
+    }).format(new Date()),
+  );
   let overall: OverallStats = {
     totalApplications: 0,
     validCount: 0,
@@ -31,18 +58,11 @@ export default async function ThongKePage() {
   let methods: MethodStatItem[] = [];
   let combinations: CombinationStatItem[] = [];
   let dailyTrends: DailyTrendItem[] = [];
+  let errorMessage: string | undefined;
 
   try {
-    // 1. Truy vấn đồng thời các bảng thực tế từ CSDL Supabase
-    const [
-      dbPrograms,
-      dbMethods,
-      dbCombinations,
-      dbApplications,
-      quota2026,
-      quota2025,
-      allYearScores,
-    ] = await Promise.all([
+    const [dbPrograms, dbMethods, dbCombinations, dbApplications] =
+      await Promise.all([
       prisma.chuongTrinhDaoTao.findMany({
         include: {
           nganh: {
@@ -51,41 +71,37 @@ export default async function ThongKePage() {
             },
           },
           lich_su_diem_chuan: {
-            where: { nam: { in: [2026, 2025] } },
-            orderBy: { nam: "desc" },
-            include: {
-              diem_trung_tuyen: true,
-            },
+            where: { nam: admissionYear },
+            select: { chi_tieu: true },
           },
-          nguyen_vong: true,
-          ctdt_to_hop: true,
+          nguyen_vong: {
+            where: { nam_tuyen_sinh: admissionYear },
+            select: { trang_thai: true },
+          },
         },
         orderBy: { ten_chuong_trinh: "asc" },
       }),
       prisma.phuongThucXetTuyen.findMany({
         include: {
-          diem_trung_tuyen: true,
-          nguyen_vong: true,
+          nguyen_vong: {
+            where: { nam_tuyen_sinh: admissionYear },
+            select: { ma_ho_so: true },
+          },
         },
       }),
       prisma.toHopXetTuyen.findMany({
         include: {
-          ctdt_to_hop: true,
-          nguyen_vong: true,
+          nguyen_vong: {
+            where: { nam_tuyen_sinh: admissionYear },
+            select: { ma_ho_so: true },
+          },
         },
       }),
       prisma.nguyenVongSinhVien.findMany({
+        where: { nam_tuyen_sinh: admissionYear },
+        select: { trang_thai: true, create_at: true },
         orderBy: { create_at: "asc" },
       }),
-      prisma.lichSuDiemChuan.aggregate({
-        where: { nam: 2026 },
-        _sum: { chi_tieu: true },
-      }),
-      prisma.lichSuDiemChuan.aggregate({
-        where: { nam: 2025 },
-        _sum: { chi_tieu: true },
-      }),
-      prisma.diemTrungTuyen.findMany(),
     ]);
 
     const totalApplications = dbApplications.length;
@@ -93,56 +109,59 @@ export default async function ThongKePage() {
     const pendingCount = dbApplications.filter((a) => a.trang_thai === "cho").length;
     const rejectedCount = dbApplications.filter((a) => a.trang_thai === "tu_choi").length;
 
-    // Tổng chỉ tiêu thực từ bảng lich_su_diem_chuan trong CSDL
-    const realTotalQuota =
-      quota2026._sum.chi_tieu || quota2025._sum.chi_tieu || 4660;
+    const majorMap = new Map<
+      string,
+      Omit<MajorStatItem, "tiLeChoi" | "tiLeLapDay">
+    >();
+    for (const program of dbPrograms) {
+      const majorCode = program.nganh.ma_nganh;
+      const current = majorMap.get(majorCode) ?? {
+        maNganh: majorCode,
+        tenNganh: program.nganh.ten_nganh,
+        tenKhoiNganh:
+          program.nganh.khoi_nganh?.ten_khoi_nganh || "Khoa Trực Thuộc",
+        chiTieu: 0,
+        soHoSo: 0,
+        soHopLe: 0,
+      };
+      current.chiTieu += program.lich_su_diem_chuan[0]?.chi_tieu ?? 0;
+      current.soHoSo += program.nguyen_vong.length;
+      current.soHopLe += program.nguyen_vong.filter(
+        (application) => application.trang_thai === "hop_le",
+      ).length;
+      majorMap.set(majorCode, current);
+    }
 
+    majors = Array.from(majorMap.values())
+      .map((major) => ({
+        ...major,
+        tiLeChoi:
+          major.chiTieu > 0
+            ? Number((major.soHoSo / major.chiTieu).toFixed(2))
+            : 0,
+        tiLeLapDay:
+          major.chiTieu > 0
+            ? Math.round((major.soHopLe / major.chiTieu) * 100)
+            : 0,
+      }))
+      .sort((a, b) => b.soHoSo - a.soHoSo || a.maNganh.localeCompare(b.maNganh));
+
+    const totalQuota = majors.reduce((sum, major) => sum + major.chiTieu, 0);
     overall = {
       totalApplications,
       validCount,
       pendingCount,
       rejectedCount,
-      totalQuota: realTotalQuota,
-      totalMajors: dbPrograms.length,
+      totalQuota,
+      totalMajors: majors.length,
     };
 
-    // 2. Thống kê theo từng ngành học trực tiếp từ DB
-    majors = dbPrograms.map((p) => {
-      // Chỉ tiêu thực tế năm 2026 hoặc 2025
-      const chiTieu =
-        p.lich_su_diem_chuan[0]?.chi_tieu ||
-        (p.lich_su_diem_chuan.length > 1 ? p.lich_su_diem_chuan[1].chi_tieu : 0);
-
-      const soHoSo = p.nguyen_vong?.length || 0;
-      const soHopLe = (p.nguyen_vong || []).filter((nv) => nv.trang_thai === "hop_le").length;
-      const tiLeChoi = chiTieu > 0 ? parseFloat((soHoSo / chiTieu).toFixed(2)) : 0;
-      const tiLeLapDay = chiTieu > 0 ? Math.round((soHopLe / chiTieu) * 100) : 0;
-
-      return {
-        maChuongTrinh: p.ma_chuong_trinh,
-        tenChuongTrinh: p.ten_chuong_trinh,
-        tenKhoiNganh: p.nganh?.khoi_nganh?.ten_khoi_nganh || "Khoa Trực Thuộc",
-        chiTieu,
-        soHoSo,
-        soHopLe,
-        tiLeChoi,
-        tiLeLapDay,
-      };
-    });
-
-    // Sắp xếp các ngành có chỉ tiêu thực tế lên đầu để quan sát dễ dàng
-    majors.sort((a, b) => b.chiTieu - a.chiTieu);
-
-    // 3. Thống kê theo phương thức xét tuyển thực từ bảng phuong_thuc_xet_tuyen & diem_trung_tuyen
-    const totalBenchmarkRecords = allYearScores.length || 1;
     methods = dbMethods.map((m) => {
-      // Số hồ sơ thực tế nộp theo phương thức này
-      const soHoSo = (m.nguyen_vong || []).length;
-      // Tỷ trọng dữ liệu điểm chuẩn đã áp dụng trong DB
-      const countScores = (m.diem_trung_tuyen || []).length;
-      const tiLePhanTram = totalApplications > 0
-        ? Math.round((soHoSo / totalApplications) * 100)
-        : Math.round((countScores / totalBenchmarkRecords) * 100);
+      const soHoSo = m.nguyen_vong.length;
+      const tiLePhanTram =
+        totalApplications > 0
+          ? Number(((soHoSo / totalApplications) * 100).toFixed(2))
+          : 0;
 
       return {
         maPhuongThuc: m.ma_phuong_thuc,
@@ -152,19 +171,13 @@ export default async function ThongKePage() {
       };
     });
 
-    // 4. Thống kê theo tổ hợp môn xét tuyển thực từ ctdt_to_hop
-    const totalCombinationsAssigned = dbCombinations.reduce(
-      (sum, c) => sum + (c.ctdt_to_hop?.length || 0),
-      0
-    ) || 1;
-
     combinations = dbCombinations
       .map((c) => {
-        const soHoSo = (c.nguyen_vong || []).length;
-        const countPrograms = c.ctdt_to_hop?.length || 0;
-        const tiLePhanTram = totalApplications > 0
-          ? Math.round((soHoSo / totalApplications) * 100)
-          : Math.round((countPrograms / totalCombinationsAssigned) * 100);
+        const soHoSo = c.nguyen_vong.length;
+        const tiLePhanTram =
+          totalApplications > 0
+            ? Number(((soHoSo / totalApplications) * 100).toFixed(2))
+            : 0;
 
         return {
           maToHop: c.ma_to_hop,
@@ -172,25 +185,22 @@ export default async function ThongKePage() {
           tiLePhanTram,
         };
       })
+      .filter((combination) => combination.soHoSo > 0)
       .sort((a, b) => b.tiLePhanTram - a.tiLePhanTram)
-      .slice(0, 8); // Lấy Top 8 tổ hợp hàng đầu
+      .slice(0, 8);
 
-    // 5. Tiến độ theo ngày thực tế từ nguyen_vong_sinh_vien (hoặc nhóm theo create_at)
-    if (dbApplications.length > 0) {
-      const dayMap: Record<string, number> = {};
-      dbApplications.forEach((app) => {
-        const d = new Date(app.create_at).toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-        });
-        dayMap[d] = (dayMap[d] || 0) + 1;
-      });
-      dailyTrends = Object.entries(dayMap).map(([ngay, soLuong]) => ({ ngay, soLuong }));
-    } else {
-      dailyTrends = [];
+    const dayMap = new Map<string, { label: string; count: number }>();
+    for (const application of dbApplications) {
+      const { key, label } = getDayParts(application.create_at);
+      const current = dayMap.get(key);
+      dayMap.set(key, { label, count: (current?.count ?? 0) + 1 });
     }
+    dailyTrends = Array.from(dayMap.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, value]) => ({ ngay: value.label, soLuong: value.count }));
   } catch (error) {
     console.error("Lỗi nạp dữ liệu thống kê từ Supabase:", error);
+    errorMessage = "Không thể tải dữ liệu thống kê. Vui lòng thử lại sau.";
   }
 
   return (
@@ -202,11 +212,13 @@ export default async function ThongKePage() {
       }
     >
       <ThongKeClient
+        admissionYear={admissionYear}
         overall={overall}
         majors={majors}
         methods={methods}
         combinations={combinations}
         dailyTrends={dailyTrends}
+        errorMessage={errorMessage}
       />
     </Suspense>
   );

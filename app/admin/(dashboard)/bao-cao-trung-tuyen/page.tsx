@@ -7,36 +7,55 @@ import BaoCaoClient, {
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export const metadata = {
-  title: "Báo Cáo Kết Quả Xét Tuyển & Trúng Tuyển (Realtime DB) | UTC Admin",
+  title: "Báo Cáo Kết Quả Xét Tuyển & Trúng Tuyển | UTC Admin",
   description:
-    "Danh sách thí sinh đủ điều kiện trúng tuyển sớm trích xuất trực tiếp từ Cơ sở dữ liệu Supabase UTC, xuất file báo cáo Excel và in biên bản xét tuyển K66.",
+    "Báo cáo kết quả xét tuyển UTC, hỗ trợ bộ lọc, xuất CSV cho Excel và in PDF.",
 };
 
 export const revalidate = 0; // Realtime DB
 
+function isPublishedResult(value: string | null) {
+  return (value ?? "").toLocaleLowerCase("vi-VN").includes("đã công bố");
+}
+
 export default async function BaoCaoTrungTuyenPage() {
+  const admissionYear = Number(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      timeZone: "Asia/Ho_Chi_Minh",
+    }).format(new Date()),
+  );
+  const reportDate = new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(new Date());
   let candidates: CandidateRecord[] = [];
   let programs: ProgramFilterOption[] = [];
   let methods: Array<{ maPhuongThuc: string; tenPhuongThuc: string }> = [];
+  let errorMessage: string | undefined;
 
   try {
-    const [dbPrograms, dbMethods, dbApplications, dbBenchmarks] = await Promise.all([
+    const [dbPrograms, dbMethods, dbApplications, dbCutoffHistories] = await Promise.all([
       prisma.chuongTrinhDaoTao.findMany({
         orderBy: { ten_chuong_trinh: "asc" },
       }),
       prisma.phuongThucXetTuyen.findMany(),
       prisma.nguyenVongSinhVien.findMany({
+        where: { nam_tuyen_sinh: admissionYear },
         include: {
           thi_sinh: true,
           chuong_trinh: true,
           phuong_thuc: true,
           to_hop: true,
         },
-        orderBy: { tong_diem_xet_tuyen: "desc" },
+        orderBy: [{ tong_diem_xet_tuyen: "desc" }, { create_at: "asc" }],
       }),
-      prisma.diemTrungTuyen.findMany({
+      prisma.lichSuDiemChuan.findMany({
+        where: { nam: admissionYear },
         include: {
-          lich_su: true,
+          diem_trung_tuyen: true,
         },
       }),
     ]);
@@ -51,27 +70,21 @@ export default async function BaoCaoTrungTuyenPage() {
       tenPhuongThuc: m.ten_phuong_thuc,
     }));
 
-    // Tạo map điểm chuẩn theo chương trình và phương thức từ DB
     const benchmarkMap = new Map<string, number>();
-    dbBenchmarks.forEach((b) => {
-      const progCode = b.lich_su?.ma_chuong_trinh;
-      const methodCode = b.ma_phuong_thuc;
-      if (progCode && methodCode) {
-        benchmarkMap.set(`${progCode}_${methodCode}`, b.diem);
+    for (const history of dbCutoffHistories) {
+      for (const benchmark of history.diem_trung_tuyen) {
+        benchmarkMap.set(
+          `${history.ma_chuong_trinh}_${benchmark.ma_phuong_thuc}`,
+          benchmark.diem,
+        );
       }
-    });
+    }
 
-    // 100% trích xuất từ bảng nguyen_vong_sinh_vien trong DB Supabase
     candidates = dbApplications.map((app, idx) => {
-      const benchmarkScore =
-        benchmarkMap.get(`${app.ma_chuong_trinh}_${app.ma_phuong_thuc}`) || 24.0;
-      const score = app.tong_diem_xet_tuyen || 0;
-
       let status: "TRUNG_TUYEN_SO_BO" | "CHO_XAC_NHAN" | "CHUA_DAT" = "CHO_XAC_NHAN";
-      if (app.trang_thai === "hop_le") {
-        status = score >= benchmarkScore ? "TRUNG_TUYEN_SO_BO" : "CHUA_DAT";
-      } else if (app.trang_thai === "tu_choi") {
-        status = "CHUA_DAT";
+      if (isPublishedResult(app.ket_qua)) {
+        status =
+          app.trang_thai === "hop_le" ? "TRUNG_TUYEN_SO_BO" : "CHUA_DAT";
       }
 
       return {
@@ -80,23 +93,31 @@ export default async function BaoCaoTrungTuyenPage() {
         cccd: app.cccd,
         hoTen: app.thi_sinh?.ho_ten || "Thí sinh tự do",
         ngaySinh: "Chưa cập nhật",
-        gioiTinh: "Chưa rõ",
-        soDienThoai: app.thi_sinh?.so_dien_thoai || "Chưa có",
-        khuVuc: app.thi_sinh?.khu_vuc || "KV3",
+        gioiTinh: "Chưa cập nhật",
+        soDienThoai: app.thi_sinh?.so_dien_thoai || "Chưa cập nhật",
+        khuVuc: app.thi_sinh?.khu_vuc || "Chưa cập nhật",
         doiTuongUuTien: app.thi_sinh?.doi_tuong_uu_tien || "Không",
         maChuongTrinh: app.ma_chuong_trinh,
         tenChuongTrinh: app.chuong_trinh?.ten_chuong_trinh || app.ma_chuong_trinh,
         maPhuongThuc: app.ma_phuong_thuc,
         tenPhuongThuc: app.phuong_thuc?.ten_phuong_thuc || app.ma_phuong_thuc,
-        maToHop: app.ma_to_hop || "Không",
-        diemXetTuyen: score,
-        diemChuanNganh: benchmarkScore,
+        maToHop: app.ma_to_hop || "Không áp dụng",
+        diemXetTuyen: app.tong_diem_xet_tuyen,
+        diemChuanNganh:
+          benchmarkMap.get(`${app.ma_chuong_trinh}_${app.ma_phuong_thuc}`) ??
+          null,
         trangThai: status,
-        ngayDuyet: app.create_at.toLocaleDateString("vi-VN"),
+        ngayNop: new Intl.DateTimeFormat("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "Asia/Ho_Chi_Minh",
+        }).format(app.create_at),
       };
     });
   } catch (error) {
     console.error("Lỗi nạp báo cáo trúng tuyển từ Supabase:", error);
+    errorMessage = "Không thể tải báo cáo trúng tuyển. Vui lòng thử lại sau.";
   }
 
   return (
@@ -108,9 +129,12 @@ export default async function BaoCaoTrungTuyenPage() {
       }
     >
       <BaoCaoClient
+        admissionYear={admissionYear}
+        reportDate={reportDate}
         candidates={candidates}
         programs={programs}
         methods={methods}
+        errorMessage={errorMessage}
       />
     </Suspense>
   );

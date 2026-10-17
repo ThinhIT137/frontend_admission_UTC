@@ -18,10 +18,10 @@ export interface CandidateRecord {
   maPhuongThuc: string;
   tenPhuongThuc: string;
   maToHop: string;
-  diemXetTuyen: number;
-  diemChuanNganh: number;
+  diemXetTuyen: number | null;
+  diemChuanNganh: number | null;
   trangThai: "TRUNG_TUYEN_SO_BO" | "CHUA_DAT" | "CHO_XAC_NHAN";
-  ngayDuyet: string;
+  ngayNop: string;
 }
 
 export interface ProgramFilterOption {
@@ -30,15 +30,41 @@ export interface ProgramFilterOption {
 }
 
 interface BaoCaoClientProps {
+  admissionYear: number;
+  reportDate: string;
   candidates: CandidateRecord[];
   programs: ProgramFilterOption[];
   methods: Array<{ maPhuongThuc: string; tenPhuongThuc: string }>;
+  errorMessage?: string;
+}
+
+function toCsvCell(
+  value: string | number | null,
+  preserveLeadingZero = false,
+) {
+  const text = value === null ? "" : String(value);
+  const safeText = preserveLeadingZero
+    ? `'${text}`
+    : /^[=+\-@]/.test(text.trimStart())
+      ? `'${text}`
+      : text;
+
+  return `"${safeText.replaceAll('"', '""')}"`;
+}
+
+function getStatusLabel(status: CandidateRecord["trangThai"]) {
+  if (status === "TRUNG_TUYEN_SO_BO") return "Đủ điều kiện trúng tuyển";
+  if (status === "CHUA_DAT") return "Chưa đạt";
+  return "Chưa công bố";
 }
 
 export default function BaoCaoClient({
+  admissionYear,
+  reportDate,
   candidates,
   programs,
   methods,
+  errorMessage,
 }: BaoCaoClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
@@ -65,7 +91,8 @@ export default function BaoCaoClient({
 
     const minScoreNum = parseFloat(minScore);
     const matchMinScore =
-      isNaN(minScoreNum) || item.diemXetTuyen >= minScoreNum;
+      Number.isNaN(minScoreNum) ||
+      (item.diemXetTuyen !== null && item.diemXetTuyen >= minScoreNum);
 
     return (
       matchSearch &&
@@ -94,31 +121,31 @@ export default function BaoCaoClient({
       "Điểm Xét Tuyển",
       "Điểm Chuẩn",
       "Kết Quả Xét Tuyển",
-      "Ngày Duyệt",
+      "Ngày Nộp",
     ];
 
-    const rows = filteredCandidates.map((c) => [
-      c.stt,
-      `"${c.maHoSo}"`,
-      `"\t${c.cccd}"`, // \t để Excel giữ nguyên số 0 ở đầu CCCD
-      `"${c.hoTen}"`,
-      c.ngaySinh,
-      c.gioiTinh,
-      `"\t${c.soDienThoai}"`,
-      c.khuVuc,
-      c.maChuongTrinh,
-      `"${c.tenChuongTrinh}"`,
-      c.maPhuongThuc,
-      c.maToHop,
-      c.diemXetTuyen,
-      c.diemChuanNganh,
-      c.trangThai === "TRUNG_TUYEN_SO_BO" ? "Trúng Tuyển Sơ Bộ" : "Chưa Đạt",
-      c.ngayDuyet,
+    const rows = filteredCandidates.map((c, index) => [
+      toCsvCell(index + 1),
+      toCsvCell(c.maHoSo),
+      toCsvCell(c.cccd, true),
+      toCsvCell(c.hoTen),
+      toCsvCell(c.ngaySinh),
+      toCsvCell(c.gioiTinh),
+      toCsvCell(c.soDienThoai, true),
+      toCsvCell(c.khuVuc),
+      toCsvCell(c.maChuongTrinh),
+      toCsvCell(c.tenChuongTrinh),
+      toCsvCell(`${c.maPhuongThuc} - ${c.tenPhuongThuc}`),
+      toCsvCell(c.maToHop),
+      toCsvCell(c.diemXetTuyen),
+      toCsvCell(c.diemChuanNganh),
+      toCsvCell(getStatusLabel(c.trangThai)),
+      toCsvCell(c.ngayNop),
     ]);
 
     const csvContent =
       "\uFEFF" + // UTF-8 BOM
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+      [headers.map((header) => toCsvCell(header)).join(","), ...rows.map((e) => e.join(","))].join("\r\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -126,11 +153,12 @@ export default function BaoCaoClient({
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `Bao_Cao_Trung_Tuyen_UTC_K66_${new Date().toISOString().slice(0, 10)}.csv`
+      `Bao_Cao_Ket_Qua_Xet_Tuyen_UTC_${admissionYear}_${reportDate.split("/").reverse().join("-")}.csv`,
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // In / Xuất PDF qua trình duyệt
@@ -148,14 +176,14 @@ export default function BaoCaoClient({
               Báo Cáo Tuyển Sinh Chính Thức
             </span>
             <span className="px-2.5 py-0.5 rounded bg-[#dcfce7] text-[#15803d] font-bold text-[11px] border border-[#86efac]">
-              Đủ Điều Kiện Trúng Tuyển Sớm
+              Năm tuyển sinh {admissionYear}
             </span>
           </div>
           <h1 className="font-display font-black text-[28px] sm:text-[32px] text-[#0d1b4e] leading-tight tracking-tight">
             Báo Cáo Kết Quả Xét Tuyển & Danh Sách Trúng Tuyển
           </h1>
           <p className="text-[13.5px] text-[#64748b] mt-1">
-            Tổng hợp danh sách thí sinh đạt ngưỡng điểm chuẩn điều kiện, sẵn sàng công bố và xuất file dữ liệu báo cáo Bộ GD&ĐT.
+            Tổng hợp hồ sơ xét tuyển năm {admissionYear}, gồm kết quả đã công bố và hồ sơ đang chờ công bố chính thức.
           </p>
         </div>
 
@@ -188,6 +216,15 @@ export default function BaoCaoClient({
           </button>
         </div>
       </div>
+
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="rounded-xl border-2 border-[#b91c1c] bg-[#fef2f2] px-4 py-3 text-[13px] font-bold text-[#991b1b] print:hidden"
+        >
+          {errorMessage}
+        </div>
+      ) : null}
 
       {/* Filter Box Neo-Brutalism */}
       <div className="bg-white border-[2.5px] border-[#0d1b4e] shadow-[5px_5px_0px_#0d1b4e] rounded-2xl p-5 space-y-4 print:hidden">
@@ -257,7 +294,7 @@ export default function BaoCaoClient({
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="TRUNG_TUYEN_SO_BO">Đạt điều kiện trúng tuyển</option>
-              <option value="CHO_XAC_NHAN">Chờ đối soát điểm sàn</option>
+              <option value="CHO_XAC_NHAN">Chưa công bố kết quả</option>
               <option value="CHUA_DAT">Chưa đạt ngưỡng</option>
             </select>
           </div>
@@ -284,19 +321,19 @@ export default function BaoCaoClient({
             <div className="text-center">
               <p className="font-bold uppercase text-[11px]">BỘ GIÁO DỤC VÀ ĐÀO TẠO</p>
               <p className="font-bold uppercase text-[12px]">TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI</p>
-              <p className="text-[10px] italic">Hội đồng Tuyển sinh K66</p>
+              <p className="text-[10px] italic">Hội đồng Tuyển sinh năm {admissionYear}</p>
             </div>
             <div className="text-center">
               <p className="font-bold uppercase text-[11px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
               <p className="font-bold text-[11px] underline">Độc lập - Tự do - Hạnh phúc</p>
-              <p className="text-[10px] italic mt-0.5">Hà Nội, ngày ..... tháng ..... năm 2026</p>
+              <p className="text-[10px] italic mt-0.5">Hà Nội, ngày ..... tháng ..... năm {admissionYear}</p>
             </div>
           </div>
           <h2 className="font-serif font-black text-[16px] uppercase tracking-wide text-black mt-3">
-            DANH SÁCH THÍ SINH ĐỦ ĐIỀU KIỆN TRÚNG TUYỂN SỚM ĐẠI HỌC CHÍNH QUY K66
+            BÁO CÁO KẾT QUẢ XÉT TUYỂN ĐẠI HỌC CHÍNH QUY NĂM {admissionYear}
           </h2>
           <p className="text-[11px] italic text-gray-700 mt-0.5">
-            (Trích xuất dữ liệu từ Hệ thống Quản trị Tuyển sinh UTC ngày {new Date().toLocaleDateString("vi-VN")})
+            (Trích xuất dữ liệu từ Hệ thống Quản trị Tuyển sinh UTC ngày {reportDate})
           </p>
         </div>
 
@@ -313,7 +350,7 @@ export default function BaoCaoClient({
                 <th className="py-3 px-3.5 text-center print:border print:border-gray-400 print:p-1.5">Điểm XT</th>
                 <th className="py-3 px-3.5 text-center print:border print:border-gray-400 print:p-1.5">Điểm Chuẩn</th>
                 <th className="py-3 px-3.5 text-center print:border print:border-gray-400 print:p-1.5">Kết Quả</th>
-                <th className="py-3 px-3.5 text-right hidden sm:table-cell print:table-cell print:border print:border-gray-400 print:p-1.5">Ngày Duyệt</th>
+                <th className="py-3 px-3.5 text-right hidden sm:table-cell print:table-cell print:border print:border-gray-400 print:p-1.5">Ngày Nộp</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0] bg-white print:divide-gray-300">
@@ -357,11 +394,11 @@ export default function BaoCaoClient({
                     </td>
                     <td className="py-3 px-3.5 text-center print:border print:border-gray-400 print:p-1.5">
                       <span className="font-display font-black text-[15px] text-[#dc2626] print:text-black print:font-bold">
-                        {c.diemXetTuyen.toFixed(2)}
+                        {c.diemXetTuyen === null ? "—" : c.diemXetTuyen.toFixed(2)}
                       </span>
                     </td>
                     <td className="py-3 px-3.5 text-center font-display font-bold text-[#0d1b4e] print:border print:border-gray-400 print:p-1.5 print:text-black">
-                      {c.diemChuanNganh.toFixed(2)}
+                      {c.diemChuanNganh === null ? "—" : c.diemChuanNganh.toFixed(2)}
                     </td>
                     <td className="py-3 px-3.5 text-center print:border print:border-gray-400 print:p-1.5">
                       {c.trangThai === "TRUNG_TUYEN_SO_BO" ? (
@@ -372,7 +409,7 @@ export default function BaoCaoClient({
                       ) : c.trangThai === "CHO_XAC_NHAN" ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#fef3c7] text-[#b45309] border border-[#f59e0b] rounded-lg text-[11px] font-bold print:border-none print:p-0 print:text-black">
                           <span className="material-symbols-outlined text-[14px] print:hidden">schedule</span>
-                          Chờ đối soát
+                          Chưa công bố
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#fee2e2] text-[#b91c1c] border border-[#ef4444] rounded-lg text-[11px] font-bold print:border-none print:p-0 print:text-black">
@@ -382,7 +419,7 @@ export default function BaoCaoClient({
                       )}
                     </td>
                     <td className="py-3 px-3.5 text-right font-mono text-[11.5px] text-[#64748b] hidden sm:table-cell print:table-cell print:border print:border-gray-400 print:p-1.5 print:text-black">
-                      {c.ngayDuyet}
+                      {c.ngayNop}
                     </td>
                   </tr>
                 ))
