@@ -9,9 +9,17 @@ interface AdminHeaderProps {
   onSearch?: (query: string) => void;
   userName?: string;
   email?: string;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export function AdminHeader({ onSearch, userName = "Admin", email = "admin@utc.edu.vn" }: AdminHeaderProps) {
+export function AdminHeader({
+  onSearch,
+  userName = "Admin",
+  email = "admin@utc.edu.vn",
+  isSidebarOpen = true,
+  onToggleSidebar,
+}: AdminHeaderProps) {
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,9 +42,20 @@ export function AdminHeader({ onSearch, userName = "Admin", email = "admin@utc.e
   }, []);
 
   return (
-    <header className="fixed top-0 left-72 right-0 h-16 bg-[#fff9ee]/90 backdrop-blur-md border-b border-[#e9e2d5] shadow-sm z-40 px-6 flex items-center justify-between gap-4">
-      {/* Left spacing for flex layout */}
-      <div className="flex-1"></div>
+    <header className="w-full h-16 bg-[#fff9ee]/90 backdrop-blur-md border-b border-[#e9e2d5] shadow-xs px-6 flex items-center justify-between gap-4">
+      {/* Left Area: Toggle button if sidebar is hidden */}
+      <div className="flex items-center gap-3">
+        {!isSidebarOpen && onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-xl bg-[#faf3e6] hover:bg-[#fdb712]/20 hover:border-[#0d1b4e] text-[#0d1b4e] border border-[#c6c5d0] flex items-center justify-center transition-all shadow-xs"
+            title="Hiện thanh Sidebar"
+            aria-label="Hiện thanh Sidebar"
+          >
+            <span className="material-symbols-outlined text-[22px]">menu</span>
+          </button>
+        )}
+      </div>
 
       {/* Right Controls & Profile */}
       <div className="flex items-center gap-4">

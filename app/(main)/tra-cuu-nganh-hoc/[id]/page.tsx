@@ -1,181 +1,277 @@
-"use client";
-
-import { use, useEffect, useState } from "react";
+import { prismaPublic } from "@/libs/prisma";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { getAllNganhHoc } from "@/actions/nganh_hoc.action";
+import ChiTietNganhClient from "./ChiTietNganhClient";
 
-type NganhHocList = Awaited<ReturnType<typeof getAllNganhHoc>>["data"];
-export type MajorFromApi = NonNullable<NganhHocList>[0];
+export const revalidate = 60; // 1 minute ISR
 
-export default function MajorDetailPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const majorId = resolvedParams.id;
+}
 
-  const [major, setMajor] = useState<MajorFromApi | null>(null);
-  const [loading, setLoading] = useState(true);
+export async function generateMetadata({ params }: PageProps) {
+  const { id } = await params;
+  const decodedId = decodeURIComponent(id);
 
-  useEffect(() => {
-    async function fetchDetail() {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/nganh-hoc/${majorId}`);
-        const json = await res.json();
-        if (json.success && json.data) {
-          setMajor(json.data);
-        }
-      } catch (err) {
-        console.error("Lỗi tải thông tin ngành:", err);
-      } finally {
-        setLoading(false);
-      }
+  try {
+    const major = await prismaPublic.nganhHoc.findFirst({
+      where: {
+        OR: [
+          { ma_nganh: decodedId },
+          { chuong_trinh: { some: { ma_chuong_trinh: decodedId } } },
+        ],
+      },
+      select: { ten_nganh: true, ma_nganh: true },
+    });
+
+    if (major) {
+      return {
+        title: `Ngành ${major.ten_nganh} (${major.ma_nganh}) | Tuyển Sinh UTC`,
+        description: `Thông tin chi tiết ngành ${major.ten_nganh} UTC: mã ngành ${major.ma_nganh}, chương trình đào tạo, tổ hợp xét tuyển, chỉ tiêu và lịch sử điểm chuẩn chính thức.`,
+      };
     }
-    fetchDetail();
-  }, [majorId]);
-
-  if (loading) {
-    return (
-      <div className="bg-white p-12 border-[3px] border-[#111827] rounded-[16px] flex justify-center items-center my-8">
-        <LoadingSpinner />
-      </div>
-    );
+  } catch (e) {
+    // fallback
   }
 
-  if (!major) {
+  return {
+    title: `Chi Tiết Ngành Học ${decodedId} | Tuyển Sinh UTC`,
+  };
+}
+
+export default async function MajorDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const decodedId = decodeURIComponent(id);
+
+  let majorData: any = null;
+  let allRelatedPrograms: any[] = [];
+  let combinations: { ma_to_hop: string; ten_mon_1?: string; ten_mon_2?: string; ten_mon_3?: string }[] = [];
+  let scoreHistory: any[] = [];
+
+  try {
+    // 1. Tìm thông tin ngành (hỗ trợ cả mã ngành và mã chương trình)
+    majorData = await prismaPublic.nganhHoc.findFirst({
+      where: {
+        OR: [
+          { ma_nganh: decodedId },
+          { chuong_trinh: { some: { ma_chuong_trinh: decodedId } } },
+        ],
+      },
+      include: {
+        khoi_nganh: true,
+      },
+    });
+
+    if (!majorData) {
+      // Trường hợp không tìm thấy theo mã ngành, tìm trực tiếp từ chuongTrinhDaoTao
+      const ctdt = await prismaPublic.chuongTrinhDaoTao.findUnique({
+        where: { ma_chuong_trinh: decodedId },
+        include: {
+          nganh: {
+            include: {
+              khoi_nganh: true,
+            },
+          },
+        },
+      });
+
+      if (ctdt?.nganh) {
+        majorData = ctdt.nganh;
+      }
+    }
+
+    if (!majorData) {
+      notFound();
+    }
+
+    // 2. Lấy tất cả chương trình đào tạo của ngành (kể cả liên kết theo tên ngành để lấy cả mã số và mã GHA nếu có)
+    const [progDirect, progSibling] = await Promise.all([
+      prismaPublic.chuongTrinhDaoTao.findMany({
+        where: {
+          ma_nganh: majorData.ma_nganh,
+        },
+        include: {
+          ctdt_to_hop: {
+            include: {
+              to_hop: {
+                include: {
+                  mon_1: true,
+                  mon_2: true,
+                  mon_3: true,
+                },
+              },
+            },
+          },
+          lich_su_diem_chuan: {
+            include: {
+              diem_trung_tuyen: {
+                include: {
+                  phuong_thuc: true,
+                },
+              },
+            },
+            orderBy: { nam: "desc" },
+          },
+          hoc_phan: {
+            include: {
+              hoc_phan: true,
+            },
+            orderBy: [
+              { hoc_ky: "asc" },
+              { ma_hoc_phan: "asc" },
+            ],
+          },
+        },
+        orderBy: { ma_chuong_trinh: "asc" },
+      }),
+      prismaPublic.chuongTrinhDaoTao.findMany({
+        where: {
+          nganh: {
+            ten_nganh: {
+              equals: majorData.ten_nganh,
+              mode: "insensitive",
+            },
+            NOT: {
+              ma_nganh: majorData.ma_nganh,
+            },
+          },
+        },
+        include: {
+          ctdt_to_hop: {
+            include: {
+              to_hop: {
+                include: {
+                  mon_1: true,
+                  mon_2: true,
+                  mon_3: true,
+                },
+              },
+            },
+          },
+          lich_su_diem_chuan: {
+            include: {
+              diem_trung_tuyen: {
+                include: {
+                  phuong_thuc: true,
+                },
+              },
+            },
+            orderBy: { nam: "desc" },
+          },
+          hoc_phan: {
+            include: {
+              hoc_phan: true,
+            },
+            orderBy: [
+              { hoc_ky: "asc" },
+              { ma_hoc_phan: "asc" },
+            ],
+          },
+        },
+        orderBy: { ma_chuong_trinh: "asc" },
+      }),
+    ]);
+
+    allRelatedPrograms = [...progDirect, ...progSibling];
+
+    // 3. Tập hợp danh sách tổ hợp xét tuyển duy nhất
+    const toHopMap = new Map<string, any>();
+    allRelatedPrograms.forEach((p) => {
+      p.ctdt_to_hop?.forEach((item: any) => {
+        if (item.to_hop && !toHopMap.has(item.ma_to_hop)) {
+          toHopMap.set(item.ma_to_hop, {
+            ma_to_hop: item.ma_to_hop,
+            ten_mon_1: item.to_hop.mon_1?.ten_mon || item.to_hop.ma_mon_1,
+            ten_mon_2: item.to_hop.mon_2?.ten_mon || item.to_hop.ma_mon_2,
+            ten_mon_3: item.to_hop.mon_3?.ten_mon || item.to_hop.ma_mon_3,
+          });
+        }
+      });
+    });
+    combinations = Array.from(toHopMap.values());
+
+    // 4. Tập hợp lịch sử điểm chuẩn và chỉ tiêu
+    const historyFlat: any[] = [];
+    allRelatedPrograms.forEach((p) => {
+      p.lich_su_diem_chuan?.forEach((ls: any) => {
+        if (ls.diem_trung_tuyen && ls.diem_trung_tuyen.length > 0) {
+          ls.diem_trung_tuyen.forEach((dt: any) => {
+            historyFlat.push({
+              nam: ls.nam,
+              chi_tieu: ls.chi_tieu,
+              diem: dt.diem,
+              ma_phuong_thuc: dt.ma_phuong_thuc,
+              ten_phuong_thuc: dt.phuong_thuc?.ten_phuong_thuc || dt.ma_phuong_thuc,
+              ma_chuong_trinh: p.ma_chuong_trinh,
+              ten_chuong_trinh: p.ten_chuong_trinh,
+            });
+          });
+        } else {
+          historyFlat.push({
+            nam: ls.nam,
+            chi_tieu: ls.chi_tieu,
+            diem: null,
+            ma_phuong_thuc: "N/A",
+            ten_phuong_thuc: "Tham khảo",
+            ma_chuong_trinh: p.ma_chuong_trinh,
+            ten_chuong_trinh: p.ten_chuong_trinh,
+          });
+        }
+      });
+    });
+
+    // Sắp xếp theo năm giảm dần
+    historyFlat.sort((a, b) => b.nam - a.nam);
+    scoreHistory = historyFlat;
+
+  } catch (error) {
+    console.error("Lỗi truy vấn chi tiết ngành học:", error);
+  }
+
+  if (!majorData) {
     return (
-      <div className="bg-white p-8 border-[3px] border-[#111827] rounded-[16px] text-center space-y-4">
-        <h2 className="font-display font-bold text-[20px] text-[#ba1a1a]">
-          Không tìm thấy thông tin mã ngành: {majorId}
+      <div className="bg-[#fffdf7] p-8 border-[3px] border-[#111827] rounded-2xl text-center space-y-4 shadow-[5px_5px_0px_#111827]">
+        <h2 className="font-display font-black text-[22px] text-[#dc2626]">
+          Không tìm thấy thông tin ngành học với mã: &quot;{decodedId}&quot;
         </h2>
+        <p className="text-[14px] text-[#4b5563]">
+          Mã ngành không tồn tại hoặc đã được cập nhật lại theo Đề án mới của UTC.
+        </p>
         <Link
           href="/tra-cuu-nganh-hoc"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0284c7] text-white font-bold text-[13px] border-[2px] border-[#111827] rounded-[6px]"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[13px] border-[2px] border-[#111827] rounded-xl shadow-[3px_3px_0px_#111827]"
         >
-          Quay lại danh mục ngành
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          Quay lại danh mục tra cứu ngành học
         </Link>
       </div>
     );
   }
 
-  const firstProgram = major.chuong_trinh?.[0];
-  const historyList = firstProgram?.lich_su_diem_chuan || [];
-  const latestQuota = historyList[historyList.length - 1]?.chi_tieu || 120;
-
   return (
-    <div className="flex flex-col w-full space-y-6 pb-12">
-      {/* Back button */}
+    <div className="flex flex-col w-full space-y-6 pb-14">
+      {/* Nút quay lại */}
       <div>
         <Link
           href="/tra-cuu-nganh-hoc"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#111827] font-bold text-[13px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[6px] hover:bg-[#ffdea8] transition-all"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-[#111827] font-bold text-[13px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-xl hover:bg-[#faf3e6] transition-all"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
           Quay lại Danh mục Ngành
         </Link>
       </div>
 
-      {/* Major Title Card */}
-      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[16px] relative">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="bg-[#000525] text-white px-3 py-1 font-stamp text-[12px] font-bold rounded border border-[#111827]">
-            MÃ NGÀNH: {major.ma_nganh}
-          </span>
-          <span className="bg-[#ffdea8] text-[#7c5800] px-3 py-1 font-stamp text-[12px] font-bold rounded border border-[#111827]">
-            {major.khoi_kien_thuc || "TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI"}
-          </span>
-          <span className="bg-[#86efac] text-[#111827] px-3 py-1 font-stamp text-[12px] font-bold rounded border border-[#111827]">
-            HỆ CHÍNH QUY (4 NĂM)
-          </span>
-        </div>
-
-        <h1 className="font-display font-extrabold text-[28px] lg:text-[38px] text-[#111827] uppercase leading-tight">
-          NGÀNH {major.ten_nganh.toUpperCase()} UTC
-        </h1>
-
-        <p className="text-[15px] text-[#4b5563] font-medium mt-2 max-w-3xl leading-relaxed">
-          Đào tạo cử nhân & kỹ sư trình độ cao theo khung chương trình niên giám chính thức của Trường Đại học Giao thông Vận tải.
-        </p>
-      </div>
-
-      <DisclaimerBanner />
-
-      {/* Detailed Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column - Programs Info */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px]">
-            <h3 className="font-display font-bold text-[20px] text-[#111827] mb-3 flex items-center gap-2 border-b-[2px] border-dashed border-[#c6c5d0] pb-2">
-              <span className="material-symbols-outlined text-[#0284c7]">menu_book</span>
-              Chương Trình Đào Tạo Trong Ngành ({major.chuong_trinh.length})
-            </h3>
-            <div className="space-y-3">
-              {major.chuong_trinh.map((prog) => (
-                <div
-                  key={prog.ma_chuong_trinh}
-                  className="p-4 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[10px] space-y-1"
-                >
-                  <span className="font-stamp text-[11px] font-bold text-[#0d1b4e] block">
-                    MÃ CTDT: {prog.ma_chuong_trinh}
-                  </span>
-                  <h4 className="font-display font-bold text-[16px] text-[#111827]">
-                    {prog.ten_chuong_trinh}
-                  </h4>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Admission Stats Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-[#fffdf7] p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[14px]">
-            <h3 className="font-display font-bold text-[18px] text-[#111827] uppercase mb-4 border-b-[2px] border-dashed border-[#c6c5d0] pb-2">
-              THÔNG SỐ XÉT TUYỂN CHÍNH THỨC
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <span className="text-[12px] font-bold text-[#6b7280] uppercase block">
-                  Chỉ tiêu K66:
-                </span>
-                <span className="font-display font-black text-[28px] text-[#0284c7]">
-                  {latestQuota} Chỉ Tiêu
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[12px] font-bold text-[#6b7280] uppercase block mb-2">
-                  Lịch sử điểm chuẩn các năm:
-                </span>
-                <div className="bg-[#faf3e6] p-3 border-[2px] border-[#111827] rounded-[8px] space-y-2 text-[13px]">
-                  {historyList.map((h) => (
-                    <div key={h.nam} className="flex justify-between font-bold">
-                      <span>Năm {h.nam}:</span>
-                      <span className="text-[#0d1b4e]">
-                        {h.diem_trung_tuyen?.[0]?.diem
-                          ? `${h.diem_trung_tuyen[0].diem.toFixed(2)} điểm`
-                          : "Tham khảo"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Link
-                href="/tinh-diem-quy-doi"
-                className="w-full py-2.5 bg-[#fdb712] hover:bg-[#e2a20a] text-[#000525] font-extrabold text-[14px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] rounded-[8px] transition-all text-center block uppercase tracking-wider"
-              >
-                Tính Điểm Đậu Vào Ngành
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ChiTietNganhClient
+        key={decodedId}
+        major={majorData}
+        programs={allRelatedPrograms}
+        initialProgramId={allRelatedPrograms.some(p => p.ma_chuong_trinh === decodedId)
+          ? decodedId
+          : allRelatedPrograms[0]?.ma_chuong_trinh}
+        combinations={combinations}
+        scoreHistory={scoreHistory}
+      />
     </div>
   );
 }

@@ -33,7 +33,7 @@ for (const d of definitions) {
         for (const valid of [true, false]) {
             test(`${d.model} ${operation}: ${valid ? "valid admin" : "nonexistent admin"}`, async () => {
                 const f = fixture();
-                f.db.admin.findFirstOrThrow.mock.mockImplementation(async () =>
+                f.db.admin.findUnique.mock.mockImplementation(async () =>
                     valid ? { ma_admin: "actor" } : null,
                 );
                 f.db.nganhHoc.findUnique.mock.mockImplementation(async () => ({
@@ -71,7 +71,7 @@ for (const d of definitions) {
         }
         test(`${d.model} ${operation} propagates database failure`, async () => {
             const f = fixture();
-            f.db.admin.findFirstOrThrow.mock.mockImplementation(
+            f.db.admin.findUnique.mock.mockImplementation(
                 async () => ({}),
             );
             f.db.nganhHoc.findUnique.mock.mockImplementation(async () => ({}));
@@ -92,7 +92,7 @@ for (const d of definitions) {
 for (const operation of ["create", "update"]) {
     test(`program ${operation} rejects nonexistent major`, async () => {
         const f = fixture();
-        f.db.admin.findFirstOrThrow.mock.mockImplementation(async () => ({}));
+        f.db.admin.findUnique.mock.mockImplementation(async () => ({}));
         f.db.nganhHoc.findUnique.mock.mockImplementation(async () => null);
         const service = f.load(
             "services/chuong_trinh_dao_tao.service.ts",
@@ -109,7 +109,7 @@ for (const operation of ["create", "update"]) {
 }
 test("program update persists short description (regression)", async () => {
     const f = fixture();
-    f.db.admin.findFirstOrThrow.mock.mockImplementation(async () => ({}));
+    f.db.admin.findUnique.mock.mockImplementation(async () => ({}));
     await f
         .load("services/chuong_trinh_dao_tao.service.ts")
         .chuongTrinhDaoTaoService.update("P1", {
@@ -125,7 +125,7 @@ test("program update persists short description (regression)", async () => {
 for (const description of [null, "", undefined]) {
     test(`program update passes ${String(description)} description without coercion`, async () => {
         const f = fixture();
-        f.db.admin.findFirstOrThrow.mock.mockImplementation(async () => ({}));
+        f.db.admin.findUnique.mock.mockImplementation(async () => ({}));
         await f
             .load("services/chuong_trinh_dao_tao.service.ts")
             .chuongTrinhDaoTaoService.update("P1", {
@@ -141,8 +141,8 @@ for (const description of [null, "", undefined]) {
 }
 test("program update action passes short description through to persistence", async () => {
     const f = fixture();
+    f.db.admin.findUnique.mock.mockImplementation(async () => ({ vai_tro: { ten_vai_tro: "chuyen_vien" } }));
     f.cookies.getCookie.mock.mockImplementation(async () => "access");
-    f.db.admin.findFirstOrThrow.mock.mockImplementation(async () => ({}));
     await f
         .load("actions/chuong_trinh_dao_tao.action.ts")
         .updateCTDTAction(
@@ -283,7 +283,7 @@ for (const [file, name, args, model, operation, route] of actions) {
             f.cookies.getCookie.mock.mockImplementation(async () =>
                 scenario === "no session" ? undefined : "access",
             );
-            f.db.admin.findFirstOrThrow.mock.mockImplementation(
+            f.db.admin.findUnique.mock.mockImplementation(
                 async () => ({}),
             );
             f.db.admin.findUnique.mock.mockImplementation(async ({ where }) =>

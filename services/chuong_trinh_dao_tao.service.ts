@@ -54,12 +54,14 @@ export const chuongTrinhDaoTaoService = {
         term,
         toHop,
         diemChuan,
+        phuongThuc = "PT1",
         faculty,
         year,
     }: paginationRequest & {
         term: string;
         toHop: string;
         diemChuan: number;
+        phuongThuc?: string;
         faculty: string;
         year: number;
     }) => {
@@ -67,7 +69,7 @@ export const chuongTrinhDaoTaoService = {
             where: {
                 ...(faculty && { nganh: { ma_khoi_nganh: faculty } }),
                 ...(toHop && {
-                    ctdt_to_hop: { some: { ma_to_hop: toHop } },
+                    ctdt_to_hop: { some: { ma_to_hop: toHop, nam: year } },
                 }),
                 lich_su_diem_chuan: { some: { nam: year } },
             },
@@ -83,16 +85,11 @@ export const chuongTrinhDaoTaoService = {
             orderBy: { ma_chuong_trinh: "asc" },
         });
 
-        // 2. diemChuan lọc ở JS: lấy chương trình có điểm chuẩn <= điểm của thí sinh
         let rows = data;
-        // if (diemChuan != null && phuongThuc) {
-        //     rows = rows.filter((r) =>
-        //         r.lich_su_diem_chuan[0].diem_trung_tuyen.some(
-        //             (d) =>
-        //                 d.ma_phuong_thuc === phuongThuc && d.diem <= diemChuan,
-        //         ),
-        //     );
-        // }
+        if (diemChuan > 0) {
+            if (!Number.isFinite(diemChuan)) throw new Error("Điểm không hợp lệ");
+            rows = rows.filter(r => r.lich_su_diem_chuan.some(h => h.nam === year && h.diem_trung_tuyen.some(d => d.ma_phuong_thuc === phuongThuc && d.diem > 0 && d.diem <= diemChuan)));
+        }
 
         // 3. term: tìm không dấu, mọi từ đều phải xuất hiện, xếp theo độ khớp
         if (term?.trim()) {

@@ -1,21 +1,65 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+interface LoadingSpinnerProps {
+  label?: string;
+  sublabel?: string;
+  size?: "sm" | "md" | "lg";
+  fullScreen?: boolean;
+}
 
-export const LoadingSpinner = () => {
+export const LoadingSpinner = ({
+  label = "Đang tải dữ liệu tuyển sinh...",
+  sublabel = "Trường Đại học Giao thông Vận tải (UTC)",
+  size = "md",
+  fullScreen = false,
+}: LoadingSpinnerProps) => {
+  const content = (
+    <div className="flex flex-col items-center justify-center gap-4 p-6 bg-[#fff9ee] border-2 border-[#0d1b4e] shadow-[6px_6px_0px_#0d1b4e] rounded-2xl max-w-sm text-center animate-in fade-in zoom-in-95 duration-200">
+      {/* UTC Animated Dual Rings */}
+      <div className="relative flex items-center justify-center">
+        {/* Outer Ring */}
+        <div
+          className={`border-4 border-[#0d1b4e]/15 border-t-[#0d1b4e] rounded-full animate-spin ${
+            size === "sm" ? "w-8 h-8" : size === "lg" ? "w-16 h-16" : "w-12 h-12"
+          }`}
+          style={{ animationDuration: "1.1s" }}
+        />
+        {/* Inner Gold Ring */}
+        <div
+          className={`absolute border-4 border-transparent border-b-[#fdb712] border-r-[#fdb712] rounded-full animate-spin ${
+            size === "sm" ? "w-5 h-5" : size === "lg" ? "w-10 h-10" : "w-7 h-7"
+          }`}
+          style={{ animationDirection: "reverse", animationDuration: "0.8s" }}
+        />
+        {/* Center Logo Dot */}
+        <div className="absolute w-2.5 h-2.5 bg-[#0d1b4e] rounded-full shadow-sm animate-ping" />
+      </div>
+
+      <div className="space-y-1">
+        <h4 className="font-display font-black text-[15px] text-[#0d1b4e] tracking-wide">
+          {label}
+        </h4>
+        {sublabel && (
+          <p className="text-[12px] font-semibold text-[#767680]">{sublabel}</p>
+        )}
+      </div>
+
+      {/* Modern pulse indicator bar */}
+      <div className="w-32 h-1.5 bg-[#0d1b4e]/10 rounded-full overflow-hidden">
+        <div className="w-full h-full bg-gradient-to-r from-[#0d1b4e] via-[#fdb712] to-[#0d1b4e] rounded-full animate-pulse" />
+      </div>
+    </div>
+  );
+
+  if (fullScreen) {
     return (
-        <div className="flex justify-center items-center absolute w-full h-full inset-0 bg-black/40 backdrop-blur-sm z-[50]">
-            <div className="flex items-center gap-3 px-6 py-4 bg-[#f4ede0] border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-[12px]">
-                <div className="relative flex justify-center items-center w-6 h-6">
-                    <div className="absolute w-full h-full border-[4px] border-black/10 rounded-full"></div>
-                    <div className="absolute w-full h-full border-[4px] border-[#0284c7] rounded-full border-t-transparent animate-spin"></div>
-                </div>
-                <span className="font-display font-extrabold text-[15px] text-[#111827]">
-                    Đang tải dữ liệu...
-                </span>
-            </div>
-        </div>
+      <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#1e1b14]/40 backdrop-blur-md">
+        {content}
+      </div>
     );
+  }
+
+  return <div className="flex items-center justify-center py-12 w-full">{content}</div>;
 };
 
 export default LoadingSpinner;

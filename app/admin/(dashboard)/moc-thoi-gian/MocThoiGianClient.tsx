@@ -1,6 +1,8 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -13,6 +15,14 @@ import {
 
 export default function MocThoiGianClient({ initialData }: { initialData: any[] }) {
   const [data, setData] = useState(initialData);
+  const router = useRouter();
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
+  const refreshData = () => startRefresh(() => router.refresh());
+
+  // Đồng bộ dữ liệu mới từ Server Component sau router.refresh().
+  useEffect(() => setData(initialData), [initialData]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [deletingRow, setDeletingRow] = useState<any | null>(null);
@@ -54,6 +64,8 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
       return;
     }
 
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       if (editingRow) {
         await updateLoTrinhTuyenSinhAction(editingRow.ma_su_kien, {
@@ -74,23 +86,27 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
       }
       setIsModalOpen(false);
       
-      // Update UI optimistically or reload page
-      // Because we use Server Actions with revalidatePath, it will be refreshed when the server responds
-      window.location.reload(); 
+      refreshData(); 
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingRow) return;
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await deleteLoTrinhTuyenSinhAction(deletingRow.ma_su_kien);
       toast.success("Xóa sự kiện thành công!");
       setDeletingRow(null);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
@@ -152,21 +168,177 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
     },
   ];
 
+  const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
+  const [search, setSearch] = useState("");
+
+  const filteredData = data.filter((item) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    return (
+      item.ten_su_kien?.toLowerCase().includes(term) ||
+      item.ghi_chu?.toLowerCase().includes(term)
+    );
+  });
+
   return (
+    <fieldset disabled={isSaving || isRefreshing} aria-busy={isSaving || isRefreshing} className="min-w-0">
     <div className="space-y-6 pt-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e9e2d5] pb-4">
         <div>
-          <h1 className="font-display font-bold text-[26px] text-[#0d1b4e]">Quản Lý Mốc Thời Gian Lộ Trình</h1>
-          <p className="text-[13px] text-[#45464f]">Quản lý tiến độ tuyển sinh và hiển thị timeline trên trang phía thí sinh.</p>
+          <div className="inline-block px-2.5 py-0.5 rounded bg-[#fdb712] text-[#0d1b4e] font-stamp text-[11px] font-bold uppercase mb-2">
+            Tuyển Sinh K66 UTC
+          </div>
+          <h1 className="font-display font-black text-[28px] text-[#0d1b4e] leading-tight">
+            Quản Lý Mốc Thời Gian Lộ Trình
+          </h1>
+          <p className="text-[13px] text-[#45464f] mt-0.5">
+            Theo dõi và cấu hình các mốc quan trọng trong kế hoạch tuyển sinh UTC.
+          </p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#0d1b4e] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a]">
-          <span className="material-symbols-outlined text-[18px]">add_circle</span> Thêm Mốc Thời Gian
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* Mode Switcher */}
+          <div className="flex bg-[#faf3e6] p-1 rounded-xl border border-[#c6c5d0]">
+            <button
+              onClick={() => setViewMode("timeline")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                viewMode === "timeline"
+                  ? "bg-[#0d1b4e] text-white shadow-xs"
+                  : "text-[#767680] hover:text-[#0d1b4e]"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">timeline</span>
+              Lộ Trình
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                viewMode === "table"
+                  ? "bg-[#0d1b4e] text-white shadow-xs"
+                  : "text-[#767680] hover:text-[#0d1b4e]"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">table_rows</span>
+              Dạng Bảng
+            </button>
+          </div>
+
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 bg-[#fdb712] text-[#0d1b4e] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a] shadow-xs"
+          >
+            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+            Thêm Mốc Mới
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
-        <DataTable columns={columns} data={data} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} />
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="relative w-80">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Tìm theo tên mốc hoặc nội dung..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+          />
+        </div>
+        <span className="text-[12px] font-bold text-[#45464f]">
+          Tổng số: {filteredData.length} mốc thời gian
+        </span>
       </div>
+
+      {/* Content: Timeline Mode vs Table Mode */}
+      {viewMode === "timeline" ? (
+        <div className="relative pl-6 sm:pl-8 border-l-2 border-[#0d1b4e]/20 space-y-6 ml-4 sm:ml-6 my-4">
+          {filteredData.map((item, idx) => {
+            const status = getStatus(item.thoi_gian_bat_dau, item.thoi_gian_ket_thuc);
+            const start = new Date(item.thoi_gian_bat_dau).toLocaleDateString("vi-VN");
+            const end = item.thoi_gian_ket_thuc
+              ? new Date(item.thoi_gian_ket_thuc).toLocaleDateString("vi-VN")
+              : "Chưa xác định";
+
+            const isCurrent = status.code === "ACTIVE";
+
+            return (
+              <div key={item.ma_su_kien || idx} className="relative group">
+                {/* Node icon on timeline */}
+                <div
+                  className={`absolute -left-[35px] sm:-left-[43px] top-1.5 w-6 h-6 rounded-full border-4 flex items-center justify-center transition-all ${
+                    isCurrent
+                      ? "bg-[#16a34a] border-white shadow-[0_0_12px_rgba(22,163,74,0.6)] animate-pulse"
+                      : status.code === "PAST"
+                      ? "bg-[#94a3b8] border-white"
+                      : "bg-[#fdb712] border-white"
+                  }`}
+                />
+
+                {/* Event Card */}
+                <div className="bg-white p-5 rounded-2xl border border-[#e9e2d5] shadow-xs hover:shadow-md transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#e9e2d5]/60">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[12px] font-extrabold text-[#0284c7] bg-[#e0f2fe] px-2.5 py-0.5 rounded-md">
+                        {start} → {end}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                          isCurrent
+                            ? "bg-[#86efac] text-[#065f46]"
+                            : status.code === "PAST"
+                            ? "bg-[#e2e8f0] text-[#475569]"
+                            : "bg-[#fef3c7] text-[#92400e]"
+                        }`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100">
+                      <button
+                        onClick={() => openEdit(item)}
+                        className="px-2.5 py-1 text-[12px] font-bold text-[#0d1b4e] hover:bg-[#faf3e6] rounded-md transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">edit</span>
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => setDeletingRow(item)}
+                        className="px-2.5 py-1 text-[12px] font-bold text-[#ba1a1a] hover:bg-rose-50 rounded-md transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+
+                  <h3 className="font-display font-bold text-[16px] text-[#0d1b4e] mt-2.5">
+                    {item.ten_su_kien}
+                  </h3>
+                  {item.ghi_chu && (
+                    <p className="text-[13px] text-[#64748b] mt-1 leading-relaxed whitespace-pre-line">
+                      {item.ghi_chu}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            onEdit={openEdit}
+            onDelete={(row) => setDeletingRow(row)}
+          />
+        </div>
+      )}
 
       <ModalForm isOpen={isModalOpen} title={editingRow ? "Sửa Mốc Thời Gian" : "Thêm Mốc Thời Gian"} onClose={() => setIsModalOpen(false)} onSubmit={handleSave}>
         <div className="space-y-4">
@@ -193,5 +365,6 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
 
       <ConfirmDialog isOpen={!!deletingRow} title="Xác Nhận Xóa Mốc Thời Gian" message={`Bạn có chắc muốn xóa mốc "${deletingRow?.ten_su_kien}"?`} onConfirm={handleDelete} onCancel={() => setDeletingRow(null)} />
     </div>
+    </fieldset>
   );
 }

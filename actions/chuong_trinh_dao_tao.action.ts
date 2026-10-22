@@ -23,12 +23,14 @@ export const getFilterCTDTAction = async ({
     term,
     toHop,
     diemChuan,
+    phuongThuc,
     faculty,
     year,
 }: paginationRequest & {
     term: string;
     toHop: string;
     diemChuan: number;
+    phuongThuc?: string;
     faculty: string;
     year: number;
 }) => {
@@ -39,6 +41,7 @@ export const getFilterCTDTAction = async ({
             term,
             toHop,
             diemChuan,
+            phuongThuc,
             faculty,
             year,
         });

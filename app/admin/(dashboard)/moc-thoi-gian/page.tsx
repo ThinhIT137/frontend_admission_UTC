@@ -1,17 +1,21 @@
-import { getLoTrinhTuyenSinhAction } from "@/actions/lo_trinh_tuyen_sinh.action";
+import { prismaPublic } from "@/libs/prisma";
 import MocThoiGianClient from "./MocThoiGianClient";
 
 export const metadata = {
-  title: "Quản Lý Lộ Trình Tuyển Sinh",
-  description: "Cấu hình danh mục các mốc thời gian xét tuyển",
+  title: "Quản Lý Mốc Thời Gian Lộ Trình | UTC Admin",
 };
 
-export default async function MilestoneAdminPage() {
-  const data = await getLoTrinhTuyenSinhAction();
+export default async function ManageMilestonesPage() {
+  let initialData: any[] = [];
+  try {
+    initialData = await prismaPublic.loTrinhTuyenSinh.findMany({
+      orderBy: {
+        thoi_gian_bat_dau: "asc",
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi tải danh mục mốc thời gian lộ trình từ database:", err);
+  }
 
-  return (
-    <div className="p-6">
-      <MocThoiGianClient initialData={data} />
-    </div>
-  );
+  return <MocThoiGianClient initialData={initialData} />;
 }

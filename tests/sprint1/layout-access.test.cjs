@@ -26,6 +26,8 @@ function pageFixture(user) {
         "@/components/admin/AdminHeader": {
             AdminHeader: marker("admin-header"),
         },
+        "./AdminSidebar": { AdminSidebar: marker("admin-sidebar") },
+        "./AdminHeader": { AdminHeader: marker("admin-header") },
         "./AccountList": { AccountList: marker("accounts") },
         "./RoleList": { RoleList: marker("roles") },
     });

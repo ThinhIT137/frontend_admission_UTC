@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { deleteAdminAction } from "@/actions/admin_account.action";
 import { VaiTroAdmin } from "@/constants/role";
@@ -67,7 +68,7 @@ export function AccountList({ initialData, currentUserId, totalPages, currentPag
         await deleteAdminAction(ma_admin);
         toast.success("Xóa tài khoản thành công!");
       } catch (error: any) {
-        toast.error(error.message || "Xóa thất bại");
+        toast.error(publicError(error.message || "Xóa thất bại"));
       }
     }
   };

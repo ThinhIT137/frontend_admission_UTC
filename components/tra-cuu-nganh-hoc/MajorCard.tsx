@@ -37,30 +37,18 @@ export default function MajorCard({ major, idx, selectedYear }: MajorCardProps) 
     // Removed fake fallback combinations
 
 
-    const badges = [
-        { text: "HOT PICK ★", bg: "bg-[#fcd34d]", textCol: "text-[#111827]" },
-        { text: "TOP RATED ⚡", bg: "bg-[#6ee7b7]", textCol: "text-[#111827]" },
-        { text: "XE ĐIỆN & TỰ HÀNH", bg: "bg-[#e0f2fe]", textCol: "text-[#111827]" },
-        { text: "TRUYỀN THỐNG UTC", bg: "bg-[#c4b5fd]", textCol: "text-[#111827]" },
-        { text: "ĐÔ THỊ THÔNG MINH", bg: "bg-[#d1fae5]", textCol: "text-[#111827]" },
-        { text: "MỚI RA MẮT 2026 ✨", bg: "bg-[#fbcfe8]", textCol: "text-[#111827]" },
-    ];
-    const badge = badges[idx % badges.length];
+    // Clean authentic label
+    const categoryLabel = major.nganh?.khoi_kien_thuc || "ĐẠI HỌC CHÍNH QUY";
 
     return (
         <div className="bg-white border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-[16px] p-5 flex flex-col relative hover:-translate-y-1 hover:shadow-[8px_8px_0px_#111827] transition-all">
-            {/* Floating Badge */}
-            <div className={`absolute -top-4 left-4 px-3 py-0.5 border-[2px] border-[#111827] rounded-[6px] text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#111827] ${badge.bg} ${badge.textCol}`}>
-                {badge.text}
-            </div>
-
             {/* Header: Code & Faculty */}
-            <div className="flex items-start justify-between gap-2 mb-3 mt-1">
+            <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="bg-[#111827] text-white px-2 py-0.5 rounded-[4px] font-stamp text-[11px] font-bold shrink-0">
                     MÃ: {major.ma_chuong_trinh}
                 </div>
-                <div className="text-[10px] text-[#0284c7] font-bold uppercase text-right leading-tight max-w-[60%]">
-                    {major.nganh?.khoi_kien_thuc || "KHOA ĐÀO TẠO"}
+                <div className="text-[11px] text-[#0284c7] font-bold uppercase text-right leading-tight max-w-[65%] truncate">
+                    {categoryLabel}
                 </div>
             </div>
 
@@ -109,18 +97,14 @@ export default function MajorCard({ major, idx, selectedYear }: MajorCardProps) 
                 </div>
             </div>
 
-            {/* Footer Buttons */}
-            <div className="flex items-center gap-3 mt-auto">
-                <button className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-white text-[#111827] font-bold text-[12px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[8px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all">
-                    <span className="material-symbols-outlined text-[14px]">compare_arrows</span>
-                    So sánh
-                </button>
+            {/* Footer Button: Xem Khung CTĐT & Chi Tiết */}
+            <div className="mt-auto pt-2">
                 <Link
                     href={`/tra-cuu-nganh-hoc/${major.ma_nganh}`}
-                    className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-[#0284c7] text-white font-bold text-[12px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[8px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all"
+                    className="w-full flex justify-center items-center gap-2 px-4 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[13px] border-[2px] border-[#111827] shadow-[2.5px_2.5px_0px_#111827] rounded-[10px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#111827] transition-all"
                 >
-                    Khung CTĐT
-                    <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
+                    <span>Xem Chi Tiết & Khung CTĐT</span>
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </Link>
             </div>
         </div>

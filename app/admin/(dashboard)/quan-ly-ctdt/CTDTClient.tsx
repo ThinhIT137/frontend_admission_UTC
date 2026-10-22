@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo } from "react";
 import Fuse from "fuse.js";
@@ -49,14 +50,23 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     });
   }, [initialData]);
 
-  // 2. Data render
-  const filteredData = useMemo(() => {
-    if (!search.trim()) return initialData;
-    const results = fuse.search(search);
-    return results.map((result) => result.item);
-  }, [search, initialData, fuse]);
+  const [selectedMajorFilter, setSelectedMajorFilter] = useState("all");
 
-  useMemo(() => setCurrentPage(1), [search]);
+  // 2. Data render có hỗ trợ lọc theo ngành học
+  const filteredData = useMemo(() => {
+    let result = initialData;
+    if (selectedMajorFilter !== "all") {
+      result = result.filter((item) => item.ma_nganh === selectedMajorFilter);
+    }
+    if (!search.trim()) return result;
+    const searchFuse = new Fuse(result, {
+      keys: ["ten_chuong_trinh", "ma_chuong_trinh", "nganh.ten_nganh"],
+      threshold: 0.3,
+    });
+    return searchFuse.search(search).map((r) => r.item);
+  }, [search, initialData, selectedMajorFilter]);
+
+  useMemo(() => setCurrentPage(1), [search, selectedMajorFilter]);
 
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
   const paginatedData = useMemo(() => {
@@ -116,7 +126,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       }
       setIsModalOpen(false);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 
@@ -127,7 +137,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       toast.success("Xóa CTĐT thành công!");
       setDeletingRow(null);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 
@@ -151,14 +161,66 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       className: "w-[120px]",
     },
     {
-      header: "Tên Chương Trình",
+      header: "Tên Chương Trình Đào Tạo",
       accessor: (r) => (
         <div>
           <span className="font-bold text-[#1e1b14] text-[14px] block">{r.ten_chuong_trinh}</span>
-          <span className="text-[12px] text-[#767680]">Thuộc: <span className="font-bold">{r.nganh?.ten_nganh || "Không xác định"}</span></span>
+          <span className="text-[12px] text-[#767680]">
+            Ngành: <span className="font-bold text-[#0d1b4e]">{r.nganh?.ten_nganh || "Chưa xác định"}</span>
+            {r.nganh?.khoi_nganh?.ten_khoi_nganh && (
+              <span className="ml-1 text-[#0284c7]">({r.nganh.khoi_nganh.ten_khoi_nganh})</span>
+            )}
+          </span>
         </div>
       ),
-      className: "w-full",
+      className: "w-[30%]",
+    },
+    {
+      header: "Tổ Hợp Xét Tuyển",
+      accessor: (r) => {
+        const combinations = r.ctdt_to_hop || [];
+        if (combinations.length === 0) {
+          return <span className="text-[12px] text-[#767680] italic">Chưa gán</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[220px]">
+            {combinations.slice(0, 4).map((c: any) => (
+              <span
+                key={c.ma_to_hop}
+                className="font-bold text-[11px] px-2 py-0.5 rounded bg-[#f4ede0] text-[#0d1b4e] border border-[#c6c5d0]"
+              >
+                {c.ma_to_hop}
+              </span>
+            ))}
+            {combinations.length > 4 && (
+              <span className="text-[11px] text-[#767680] font-bold self-center">
+                +{combinations.length - 4}
+              </span>
+            )}
+          </div>
+        );
+      },
+      className: "w-[200px]",
+    },
+    {
+      header: "Chuẩn Đầu Ra",
+      accessor: (r) => {
+        const cdr = r.chuan_dau_ra || [];
+        if (!cdr.length) return <span className="text-[12px] text-[#767680] italic">-</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {cdr.map((k: string) => (
+              <span
+                key={k}
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] whitespace-nowrap"
+              >
+                {CHUAN_DAU_RA_LABELS[k] || k}
+              </span>
+            ))}
+          </div>
+        );
+      },
+      className: "w-[140px]",
     },
   ];
 
@@ -170,7 +232,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
             Quản Lý Chương Trình Đào Tạo
           </h1>
           <p className="text-[13px] text-[#767680] mt-1">
-            Quản lý các chương trình đào tạo thuộc các ngành học
+            Quản lý {initialData.length} chương trình đào tạo chuẩn & chất lượng cao trực thuộc các ngành học UTC
           </p>
         </div>
         <button
@@ -182,21 +244,38 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
         </button>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative w-80">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-            search
-          </span>
-          <input
-            type="text"
-            placeholder="Tìm CTĐT hoặc mã ngành..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
-          />
+      {/* Toolbar with Major filter and Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-72">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Tìm theo tên CTĐT hoặc mã..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+            />
+          </div>
+
+          <select
+            value={selectedMajorFilter}
+            onChange={(e) => setSelectedMajorFilter(e.target.value)}
+            className="px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] font-bold text-[#0d1b4e] outline-none focus:border-[#0d1b4e]"
+          >
+            <option value="all">Tất cả ngành học ({majors.length})</option>
+            {majors.map((m) => (
+              <option key={m.ma_nganh} value={m.ma_nganh}>
+                {m.ten_nganh}
+              </option>
+            ))}
+          </select>
         </div>
-        <span className="text-[12px] font-bold text-[#45464f]">
-          Tổng số: {filteredData.length} CTĐT
+
+        <span className="text-[12px] font-bold text-[#45464f] self-end sm:self-center">
+          Hiển thị: {filteredData.length} / {initialData.length} CTĐT
         </span>
       </div>
 

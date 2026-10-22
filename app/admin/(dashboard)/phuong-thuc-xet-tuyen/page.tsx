@@ -1,17 +1,28 @@
-import { getPhuongThucXetTuyenAction } from "@/actions/phuong_thuc_xet_tuyen.action";
+import { prismaPublic } from "@/libs/prisma";
 import PhuongThucClient from "./PhuongThucClient";
 
 export const metadata = {
-  title: "Quản Lý Phương Thức Xét Tuyển",
-  description: "Cấu hình danh mục các phương thức tuyển sinh",
+  title: "Quản Lý Phương Thức Xét Tuyển | UTC Admin",
 };
 
-export default async function AdmissionMethodsPage() {
-  const data = await getPhuongThucXetTuyenAction();
+export default async function ManageMethodsPage() {
+  let initialData: any[] = [];
+  try {
+    initialData = await prismaPublic.phuongThucXetTuyen.findMany({
+      include: {
+        _count: {
+          select: {
+            diem_trung_tuyen: true,
+          },
+        },
+      },
+      orderBy: {
+        ma_phuong_thuc: "asc",
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi tải danh mục phương thức xét tuyển từ database:", err);
+  }
 
-  return (
-    <div className="p-6">
-      <PhuongThucClient initialData={data} />
-    </div>
-  );
+  return <PhuongThucClient initialData={initialData} />;
 }

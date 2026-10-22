@@ -1,6 +1,7 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
@@ -24,6 +25,11 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
   const router = useRouter();
   const { setLoading } = useLoading();
   const [data, setData] = useState(initialData);
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
+  const refreshData = () => startRefresh(() => router.refresh());
+
   const [yearFilter, setYearFilter] = useState(currentYear.toString());
 
   useEffect(() => {
@@ -75,6 +81,8 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       toast.error("Vui lòng điền đủ thông tin và chọn ít nhất 1 phương thức xét tuyển!");
       return;
     }
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await createChiTieuAction({
         ma_chuong_trinh: createProgram,
@@ -84,9 +92,11 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       });
       toast.success("Khởi tạo chỉ tiêu thành công!");
       setIsCreateOpen(false);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
@@ -116,6 +126,8 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await updateChiTieuAction(editingRow.ma_ls_dc, {
         chi_tieu: parseInt(editTarget),
@@ -129,58 +141,97 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       });
       toast.success("Cập nhật thành công!");
       setIsEditOpen(false);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingRow) return;
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await deleteChiTieuAction(deletingRow.ma_ls_dc);
       toast.success("Xóa chỉ tiêu thành công!");
       setDeletingRow(null);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
+
+  const [search, setSearch] = useState("");
+
+  const filteredData = data.filter((item: any) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    const progName = item.chuong_trinh?.ten_chuong_trinh?.toLowerCase() || "";
+    const progCode = item.chuong_trinh?.ma_chuong_trinh?.toLowerCase() || "";
+    const majorCode = item.chuong_trinh?.ma_nganh?.toLowerCase() || "";
+    return progName.includes(term) || progCode.includes(term) || majorCode.includes(term);
+  });
 
   const columns: Column<any>[] = [
     {
       header: "Chương Trình Đào Tạo",
       accessor: (r) => (
         <div>
-          <span className="font-bold block text-[14px] text-[#1e1b14]">{r.chuong_trinh.ten_chuong_trinh}</span>
-          <span className="text-[11px] text-[#767680]">Mã Ngành: {r.chuong_trinh.ma_nganh}</span>
+          <span className="font-bold block text-[14px] text-[#1e1b14]">{r.chuong_trinh?.ten_chuong_trinh}</span>
+          <span className="text-[11px] text-[#767680]">Mã Ngành: <span className="font-bold text-[#0d1b4e]">{r.chuong_trinh?.ma_nganh}</span></span>
         </div>
       ),
-      className: "w-[40%]",
+      className: "w-[30%]",
     },
     {
-      header: "Năm Xét Tuyển",
-      accessor: (r) => <span className="font-bold text-[13px]">{r.nam}</span>,
-      className: "w-[120px] text-center",
+      header: "Năm Xét",
+      accessor: (r) => <span className="font-bold text-[13px] bg-[#f4ede0] px-2 py-0.5 rounded border border-[#c6c5d0]">{r.nam}</span>,
+      className: "w-[90px] text-center",
     },
     {
       header: "Chỉ Tiêu",
-      accessor: (r) => <span className="font-bold text-[13px] text-[#0284c7]">{r.chi_tieu} Sinh Viên</span>,
-      className: "w-[120px] text-center",
+      accessor: (r) => <span className="font-extrabold text-[13px] text-[#0284c7]">{r.chi_tieu} SV</span>,
+      className: "w-[100px] text-center",
     },
     {
       header: "Trúng Tuyển",
-      accessor: (r) => <span className="font-bold text-[13px] text-[#16a34a]">{r.trung_tuyen || 0} Sinh Viên</span>,
-      className: "w-[120px] text-center",
+      accessor: (r) => <span className="font-extrabold text-[13px] text-[#16a34a]">{r.trung_tuyen || 0} SV</span>,
+      className: "w-[100px] text-center",
+    },
+    {
+      header: "Điểm Chuẩn (Theo Phương Thức)",
+      accessor: (r) => {
+        const scores = r.diem_trung_tuyen || [];
+        if (!scores.length) return <span className="text-[12px] text-[#767680] italic">Chưa nhập điểm</span>;
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {scores.map((s: any) => (
+              <span
+                key={s.ma_diem_tt || s.ma_phuong_thuc}
+                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-[#f4ede0] border border-[#c6c5d0]"
+              >
+                <span className="text-[#767680] uppercase">{s.ma_phuong_thuc}:</span>
+                <span className="text-[#ba1a1a] font-extrabold">{s.diem}đ</span>
+              </span>
+            ))}
+          </div>
+        );
+      },
+      className: "w-[35%]",
     },
   ];
 
   return (
+    <fieldset disabled={isSaving || isRefreshing} aria-busy={isSaving || isRefreshing} className="min-w-0">
     <div className="space-y-6 pt-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display font-bold text-[26px] text-[#0d1b4e]">Thiết Lập Chỉ Tiêu & Điểm Chuẩn</h1>
-          <p className="text-[13px] text-[#45464f]">Quản lý chỉ tiêu tuyển sinh theo từng năm và cài đặt điểm chuẩn cho các phương thức.</p>
+          <p className="text-[13px] text-[#45464f]">Quản lý chỉ tiêu tuyển sinh theo từng năm và cài đặt điểm trúng tuyển chính thức cho các phương thức.</p>
         </div>
         <div className="flex items-center gap-3">
           <select 
@@ -199,8 +250,27 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
         </div>
       </div>
 
+      {/* Toolbar with Search */}
+      <div className="flex items-center justify-between">
+        <div className="relative w-80">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Tìm theo tên CTĐT hoặc mã ngành..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+          />
+        </div>
+        <span className="text-[12px] font-bold text-[#45464f]">
+          Tổng số: {filteredData.length} chương trình đào tạo
+        </span>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
-        <DataTable columns={columns} data={data} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} />
+        <DataTable columns={columns} data={filteredData} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} />
       </div>
 
       {/* CREATE MODAL */}
@@ -285,5 +355,6 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
 
       <ConfirmDialog isOpen={!!deletingRow} title="Xác Nhận Xóa Chỉ Tiêu" message={`Bạn có chắc muốn xóa cấu hình chỉ tiêu của "${deletingRow?.chuong_trinh?.ten_chuong_trinh}" năm ${deletingRow?.nam}? Thao tác này sẽ xóa toàn bộ điểm chuẩn liên quan.`} onConfirm={handleDelete} onCancel={() => setDeletingRow(null)} />
     </div>
+    </fieldset>
   );
 }

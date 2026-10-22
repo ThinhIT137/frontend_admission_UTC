@@ -12,7 +12,12 @@ export default async function ChiTieuDiemChuanPage(props: { searchParams: Promis
   const currentYear = new Date().getFullYear();
   const year = searchParams.year ? parseInt(searchParams.year) : currentYear;
 
-  const data = await getChiTieuAction(year);
+  let data: Awaited<ReturnType<typeof getChiTieuAction>>;
+  try { data = await getChiTieuAction(year); }
+  catch (error) {
+    console.error("[chi-tieu] page", error);
+    return <div role="alert" className="p-6">Không tải được dữ liệu. Vui lòng thử lại sau.</div>;
+  }
   
   // Fetch programs and methods for creation form
   const programs = await prisma.chuongTrinhDaoTao.findMany({

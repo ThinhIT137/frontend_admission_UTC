@@ -74,6 +74,7 @@ export const toHopXetTuyenService = {
     },
 
     addProgramToToHop: async (ma_to_hop: string, ma_chuong_trinhs: string[], nam: number) => {
+        await adminService.getAdminId();
         return await prisma.ctdtToHop.createMany({
             data: ma_chuong_trinhs.map(ma => ({
                 ma_to_hop,
@@ -85,6 +86,7 @@ export const toHopXetTuyenService = {
     },
 
     removeProgramFromToHop: async (ma_ctdt_to_hop: string) => {
+        await adminService.getAdminId();
         return await prisma.ctdtToHop.delete({
             where: { ma_ctdt_to_hop }
         });
