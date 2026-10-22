@@ -49,10 +49,10 @@ test('[TS11] So sánh: chọn hai chương trình thật và đọc bảng đố
   expect(options.length,'Cần ít nhất hai chương trình trong database').toBeGreaterThanOrEqual(2);
   const second=page.getByLabel('Chương trình 2',{exact:true}),third=page.getByLabel('Chương trình 3',{exact:true});
   await expect(third).toHaveValue('');
-  await page.getByRole('button',{name:'So sánh',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Vui lòng chọn');
+  await page.getByRole('button',{name:'So sánh',exact:true}).click();await expect(page.locator('main p[role="alert"]')).toContainText('Vui lòng chọn');
   await first.selectOption(options[0]);await second.selectOption(options[1]);
   await expect(first).toHaveValue(options[0]);await expect(second).toHaveValue(options[1]);await expect(third).toHaveValue('');
-  await expect(second.locator(`option[value="${options[0]}"]`)).toBeDisabled();
+  await expect(second.locator(`option[value="${options[0]}"]`)).toHaveJSProperty('disabled',true);
   await page.getByRole('button',{name:'So sánh',exact:true}).click();await expect(page.getByRole('table')).toBeVisible();
   await expect(page.getByRole('table').getByRole('columnheader')).toHaveCount(3);
 });

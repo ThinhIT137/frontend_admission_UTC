@@ -5,9 +5,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {EventEmitter}=require('node:events');
 const folder=path.resolve(__dirname,'../artifacts');
-function harness(file,{list=false,spawnError=false,cleanupError=false,args=[]}={}){
+function harness(file,{list=false,spawnError=false,cleanupError=false,configError=false,args=[]}={}){
  const files=new Map(),children=[],cleanup=[];
- const fakeFs={mkdirSync(){},existsSync:p=>files.has(p),writeFileSync:(p,v)=>files.set(p,String(v)),appendFileSync:(p,v)=>files.set(p,(files.get(p)||'')+v),readFileSync:p=>files.get(p),statSync:()=>({mtimeMs:Date.now()+1000})};
+ const fakeFs={mkdirSync(){},existsSync:p=>files.has(p),writeFileSync:(p,v)=>files.set(p,String(v)),appendFileSync:(p,v)=>files.set(p,(files.get(p)||'')+v),readFileSync:p=>{if(String(p).endsWith('.env')){if(configError)throw Error('ENOENT configuration');return Buffer.from('ADMISSION_WATCH_REMOTE_BACKENDS=1');}return files.get(p);},statSync:()=>({mtimeMs:Date.now()+1000})};
  const proc=new EventEmitter();Object.assign(proc,{argv:['node','watch-run.cjs',...(list?['--list']:[]),...args],env:{},execPath:process.execPath,pid:123,stdout:{write(){}},stderr:{write(){}}});
  const spawn=()=>{if(spawnError)throw Error('spawn EPERM');const child=new EventEmitter();child.stdout={};child.stderr={};children.push(child);return child;};
  const req=name=>name==='node:fs'?fakeFs:name==='node:child_process'?{spawn}:name==='node:readline'?{createInterface:()=>new EventEmitter()}:name==='./live-data.cjs'?{cleanupAll:async run=>{cleanup.push(run);if(cleanupError)throw Error('Fixture still present');}}:require(name);
@@ -40,4 +40,11 @@ test('Cleanup failure overrides successful child exit and is visible in both rep
 });
 test('Live bot browser and readiness URL share the canonical localhost origin',()=>{
  const config=require('./watch-live.config.cjs');assert.equal(new URL(config.use.baseURL).hostname,'localhost');assert.equal(new URL(config.webServer.url).origin,config.use.baseURL);assert.match(config.webServer.command,/server-live\.cjs/);
+});
+
+test('Configuration read failure writes a fresh failed report',async()=>{
+ const h=harness('watch-run.cjs',{configError:true});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.proc.exitCode,1);assert.equal(h.children.length,0);
+ const result=JSON.parse(h.files.get(path.join(folder,'ket-qua-bot.json')));assert.equal(result.processExit,1);
+ assert.match(h.files.get(path.join(folder,'KET-QUA-BOT.md')), /CHƯA CHẠY|LỖI/);
 });

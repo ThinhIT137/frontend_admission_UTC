@@ -29,16 +29,24 @@ function record(channel, line) {
 record('BOT', 'Bắt đầu lượt kiểm thử. Log gồm quá trình khởi động, build, thao tác và lỗi.');
 console.log(`LOG LƯỢT NÀY: ${archive}\nLOG MỚI NHẤT: ${latest}`);
 const local = process.argv.includes('--local');
+let remote=false,environmentReady=false;
 const args = process.argv.slice(2).filter(arg => arg !== '--' && arg !== '--local');
 const run = require('node:crypto').randomUUID();
 const config = local ? 'tests/e2e/watch.config.cjs' : 'tests/e2e/watch-live.config.cjs';
-record('MÔI TRƯỜNG', local ? 'DB local, suite cũ gồm AI giả lập' : 'SUPABASE THẬT + BACKEND ĐIỂM THẬT; KHÔNG CHẠY AI');
 let child,interrupted=false,finalized=false;
-try{child = spawn(process.execPath, [path.join(root, 'node_modules/@playwright/test/cli.js'),
+try{
+const settings=require('dotenv').parse(fs.readFileSync(path.join(root,'.env')));
+remote=!local&&(process.env.ADMISSION_WATCH_REMOTE_BACKENDS??settings.ADMISSION_WATCH_REMOTE_BACKENDS)==='1';
+environmentReady=true;
+record('MÔI TRƯỜNG', local ? 'DB local, suite cũ gồm AI giả lập' : remote?'SUPABASE THẬT + API ĐIỂM/AI ĐÃ TRIỂN KHAI; CHỈ HEALTH AI, CHƯA TEST NGHIỆP VỤ AI':'SUPABASE THẬT + BACKEND ĐIỂM LOCAL THẬT; KHÔNG CHẠY AI');
+child = spawn(process.execPath, [path.join(root, 'node_modules/@playwright/test/cli.js'),
   'test', '--config', config, ...args], {
-  cwd: root, env: {...process.env, ADMISSION_LIVE_SCORE:local?'0':'1', ADMISSION_LIVE_RUN_ID:run}, stdio: ['inherit', 'pipe', 'pipe'], windowsHide: true,
+  cwd: root, env: {...process.env, ADMISSION_LIVE_SCORE:local?'0':'1', ADMISSION_WATCH_REMOTE_BACKENDS:remote?'1':'0', ADMISSION_LIVE_RUN_ID:run}, stdio: ['inherit', 'pipe', 'pipe'], windowsHide: true,
 });
-}catch(error){record('LỖI KHỞI ĐỘNG',error.message);console.error('Không khởi động được bot:',error.message);void finalize(1,null);}
+}catch(error){
+  const message=environmentReady?error.message:'Không đọc được cấu hình .env; chưa khởi động bot hoặc tạo fixture.';
+  record('LỖI KHỞI ĐỘNG',message);console.error('Không khởi động được bot:',message);void finalize(1,null);
+}
 if(child){
 for (const [stream, output, channel] of [[child.stdout, process.stdout, 'THÔNG TIN'], [child.stderr, process.stderr, 'STDERR']]) {
   const lines = readline.createInterface({ input: stream, crlfDelay: Infinity });
@@ -55,13 +63,13 @@ child.on('close',finalize);
 async function finalize(code,signal){
   if(finalized)return;finalized=true;
   let cleanupError='';
-  if (!local) {
+  if (!local && environmentReady) {
     try { await require('./live-data.cjs').cleanupAll(run,message=>{record('DỌN DỮ LIỆU',message);console.log(message);}); }
     catch(error) {cleanupError=error.message;record('LỖI DỌN DỮ LIỆU',error.message);console.error('Dọn dữ liệu chưa hoàn tất, xem manifest và log:',error.message);code=1;}
   }
   const report=path.join(folder,'KET-QUA-BOT.md');
   // Wrapper chạy sau reporter: lỗi khởi động/dọn dữ liệu không thể để lại kết luận ĐẠT cũ.
-  const ending=`\n\n## Kết thúc tiến trình\n\nMã thoát: **${code??1}**. ${interrupted?'Người dùng đã dừng lượt chạy.':''}\n\n${cleanupError?'**LỖI DỌN DỮ LIỆU**: '+cleanupError:local?'Không có fixture Supabase của chế độ live.':'Đã thực hiện kiểm tra/dọn mọi manifest đăng ký trong lượt này; từng manifest phải có cleaned=true, remaining=0 nếu đã tạo dữ liệu.'}\n\nLog lượt này: \`${archive}\`.\n`;
+  const ending=`\n\n## Kết thúc tiến trình\n\nMã thoát: **${code??1}**. ${interrupted?'Người dùng đã dừng lượt chạy.':''}\n\n${cleanupError?'**LỖI DỌN DỮ LIỆU**: '+cleanupError:!environmentReady?'Lỗi cấu hình trước khi khởi động bot; chưa tạo fixture.':local?'Không có fixture Supabase của chế độ live.':'Đã thực hiện kiểm tra/dọn mọi manifest đăng ký trong lượt này; từng manifest phải có cleaned=true, remaining=0 nếu đã tạo dữ liệu.'}\n\nLog lượt này: \`${archive}\`.\n`;
   if(!fs.existsSync(report)||fs.statSync(report).mtimeMs<startTime)fs.writeFileSync(report,'# Kết quả bot V2\n\n**CHƯA CHẠY ĐƯỢC / LỖI KHỞI ĐỘNG**. Xem log, không sử dụng kết quả lượt cũ.\n');
   fs.appendFileSync(report,ending);
   if(code!==0||cleanupError||interrupted){const body=fs.readFileSync(report,'utf8');fs.writeFileSync(report,'> **LƯỢT CHẠY CÓ LỖI HOẶC ĐÃ DỪNG. KHÔNG KẾT LUẬN TOÀN BỘ ĐẠT.** Xem lỗi từng ca và mục kết thúc/dọn dữ liệu.\n\n'+body);}

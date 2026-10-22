@@ -24,7 +24,6 @@ model Admin {
   create_at          DateTime               @default(now())
   ma_vai_tro         String
   vai_tro            VaiTro                 @relation(fields: [ma_vai_tro], references: [ma_vai_tro])
-  score_imports      AdmissionScoreImport[]
   chuong_trinh       ChuongTrinhDaoTao[]
   lich_su_diem_chuan LichSuDiemChuan[]
   lo_trinh           LoTrinhTuyenSinh[]
@@ -32,6 +31,7 @@ model Admin {
   nguyen_vong        NguyenVongSinhVien[]
   bai_viet           TrangNoiDung[]
   tri_thuc_ai        TriThucAi[]
+  score_imports      AdmissionScoreImport[]
 
   @@map("admin")
 }
@@ -39,14 +39,18 @@ model Admin {
 model ThiSinh {
   cccd                  String               @id @db.VarChar(12)
   ho_ten                String
+  email                 String?
+  /// Mật khẩu đã băm có salt; không lưu hoặc trả mật khẩu gốc.
+  password              String?
+  activation_otp_hash   String?
+  activation_otp_expires DateTime? @db.Timestamp(6)
+  activation_otp_sent_at DateTime? @db.Timestamp(6)
+  activation_otp_attempts Int @default(0)
   so_dien_thoai         String               @unique
   khu_vuc               String?
   doi_tuong_uu_tien     String?
   diem_uu_tien_he_thong Float?               @default(0)
   create_at             DateTime             @default(now())
-  email                 String?
-  /// Mật khẩu đã băm có salt; không lưu hoặc trả mật khẩu gốc.
-  password              String?
   bang_diem             BangDiem[]
   chung_chi             ChungChi[]
   diem_to_hop           DiemToHop[]
@@ -63,6 +67,7 @@ model GiaiThuong {
   giai_thuong      HangGiaiThuong
   loai_giai_thuong CapGiaiThuong
   mon_hoc          MonHoc
+  file_dinh_kem    String?
   thi_sinh         ThiSinh        @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
 
   @@index([cccd])
@@ -101,6 +106,8 @@ model BangDiem {
   cccd          String        @db.VarChar(12)
   loai_diem     LoaiBangDiem
   nam_hoc       Int
+  /// 0: cả năm; 1/2: học kỳ.
+  hoc_ky        Int           @default(0)
   thi_sinh      ThiSinh       @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
   diem_chi_tiet DiemChiTiet[]
   diem_to_hop   DiemToHop[]
@@ -268,6 +275,10 @@ model NguyenVongSinhVien {
   ma_chuong_trinh      String
   trang_thai           TrangThaiHoSo          @default(cho)
   ket_qua              String?
+  nguon_ket_qua        String?
+  chot_ket_qua_at      DateTime?              @db.Timestamp(6)
+  cong_bo_at           DateTime?              @db.Timestamp(6)
+  diem_trace           Json?
   diem_uu_tien_ap_dung Float?
   tong_diem_xet_tuyen  Float?
   ma_to_hop            String?
@@ -277,16 +288,12 @@ model NguyenVongSinhVien {
   nam_tuyen_sinh       Int
   ma_admin_xu_ly       String?
   create_at            DateTime               @default(now())
-  chot_ket_qua_at      DateTime?              @db.Timestamp(6)
-  cong_bo_at           DateTime?              @db.Timestamp(6)
-  diem_trace           Json?
-  nguon_ket_qua        String?
-  notification         AdmissionNotification?
   thi_sinh             ThiSinh                @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
   admin                Admin?                 @relation(fields: [ma_admin_xu_ly], references: [ma_admin])
   chuong_trinh         ChuongTrinhDaoTao      @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
   phuong_thuc          PhuongThucXetTuyen     @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
   to_hop               ToHopXetTuyen?         @relation(fields: [ma_to_hop], references: [ma_to_hop])
+  notification         AdmissionNotification?
 
   @@index([cccd, nam_tuyen_sinh])
   @@index([ma_chuong_trinh, nam_tuyen_sinh])
@@ -491,5 +498,3 @@ enum LoaiHocPhan {
 
   @@map("loai_hoc_phan")
 }
-
-

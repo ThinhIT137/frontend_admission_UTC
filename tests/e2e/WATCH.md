@@ -4,7 +4,7 @@
 
 **Mặc định hiện có 51 ca:** 42 ca thao tác/đọc UI và API thật (2 ca công bố có thể chưa kiểm tra thành công nếu ngoài lịch thật), 9 mục “CHƯA KIỂM TRA” có lý do. Danh sách có thể tăng khi bổ sung kịch bản. Số ca không đồng nghĩa mọi chức năng đã kiểm chứng đầy đủ.
 
-- `pnpm test:watch`: Supabase thật + backend điểm thật, Chrome hiển thị chậm. Không chạy backend AI hoặc Storage/LLM giả lập.
+- `pnpm test:watch`: Supabase thật + API backend đã triển khai theo `.env`, Chrome hiển thị chậm. Chỉ kiểm tra health AI, không chạy nghiệp vụ AI hoặc Storage/LLM giả lập.
 - `pnpm test:watch -- --list`: chỉ liệt kê, không khởi động web/DB và không ghi đè báo cáo/log cũ.
 - `pnpm test:watch:local`: suite local cũ có AI/Storage giả lập; không dùng làm bằng chứng cloud/AI thật.
 - Đọc [CHUC-NANG-UNG-DUNG-V2.md](../../../docs/CHUC-NANG-UNG-DUNG-V2.md) để biết chức năng nào đã có, API-only hay còn thiếu.
@@ -28,9 +28,19 @@ Xóa hai biến này để xem chậm lại. Nếu cổng 3300 đang bận, dùn
 ## Hướng dẫn cũ (tham khảo chế độ local)
 # Bot kiểm thử có cửa sổ Chrome
 
-## Mặc định hiện tại: backend điểm + Supabase thật
+## Mặc định hiện tại: API triển khai + Supabase thật
 
-`pnpm test:watch` hiện chạy suite live riêng, không chạy bộ 28 case local bên dưới. Runner dùng backend điểm cổng 8100 (tự khởi động nếu chưa chạy), Next.js cổng 3300 và database trong `.env`. Không khởi động backend AI; không dùng LLM/Storage giả lập.
+`pnpm test:watch` chạy suite live riêng. Chỉ dùng **một file cấu hình: `frontend_admission/.env`**.
+
+Với `ADMISSION_WATCH_REMOTE_BACKENDS=1`, runner giữ `API_APPLICATION_SCORE` và `API_AI_ML` trong `.env`, không khởi động Python/backend điểm local và không thay AI bằng cổng giả. Runner GET `/health` của cả hai API, chờ tối đa 90 giây mỗi API cho Render khởi động, rồi build Next.js mới ở cổng 3300. Không gọi chatbot/LLM; các ca AI vẫn ghi **chưa kiểm tra**. Health đạt không chứng minh xác thực hoặc nghiệp vụ AI đạt.
+
+`API_APPLICATION_SCORE=https://backend-application-score-3bfu.onrender.com`; `API_AI_ML=https://backend-ai-ml.onrender.com`. `AI_INTERNAL_API_KEY` cần khớp `INTERNAL_API_KEY` trên Render backend AI: thêm khóa trực tiếp vào `.env`, không đưa vào chat/log hoặc `NEXT_PUBLIC_*`. JWT của Next.js phải khớp backend điểm. Runner không sửa biến môi trường trên Render; nếu deployment dùng database/JWT khác, các ca tích hợp sẽ báo lỗi thật.
+
+Frontend `.env` đã có khóa nội bộ riêng: sao chép giá trị `AI_INTERNAL_API_KEY` trực tiếp sang biến `INTERNAL_API_KEY` của dịch vụ AI trên Render, rồi triển khai lại dịch vụ đó. `NVIDIA_API_KEY` là khóa gọi nhà cung cấp LLM, không thay thế khóa nội bộ giữa Next.js và AI. Khi chưa cấu hình cùng giá trị ở Render, chưa thể xác nhận API AI cần xác thực hoạt động; GET health không kiểm tra việc này. Không đưa các giá trị khóa vào tài liệu hoặc báo cáo bot.
+
+Đổi `ADMISSION_WATCH_REMOTE_BACKENDS=0` để dùng chế độ điểm local cổng 8100 (tự mở khi chưa chạy), AI bị tắt trong chế độ này. Database vẫn là database trong `.env`. Luôn build trước khi chạy; cờ bỏ qua build cũ không còn hiệu lực.
+
+Prisma giữ `schema.prisma` làm nguồn chính và `schema.rollback.prisma` làm bản lưu trước lượt dọn này. Không dùng bản rollback để tự chạy migration; toàn bộ migration và SQL rollback vẫn được giữ.
 
 Case live hiện kiểm tra: đăng ký thí sinh qua UI, nộp hồ sơ/bảng điểm thật, admin duyệt và thí sinh xem trạng thái; tạo/đọc/sửa/xóa chỉ tiêu–điểm chuẩn qua API backend điểm, đối chiếu dữ liệu Supabase. Chỉ tiêu sửa từ 1 lên 2 rồi xóa, đọc lại API phải rỗng. Bản ghi mới mang mã `BOTLIVE-<mã-lượt>`, chỉ phục vụ test.
 
