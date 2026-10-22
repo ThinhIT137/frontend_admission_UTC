@@ -1,43 +1,41 @@
-// lib/prisma.ts
 import { PrismaClient } from "@/app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-// --- Client admin (full quyền) - dùng cho seed, migrate, sau này là trang admin ---
-const poolAdmin = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-const adapter = new PrismaPg(poolAdmin);
-
-const globalForPrisma = global as unknown as { prisma2: PrismaClient };
-const prisma = globalForPrisma.prisma2 || new PrismaClient({ adapter });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma2 = prisma;
-
-// --- Client public (chỉ SELECT) - dùng cho toàn bộ phần web công khai ---
-const publicUrl = process.env.DATABASE_URL_PUBLIC?.includes("pgbouncer=true")
-    ? process.env.DATABASE_URL_PUBLIC
-    : `${process.env.DATABASE_URL_PUBLIC}?pgbouncer=true`;
-
-const poolPublic = new Pool({
-    connectionString: publicUrl,
-    ssl: { rejectUnauthorized: false }
-});
-const adapterPublic = new PrismaPg(poolPublic);
-
-const globalForPrismaPublic = global as unknown as {
-    prismaPublic2: PrismaClient;
+type Connection = { client: PrismaClient; pool: Pool };
+const shared = globalThis as typeof globalThis & {
+    admissionConnections?: Partial<Record<"admin" | "public", Connection>>;
 };
-
-const prismaPublic =
-    globalForPrismaPublic.prismaPublic2 ||
-    new PrismaClient({ adapter: adapterPublic });
-
-if (process.env.NODE_ENV !== "production") {
-    globalForPrismaPublic.prismaPublic2 = prismaPublic;
+function databaseUrl(name: "DATABASE_URL" | "DATABASE_URL_PUBLIC"): string {
+    const value = process.env[name];
+    if (!value) throw new Error(`Thiếu cấu hình ${name}`);
+    try {
+        const url = new URL(value);
+        if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname) throw new Error();
+        // Giữ query hiện có; không nối thêm dấu ? làm hỏng connection string.
+        if (name === "DATABASE_URL_PUBLIC" && !url.searchParams.has("pgbouncer")) url.searchParams.set("pgbouncer", "true");
+        return url.toString();
+    } catch { throw new Error(`Cấu hình ${name} không hợp lệ`); }
 }
-
-export default prisma; // giữ default export cho prisma (admin) - không phá code cũ đang import
-export { prismaPublic }; // named export riêng cho bản public
-
+function connection(role: "admin" | "public"): Connection {
+    const cache = shared.admissionConnections ??= {};
+    const existing = cache[role];
+    if (existing) return existing;
+    // Cache cả pool lẫn client trước khi cấp phát, trong production và HMR.
+    const pool = new Pool({
+        connectionString: databaseUrl(role === "admin" ? "DATABASE_URL" : "DATABASE_URL_PUBLIC"),
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 10_000,
+        idleTimeoutMillis: 30_000,
+    });
+    pool.on("error", () => {
+        // pg loại kết nối idle đã hỏng; không log URL/mật khẩu hoặc ném lỗi ngoài request.
+        console.error(`[database:${role}] Kết nối nhàn rỗi bị ngắt; pool sẽ tạo kết nối mới khi cần.`);
+    });
+    const client = new PrismaClient({ adapter: new PrismaPg(pool) });
+    return cache[role] = { client, pool };
+}
+const prisma = connection("admin").client;
+const prismaPublic = connection("public").client;
+export default prisma;
+export { prismaPublic };

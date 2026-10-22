@@ -38,6 +38,7 @@ export const tokenService = {
     verifyAccessToken: async (token: string): Promise<TokenPayload | null> => {
         try {
             const { payload } = await jwtVerify(token, ACCESS_SECRET);
+            if (typeof payload.userId !== "string" || !payload.userId || payload.role === "thi_sinh") return null;
             return {
                 userId: payload.userId as string,
                 ...payload,
@@ -50,6 +51,7 @@ export const tokenService = {
     verifyRefreshToken: async (token: string): Promise<TokenPayload | null> => {
         try {
             const { payload } = await jwtVerify(token, REFRESH_SECRET);
+            if (typeof payload.userId !== "string" || !payload.userId || payload.role === "thi_sinh") return null;
             return {
                 userId: payload.userId as string,
                 ...payload,

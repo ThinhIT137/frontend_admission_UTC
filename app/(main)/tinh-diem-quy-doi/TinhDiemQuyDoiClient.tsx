@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import BackendConversion from "@/components/BackendConversion";
 
 export interface ProgramScoreItem {
   ma_chuong_trinh: string;
@@ -400,6 +401,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops }:
 
   return (
     <div className="flex flex-col w-full space-y-7 pb-16">
+      <BackendConversion />
       {/* 1. Header Card Phong Cách Neo-Brutalism */}
       <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />

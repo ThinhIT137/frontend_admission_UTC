@@ -1,6 +1,8 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -13,6 +15,14 @@ import {
 
 export default function MocThoiGianClient({ initialData }: { initialData: any[] }) {
   const [data, setData] = useState(initialData);
+  const router = useRouter();
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
+  const refreshData = () => startRefresh(() => router.refresh());
+
+  // Đồng bộ dữ liệu mới từ Server Component sau router.refresh().
+  useEffect(() => setData(initialData), [initialData]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [deletingRow, setDeletingRow] = useState<any | null>(null);
@@ -54,6 +64,8 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
       return;
     }
 
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       if (editingRow) {
         await updateLoTrinhTuyenSinhAction(editingRow.ma_su_kien, {
@@ -74,23 +86,27 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
       }
       setIsModalOpen(false);
       
-      // Update UI optimistically or reload page
-      // Because we use Server Actions with revalidatePath, it will be refreshed when the server responds
-      window.location.reload(); 
+      refreshData(); 
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingRow) return;
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await deleteLoTrinhTuyenSinhAction(deletingRow.ma_su_kien);
       toast.success("Xóa sự kiện thành công!");
       setDeletingRow(null);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
@@ -165,6 +181,7 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
   });
 
   return (
+    <fieldset disabled={isSaving || isRefreshing} aria-busy={isSaving || isRefreshing} className="min-w-0">
     <div className="space-y-6 pt-4">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e9e2d5] pb-4">
@@ -348,5 +365,6 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
 
       <ConfirmDialog isOpen={!!deletingRow} title="Xác Nhận Xóa Mốc Thời Gian" message={`Bạn có chắc muốn xóa mốc "${deletingRow?.ten_su_kien}"?`} onConfirm={handleDelete} onCancel={() => setDeletingRow(null)} />
     </div>
+    </fieldset>
   );
 }

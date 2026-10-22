@@ -148,17 +148,18 @@ const FilterAndSearchBar = ({
                         <span className="material-symbols-outlined text-[14px]">
                             trending_up
                         </span>
-                        Mức Điểm Chuẩn
+                        Điểm tối đa tham khảo
                     </label>
-                    <select
-                        value={selectedDiemChuan}
+                    <input
+                        aria-label="Điểm tối đa tham khảo"
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder="Không giới hạn"
+                        value={selectedDiemChuan || ""}
                         onChange={(e) => setSelectedDiemChuan(Number(e.target.value))}
                         className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all appearance-none cursor-pointer"
-                    >
-                        <option value={0}>Mọi phổ điểm trúng tuyển</option>
-                        <option value={25}>Trên 25 điểm</option>
-                        <option value={20}>Từ 20 - 25 điểm</option>
-                    </select>
+                    />
                 </div>
                 {/* NĂM HỌC */}
                 <div className="flex flex-col gap-1.5">

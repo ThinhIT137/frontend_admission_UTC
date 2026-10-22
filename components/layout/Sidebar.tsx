@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ArrowLeftRight, ArrowRight, Bot, Brain, Calculator, ChevronLeft, ClipboardCheck, FileText, GraduationCap, Headset, House, ListOrdered, Route, ShieldCheck, TrainFront, Upload, type LucideIcon } from "lucide-react";
 
 interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: LucideIcon;
   badge?: string;
   group?: string;
 }
@@ -17,27 +18,34 @@ const navItems: NavItem[] = [
     group: "1. Tìm hiểu trường & Ngành",
     label: "1. Trang chủ",
     href: "/",
-    icon: "home",
+    icon: House,
   },
   {
     group: "1. Tìm hiểu trường & Ngành",
     label: "2. Thông tin tuyển sinh",
     href: "/thong-tin-tuyen-sinh",
-    icon: "article",
+    icon: FileText,
     badge: "Đề án",
   },
   {
     group: "1. Tìm hiểu trường & Ngành",
     label: "3. Tra cứu ngành học",
     href: "/tra-cuu-nganh-hoc",
-    icon: "directions_railway",
+    icon: TrainFront,
   },
   {
     group: "1. Tìm hiểu trường & Ngành",
     label: "4. Trắc nghiệm MBTI",
     href: "/trac-nghiem-mbti",
-    icon: "psychology",
+    icon: Brain,
     badge: "Gợi ý",
+  },
+
+  {
+    group: "1. Tìm hiểu trường & Ngành",
+    label: "So sánh chương trình",
+    href: "/so-sanh-chuong-trinh",
+    icon: ArrowLeftRight,
   },
 
   // Giai đoạn 2: Đánh giá điểm & Kế hoạch thời gian
@@ -45,29 +53,34 @@ const navItems: NavItem[] = [
     group: "2. Tính điểm & Lịch trình",
     label: "5. Tính điểm quy đổi",
     href: "/tinh-diem-quy-doi",
-    icon: "calculate",
+    icon: Calculator,
   },
   {
     group: "2. Tính điểm & Lịch trình",
     label: "6. Lộ trình tuyển sinh",
     href: "/lo-trinh-tuyen-sinh",
-    icon: "timeline",
-    badge: "K66",
+    icon: Route,
   },
 
   // Giai đoạn 3: Thực hiện nộp & Theo dõi kết quả
   {
     group: "3. Nộp hồ sơ & Tra cứu",
+    label: "Nguyện vọng của tôi",
+    href: "/nguyen-vong-cua-toi",
+    icon: ListOrdered,
+  },
+  {
+    group: "3. Nộp hồ sơ & Tra cứu",
     label: "7. Nộp hồ sơ trực tuyến",
     href: "/nop-ho-so",
-    icon: "upload_file",
+    icon: Upload,
     badge: "Mở cổng",
   },
   {
     group: "3. Nộp hồ sơ & Tra cứu",
     label: "8. Tra cứu hồ sơ",
     href: "/tra-cuu-ho-so",
-    icon: "search_check",
+    icon: ClipboardCheck,
   },
 
   // Giai đoạn 4: Hỗ trợ & Quản trị hệ thống
@@ -75,14 +88,14 @@ const navItems: NavItem[] = [
     group: "4. Hỗ trợ & Hệ thống",
     label: "9. Hỏi đáp AI UTC",
     href: "/hoi-dap-ai",
-    icon: "smart_toy",
+    icon: Bot,
     badge: "24/7",
   },
   {
     group: "4. Hỗ trợ & Hệ thống",
     label: "Cổng Quản trị viên",
     href: "/admin",
-    icon: "admin_panel_settings",
+    icon: ShieldCheck,
     badge: "Admin",
   },
 ];
@@ -116,7 +129,7 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
               className="w-7 h-7 rounded border border-[#000525] bg-white flex items-center justify-center text-[#000525] hover:bg-[#fdb712] transition-colors"
               title="Thu gọn menu"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -126,7 +139,7 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
           <div className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-[#ba1a1a] border-[2px] border-[#000525] shadow-[1px_1px_0px_#000525]"></div>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full border-[2.5px] border-[#000525] bg-[#ffdea8] p-0.5 shadow-[2px_2px_0px_#000525] shrink-0 overflow-hidden flex items-center justify-center">
-              <span className="material-symbols-outlined text-[28px] text-[#000525]">school</span>
+              <GraduationCap size={28} className="shrink-0 text-[#000525]" aria-hidden="true" />
             </div>
             <div>
               <span className="font-display font-black text-[22px] text-[#000525] tracking-tight leading-none block">
@@ -150,6 +163,8 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
         {/* Navigation Menu */}
         <nav className="space-y-1.5 flex flex-col">
           {navItems.map((item, idx) => {
+            // SVG có sẵn trong HTML, không chờ font tải rồi mới biến chữ thành icon.
+            const Icon = item.icon;
             const isActive =
               item.href === "/"
                 ? pathname === "/"
@@ -176,33 +191,29 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
                       : "bg-[#fff9ee] text-[#1e1b14] font-medium shadow-[2px_2px_0px_#000525] hover:bg-[#ffdea8] hover:text-[#000525]"
                   }`}
                 >
-                  <span className="flex items-center gap-2.5">
-                    <span
-                      className={`material-symbols-outlined text-[20px] ${
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <Icon size={20} aria-hidden="true"
+                      className={`shrink-0 ${
                         isActive ? "text-white" : "text-[#000525]"
                       }`}
-                    >
-                      {item.icon}
-                    </span>
+                    />
                     <span className="text-[13.5px] leading-tight font-display font-bold">
                       {item.label}
                     </span>
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex shrink-0 items-center gap-1">
                     {item.badge && (
                       <span className="text-[10px] bg-[#fdb712] text-[#000525] px-1.5 py-0.5 font-bold border border-[#111827] rounded shadow-[1px_1px_0px_#111827]">
                         {item.badge}
                       </span>
                     )}
-                    <span
-                      className={`material-symbols-outlined text-[15px] ${
+                    <ArrowRight size={15} aria-hidden="true"
+                      className={`shrink-0 ${
                         isActive
                           ? "text-white"
                           : "text-[#000525] opacity-0 group-hover:opacity-100 transition-opacity"
                       }`}
-                    >
-                      arrow_forward
-                    </span>
+                    />
                   </span>
                 </Link>
               </div>
@@ -214,7 +225,7 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
       {/* Footer Banner Inside Sidebar */}
       <div className="p-4 border-t-[2px] border-dashed border-[#000525] bg-[#faf3e6]">
         <div className="flex items-center gap-2 bg-[#fff] p-2 border-[2px] border-[#000525] shadow-[2px_2px_0px_#000525] rounded-[6px]">
-          <span className="material-symbols-outlined text-[#0284c7]">headset_mic</span>
+          <Headset size={24} className="shrink-0 text-[#0284c7]" aria-hidden="true" />
           <div className="text-[11px]">
             <p className="font-bold text-[#000525]">Hotline Hà Nội</p>
             <p className="text-[#45464f] font-mono">(024) 3766 3311</p>

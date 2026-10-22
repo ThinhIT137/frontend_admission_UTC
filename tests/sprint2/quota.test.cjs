@@ -1,114 +1,22 @@
-const { test } = require("node:test");
-const assert = require("node:assert/strict");
-const { fixture, quietErrors } = require("./helpers.cjs");
-// Chỉ thiết lập đầu mùa theo chương trình/năm, không cập nhật điểm cuối mùa.
-const input = {
-    ma_chuong_trinh: "P1",
-    nam: 2026,
-    chi_tieu: 100,
-    phuong_thuc_ids: ["PT1", "PT2"],
-};
-test("thiết lập chỉ tiêu đầu mùa và khởi tạo điểm phương thức bằng 0", async () => {
-    const f = fixture();
-    assert.deepEqual(
-        await f.load("actions/chi_tieu.action.ts").createChiTieuAction(input),
-        { id: "result" },
-    );
-    // Trùng chỉ tiêu được kiểm tra bằng khóa ghép chương trình/năm.
-    assert.deepEqual(f.db.lichSuDiemChuan.findUnique.mock.calls[0].arguments, [
-        {
-            where: {
-                ma_chuong_trinh_nam: { ma_chuong_trinh: "P1", nam: 2026 },
-            },
-        },
-    ]);
-    // Nested create: lưu admin thực hiện và khởi tạo điểm 0 cho từng phương thức.
-    // Kiểm tra query gửi Prisma, không xác nhận constraint/transaction DB thật.
-    assert.deepEqual(f.db.lichSuDiemChuan.create.mock.calls[0].arguments, [
-        {
-            data: {
-                ma_chuong_trinh: "P1",
-                nam: 2026,
-                chi_tieu: 100,
-                ma_admin_cap_nhat: "actor",
-                diem_trung_tuyen: {
-                    create: [
-                        { ma_phuong_thuc: "PT1", diem: 0 },
-                        { ma_phuong_thuc: "PT2", diem: 0 },
-                    ],
-                },
-            },
-        },
-    ]);
-    assert.deepEqual(f.revalidatePath.mock.calls[0].arguments, [
-        "/admin/chi-tieu-diem-chuan",
-    ]);
+const {test,mock}=require('node:test');
+const assert=require('node:assert/strict');
+const {loader}=require('../sprint1/helpers.cjs');
+function fixture(handler=async()=>({ma_ls_dc:'LS1'})) { const request=mock.fn(handler), revalidatePath=mock.fn(); return {request,revalidatePath,actions:loader({'@/libs/api-services/backend.server':{backendRequest:request},'next/cache':{revalidatePath}})('actions/chi_tieu.action.ts')}; }
+const input={ma_chuong_trinh:'P1',nam:2026,chi_tieu:100,phuong_thuc_ids:['PT1','PT2']};
+test('Quota create calls canonical authenticated score API with all methods initialized at zero',async()=>{
+ const f=fixture(); assert.equal((await f.actions.createChiTieuAction(input)).ma_ls_dc,'LS1');
+ assert.deepEqual(f.request.mock.calls[0].arguments,['score','/diem-chuan',{auth:'admin',method:'POST',body:{ma_chuong_trinh:'P1',nam:2026,chi_tieu:100,diem_trung_tuyen:[{ma_phuong_thuc:'PT1',diem:0},{ma_phuong_thuc:'PT2',diem:0}]}}]);
+ assert.deepEqual(f.revalidatePath.mock.calls[0].arguments,['/admin/chi-tieu-diem-chuan']);
 });
-test("không tạo lại chỉ tiêu cùng chương trình/năm", async () =>
-    quietErrors(async () => {
-        const f = fixture();
-        f.db.lichSuDiemChuan.findUnique.mock.mockImplementation(
-            async () => ({}),
-        );
-        await assert.rejects(
-            f.load("actions/chi_tieu.action.ts").createChiTieuAction(input),
-            /đã có chỉ tiêu trong năm 2026/,
-        );
-        assert.equal(f.db.lichSuDiemChuan.create.mock.callCount(), 0);
-        assert.equal(f.revalidatePath.mock.callCount(), 0);
-    }));
-test("thiết lập chỉ tiêu yêu cầu session", async () =>
-    quietErrors(async () => {
-        const f = fixture(false);
-        await assert.rejects(
-            f.load("actions/chi_tieu.action.ts").createChiTieuAction(input),
-            /quyền truy cập/,
-        );
-        assert.equal(f.db.lichSuDiemChuan.findUnique.mock.callCount(), 0);
-        assert.equal(f.db.lichSuDiemChuan.create.mock.callCount(), 0);
-    }));
-test("lỗi khóa ngoại/DB khi thiết lập chỉ tiêu được trả lên action", async () =>
-    quietErrors(async () => {
-        const f = fixture();
-        f.db.lichSuDiemChuan.create.mock.mockImplementation(async () => {
-            throw new Error("Foreign key violation");
-        });
-        await assert.rejects(
-            f.load("actions/chi_tieu.action.ts").createChiTieuAction(input),
-            /Foreign key violation/,
-        );
-        assert.equal(f.revalidatePath.mock.callCount(), 0);
-    }));
-// Có năm thì lọc; không truyền năm thì lấy mọi năm.
-for (const year of [2026, undefined]) {
-    test(`đọc chỉ tiêu: ${year || "mọi năm"}`, async () => {
-        const f = fixture();
-        assert.deepEqual(
-            await f.load("actions/chi_tieu.action.ts").getChiTieuAction(year),
-            [],
-        );
-        assert.deepEqual(
-            f.db.lichSuDiemChuan.findMany.mock.calls[0].arguments[0].where,
-            year ? { nam: year } : {},
-        );
-    });
-}
-// Đổi từng trường để cô lập lỗi; input sai không được tới bước ghi DB.
-for (const [label, change] of [
-    ["âm", { chi_tieu: -1 }],
-    ["bằng 0", { chi_tieu: 0 }],
-    ["số lẻ", { chi_tieu: 1.5 }],
-    ["không chọn phương thức", { phuong_thuc_ids: [] }],
-    ["thiếu chương trình", { ma_chuong_trinh: "" }],
-]) {
-    test(`server từ chối chỉ tiêu ${label}`, async () =>
-        quietErrors(async () => {
-            const f = fixture();
-            await assert.rejects(
-                f
-                    .load("actions/chi_tieu.action.ts")
-                    .createChiTieuAction({ ...input, ...change }),
-            );
-            assert.equal(f.db.lichSuDiemChuan.create.mock.callCount(), 0);
-        }));
-}
+for(const year of [2026,undefined])test(`Quota list forwards year ${year} through admin API`,async()=>{const f=fixture(async()=>[]); assert.deepEqual(await f.actions.getChiTieuAction(year),[]);assert.deepEqual(f.request.mock.calls[0].arguments,['score','/diem-chuan'+(year===undefined?'':'?nam=2026'),{auth:'admin'}]);});
+const current={ma_ls_dc:'L/1',ma_chuong_trinh:'P1',nam:2026,chi_tieu:12,trung_tuyen:2,diem_trung_tuyen:[{ma_diem_tt:'D1',ma_phuong_thuc:'PT1',diem:24,dieu_kien_mon:{TOAN:8},nguyen_vong_toi_da:3,diem_uu_tien_toi_thieu:1},{ma_diem_tt:'D2',ma_phuong_thuc:'PT2',diem:25,dieu_kien_mon:null,nguyen_vong_toi_da:null,diem_uu_tien_toi_thieu:null}]};
+test('Quota partial PUT preserves untouched methods/conditions and accepts explicit null and zero',async()=>{
+ const f=fixture(async(_,path,options)=>options.method?{}:structuredClone(current));
+ await f.actions.updateChiTieuAction('L/1',{trung_tuyen:0,diem_trung_tuyen:[{ma_diem_tt:'D1',diem:0,nguyen_vong_toi_da:null,diem_uu_tien_toi_thieu:0}]});
+ const [service,path,options]=f.request.mock.calls[1].arguments;assert.equal(service,'score');assert.equal(path,'/diem-chuan/L%2F1');assert.equal(options.auth,'admin');assert.equal(options.method,'PUT');assert.equal(options.body.chi_tieu,12);assert.equal(options.body.trung_tuyen,0);
+ assert.deepEqual(options.body.diem_trung_tuyen,[{ma_phuong_thuc:'PT1',diem:0,dieu_kien_mon:{TOAN:8},nguyen_vong_toi_da:null,diem_uu_tien_toi_thieu:0},{ma_phuong_thuc:'PT2',diem:25,dieu_kien_mon:null,nguyen_vong_toi_da:null,diem_uu_tien_toi_thieu:null}]);
+ await f.actions.updateChiTieuAction('L/1',{diem_trung_tuyen:[{ma_diem_tt:'D1',diem:24,dieu_kien_mon:null}]});assert.equal(f.request.mock.calls[3].arguments[2].body.diem_trung_tuyen[0].dieu_kien_mon,null);
+});
+for(const patches of [[{ma_diem_tt:'stale',diem:20}],[{ma_diem_tt:'D1',diem:20},{ma_diem_tt:'D1',diem:21}]])test('Quota rejects stale or duplicate score IDs before PUT',async t=>{t.mock.method(console,'error',()=>{});const f=fixture(async()=>current);await assert.rejects(f.actions.updateChiTieuAction('LS1',{diem_trung_tuyen:patches}),/Thao t\u00e1c th\u1ea5t b\u1ea1i/);assert.equal(f.request.mock.callCount(),1);assert.equal(f.revalidatePath.mock.callCount(),0);});
+test('Quota deletion uses authenticated canonical DELETE with encoded ID',async()=>{const f=fixture();assert.equal(await f.actions.deleteChiTieuAction('L/1'),true);assert.deepEqual(f.request.mock.calls[0].arguments,['score','/diem-chuan/L%2F1',{auth:'admin',method:'DELETE'}]);});
+for(const operation of ['create','get','update','delete'])test(`Quota ${operation} hides backend failure and does not invalidate successful cache`,async t=>{t.mock.method(console,'error',()=>{});const f=fixture(async()=>{throw Error('SQL password=SECRET 401/409/422');});const calls={create:()=>f.actions.createChiTieuAction(input),get:()=>f.actions.getChiTieuAction(),update:()=>f.actions.updateChiTieuAction('LS1',{}),delete:()=>f.actions.deleteChiTieuAction('LS1')};await assert.rejects(calls[operation],e=>e.message.includes('Thao t\u00e1c th\u1ea5t b\u1ea1i')&&!e.message.includes('SECRET'));assert.equal(f.revalidatePath.mock.callCount(),0);});

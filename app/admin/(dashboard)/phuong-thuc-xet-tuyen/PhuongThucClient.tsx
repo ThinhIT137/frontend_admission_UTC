@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { DataTable, Column } from "@/components/admin/DataTable";
@@ -67,7 +68,7 @@ export default function PhuongThucClient({ initialData }: { initialData: any[] }
       }
       setIsModalOpen(false);
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi lưu phương thức");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi lưu phương thức"));
     }
   };
 
@@ -78,7 +79,7 @@ export default function PhuongThucClient({ initialData }: { initialData: any[] }
       toast.success("Xóa phương thức thành công!");
       setDeletingRow(null);
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa phương thức");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa phương thức"));
     }
   };
 

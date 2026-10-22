@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo } from "react";
 import Fuse from "fuse.js";
@@ -107,7 +108,7 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
       }
       setIsModalOpen(false);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 
@@ -118,7 +119,7 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
       toast.success("Xóa tổ hợp thành công!");
       setDeletingRow(null);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 
@@ -149,7 +150,7 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
       setProgramsList(data);
       setSelectedNewPrograms([]);
     } catch (error: any) {
-      toast.error(error.message || "Thêm ngành thất bại!");
+      toast.error(publicError(error.message || "Thêm ngành thất bại!"));
     }
   };
 
@@ -184,7 +185,7 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
       const data = await getProgramsByToHopAction(selectedToHop.ma_to_hop);
       setProgramsList(data);
     } catch (error: any) {
-      toast.error(error.message || "Xóa ngành thất bại!");
+      toast.error(publicError(error.message || "Xóa ngành thất bại!"));
     }
   };
 

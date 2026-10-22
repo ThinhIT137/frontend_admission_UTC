@@ -263,8 +263,12 @@ export default async function MajorDetailPage({ params }: PageProps) {
       </div>
 
       <ChiTietNganhClient
+        key={decodedId}
         major={majorData}
         programs={allRelatedPrograms}
+        initialProgramId={allRelatedPrograms.some(p => p.ma_chuong_trinh === decodedId)
+          ? decodedId
+          : allRelatedPrograms[0]?.ma_chuong_trinh}
         combinations={combinations}
         scoreHistory={scoreHistory}
       />

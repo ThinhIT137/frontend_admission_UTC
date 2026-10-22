@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getFilterCTDTAction } from "@/actions/chuong_trinh_dao_tao.action";
@@ -26,11 +27,12 @@ function MajorLookupContent() {
         Awaited<ReturnType<typeof getFilterCTDTAction>>["data"]
     >([]);
     // selected
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchTerm, setSearchTerm] = useState(searchParams.get("term") || "");
     const [selectedFaculty, setSelectedFaculty] = useState(initialFacultyParam);
     const [selectedToHop, setSelectToHop] = useState("");
     const [selectedDiemChuan, setSelectedDiemChuan] = useState<number>(0);
     const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [selectedMethod, setSelectedMethod] = useState("PT1");
     const [sortOption, setSortOption] = useState<string>("score-desc");
 
     // Sync when searchParams change in URL
@@ -70,6 +72,7 @@ function MajorLookupContent() {
                 term: searchTerm,
                 toHop: selectedToHop,
                 diemChuan: selectedDiemChuan,
+                phuongThuc: selectedMethod,
                 faculty: selectedFaculty,
                 year: selectedYear,
             });
@@ -96,6 +99,7 @@ function MajorLookupContent() {
         selectedFaculty,
         selectedToHop,
         selectedDiemChuan,
+        selectedMethod,
         selectedYear,
         sortOption,
     ]);
@@ -111,6 +115,7 @@ function MajorLookupContent() {
         selectedFaculty,
         selectedToHop,
         selectedDiemChuan,
+        selectedMethod,
         selectedYear,
         currentPage,
     ]);
@@ -152,7 +157,12 @@ function MajorLookupContent() {
         <div className="flex flex-col w-full space-y-6 pb-12">
             {/* Title Header Card */}
             <Hero />
+            <Link className="underline font-bold" href="/so-sanh-chuong-trinh">So sánh chương trình và lịch sử điểm chuẩn</Link>
             <DisclaimerBanner />
+            <label className="font-bold">Phương thức lọc điểm <select className="border rounded p-2 ml-3" aria-label="Phương thức lọc ngành" value={selectedMethod} onChange={e => setSelectedMethod(e.target.value)}>
+              <option value="PT1">THPT (thang 30)</option><option value="PT2">Học bạ</option><option value="PT3">ĐGNL</option><option value="PT4">ĐGTD</option><option value="PT5">Kết hợp</option>
+            </select></label>
+            <Link className="underline" href="/du-bao-tuyen-sinh">Dự báo điểm chuẩn và đánh giá theo điểm môn</Link>
             {/* Filter and Search Bar */}
             <FilterAndSearchBar
                 searchTerm={searchTerm}

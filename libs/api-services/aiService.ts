@@ -8,6 +8,8 @@
  * - /api/predict/admission-chance: Đánh giá xác suất trúng tuyển
  */
 
+// Đây là adapter trong Next.js gọi HTTP sang backend AI, không phải mã mô hình AI.
+// Các màn hình mới cũng có thể dùng browser-api/route trung gian; không mặc định mọi màn hình gọi adapter này.
 export interface ChatRequestPayload {
   session_id?: string;
   message: string;
@@ -33,7 +35,7 @@ export interface MBTISubmitPayload {
   cccd?: string;
   ho_ten?: string;
   studentName?: string;
-  answers: Record<string, string>; // { "1": "A", "2": "B", ... }
+  answers: Record<string, number>; // Likert scores 1–5 from the actual questionnaire
 }
 
 export interface MBTIResultData {
@@ -140,25 +142,30 @@ export const aiService = {
   /**
    * Đánh giá cơ hội trúng tuyển dựa trên điểm số (Prediction Model)
    */
+  // Kiểm tra điểm trước khi gửi, rồi đổi tên trường kết quả AI về dạng mà bên gọi adapter mong đợi.
   async evaluateChance(params: {
-    ma_chuong_trinh: string;
-    ma_to_hop: string;
-    diem_xet_tuyen: number;
-    khu_vuc?: string;
+    academic_scores: Record<string, number>;
+    target_major_code?: string;
+    admission_method?: string;
+    priority_region?: string;
+    priority_group?: string;
   }): Promise<{ success: boolean; data?: { chance_percentage: number; evaluation: string } }> {
+    const scores = Object.values(params.academic_scores);
+    if (!scores.length || scores.some(score => !Number.isFinite(score) || score < 0 || score > 10)) return { success: false };
     try {
       const res = await fetch(`${AI_API_BASE}/api/predict/admission-chance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
+        signal: AbortSignal.timeout(10000),
       });
       if (res.ok) {
         const json = await res.json();
-        return { success: true, data: json.data || json };
+        if (json.success === false) return { success: false };
+        const data = json.data || json;
+        return { success: true, data: { chance_percentage: data.xac_suat_trung_tuyen, evaluation: data.nhan_xet_chuyen_gia } };
       }
-    } catch {
-      // Backend offline
-    }
+    } catch { /* Service unavailable. */ }
     return { success: false };
   },
 };

@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -182,7 +183,7 @@ export default function NganhHocClient({
       setSelectedNewPrograms([]);
       setSearchNewProgram("");
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi thêm CTĐT");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi thêm CTĐT"));
     } finally {
       setIsAddingPrograms(false);
     }
@@ -203,7 +204,7 @@ export default function NganhHocClient({
       });
       setDeletingProgram(null);
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa CTĐT");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa CTĐT"));
     }
   };
 
@@ -245,7 +246,7 @@ export default function NganhHocClient({
       }
       setIsModalOpen(false);
     } catch (err: any) {
-      toast.error(err.message || "Lỗi lưu ngành học");
+      toast.error(publicError(err.message || "Lỗi lưu ngành học"));
     }
   };
 
@@ -256,7 +257,7 @@ export default function NganhHocClient({
       toast.success("Xóa ngành học thành công!");
       setDeletingRow(null);
     } catch (err: any) {
-      toast.error(err.message || "Lỗi xóa ngành học");
+      toast.error(publicError(err.message || "Lỗi xóa ngành học"));
     }
   };
 
@@ -750,7 +751,7 @@ export default function NganhHocClient({
                           setNewProgramChuanDauRa([]);
                           setIsCreatingProgram(false);
                         } catch (err: any) {
-                          toast.error(err.message || "Lỗi tạo chương trình!");
+                          toast.error(publicError(err.message || "Lỗi tạo chương trình!"));
                         } finally {
                           setIsSubmittingNewProgram(false);
                         }

@@ -1,10 +1,12 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { login } from "@/actions/auth.action";
 import { toast } from "sonner";
+import { ArrowLeft, LoaderCircle, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -24,8 +26,8 @@ export default function AdminLoginPage() {
       router.push("/admin");
     } catch (err: any) {
       const errorMsg = err.message || "Đăng nhập thất bại";
-      setError(errorMsg);
-      toast.error(errorMsg);
+      setError(publicError(errorMsg));
+      toast.error(publicError(errorMsg));
     } finally {
       setIsLoading(false);
     }
@@ -37,9 +39,7 @@ export default function AdminLoginPage() {
         {/* Header */}
         <div className="bg-[#081133] p-6 text-white text-center border-b border-[#1a2c6d]">
           <div className="w-16 h-16 rounded-full bg-[#fdb712] p-1 shadow-lg mx-auto mb-3 flex items-center justify-center">
-            <span className="material-symbols-outlined text-[#0d1b4e] text-[36px]">
-              admin_panel_settings
-            </span>
+            <ShieldCheck size={36} className="text-[#0d1b4e]" aria-hidden="true" />
           </div>
           <h2 className="font-display font-bold text-[22px] tracking-tight">
             ĐĂNG NHẬP QUẢN TRỊ UTC
@@ -56,9 +56,8 @@ export default function AdminLoginPage() {
               Tài khoản cán bộ / Email:
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-                person
-              </span>
+              {/* SVG giữ kích thước ngay lần hiển thị đầu, không phụ thuộc font icon. */}
+              <UserRound size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#767680]" aria-hidden="true" />
               <input
                 type="text"
                 value={username}
@@ -74,9 +73,7 @@ export default function AdminLoginPage() {
               Mật khẩu:
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-                lock
-              </span>
+              <LockKeyhole size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#767680]" aria-hidden="true" />
               <input
                 type="password"
                 value={password}
@@ -110,9 +107,7 @@ export default function AdminLoginPage() {
           >
             {isLoading ? (
               <>
-                <span className="material-symbols-outlined animate-spin text-[20px]">
-                  progress_activity
-                </span>
+                <LoaderCircle size={20} className="animate-spin" aria-hidden="true" />
                 ĐANG ĐĂNG NHẬP...
               </>
             ) : (
@@ -125,7 +120,7 @@ export default function AdminLoginPage() {
               href="/"
               className="text-[12px] font-bold text-[#767680] hover:text-[#0d1b4e] flex items-center justify-center gap-1"
             >
-              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+              <ArrowLeft size={16} aria-hidden="true" />
               Quay về Trang chủ Thí sinh
             </Link>
           </div>

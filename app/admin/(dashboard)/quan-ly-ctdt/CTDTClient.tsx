@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo } from "react";
 import Fuse from "fuse.js";
@@ -125,7 +126,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       }
       setIsModalOpen(false);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 
@@ -136,7 +137,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       toast.success("Xóa CTĐT thành công!");
       setDeletingRow(null);
     } catch (error: any) {
-      toast.error(error.message || "Có lỗi xảy ra!");
+      toast.error(publicError(error.message || "Có lỗi xảy ra!"));
     }
   };
 

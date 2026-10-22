@@ -1,6 +1,7 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
@@ -24,6 +25,11 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
   const router = useRouter();
   const { setLoading } = useLoading();
   const [data, setData] = useState(initialData);
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
+  const refreshData = () => startRefresh(() => router.refresh());
+
   const [yearFilter, setYearFilter] = useState(currentYear.toString());
 
   useEffect(() => {
@@ -75,6 +81,8 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       toast.error("Vui lòng điền đủ thông tin và chọn ít nhất 1 phương thức xét tuyển!");
       return;
     }
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await createChiTieuAction({
         ma_chuong_trinh: createProgram,
@@ -84,9 +92,11 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       });
       toast.success("Khởi tạo chỉ tiêu thành công!");
       setIsCreateOpen(false);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
@@ -116,6 +126,8 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await updateChiTieuAction(editingRow.ma_ls_dc, {
         chi_tieu: parseInt(editTarget),
@@ -129,21 +141,27 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       });
       toast.success("Cập nhật thành công!");
       setIsEditOpen(false);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra");
+      toast.error(publicError(err.message || "Có lỗi xảy ra"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingRow) return;
+    if (saving.current || isRefreshing) return;
+    saving.current = true; setIsSaving(true);
     try {
       await deleteChiTieuAction(deletingRow.ma_ls_dc);
       toast.success("Xóa chỉ tiêu thành công!");
       setDeletingRow(null);
-      window.location.reload();
+      refreshData();
     } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi xóa");
+      toast.error(publicError(err.message || "Có lỗi xảy ra khi xóa"));
+    } finally {
+      saving.current = false; setIsSaving(false);
     }
   };
 
@@ -208,6 +226,7 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
   ];
 
   return (
+    <fieldset disabled={isSaving || isRefreshing} aria-busy={isSaving || isRefreshing} className="min-w-0">
     <div className="space-y-6 pt-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -336,5 +355,6 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
 
       <ConfirmDialog isOpen={!!deletingRow} title="Xác Nhận Xóa Chỉ Tiêu" message={`Bạn có chắc muốn xóa cấu hình chỉ tiêu của "${deletingRow?.chuong_trinh?.ten_chuong_trinh}" năm ${deletingRow?.nam}? Thao tác này sẽ xóa toàn bộ điểm chuẩn liên quan.`} onConfirm={handleDelete} onCancel={() => setDeletingRow(null)} />
     </div>
+    </fieldset>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -50,7 +51,7 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
         await deleteRoleAction(role.ma_vai_tro);
         toast.success("Xóa vai trò thành công!");
       } catch (error: any) {
-        toast.error(error.message || "Xóa thất bại");
+        toast.error(publicError(error.message || "Xóa thất bại"));
       }
     }
   };

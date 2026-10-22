@@ -1,22 +1,29 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import { MBTI_QUESTIONS, MbtiQuestion, calculateMbtiType } from "./mbtiData";
-import { aiService } from "@/libs/api-services/aiService";
+import { api } from "@/libs/api-services/browser-api";
 
 interface MBTITestClientProps {
   initialQuestions?: MbtiQuestion[];
 }
 
-export default function MBTITestClient({ initialQuestions = MBTI_QUESTIONS }: MBTITestClientProps) {
+export default function MBTITestClient({ initialQuestions = [] }: MBTITestClientProps) {
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [studentName, setStudentName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const questionsList = initialQuestions && initialQuestions.length > 0 ? initialQuestions : MBTI_QUESTIONS;
+  const [questionsList, setQuestions] = useState<MbtiQuestion[]>(initialQuestions);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api<{ data: Array<{ id: number; text: string; dimension: "EI" | "SN" | "TF" | "JP"; positive_trait: string }> }>("ai", "/api/mbti/questions")
+      .then(r => setQuestions(r.data.map(q => ({ id: q.id, text: q.text, dimension: q.dimension, direction: ["I", "N", "F", "P"].includes(q.positive_trait) ? -1 : 1 }))))
+      .catch(e => setError(publicError(e.message)));
+  }, []);
 
   const handleSelect = (qId: number, value: number) => {
     setAnswers((prev) => ({ ...prev, [qId]: value }));
@@ -24,77 +31,25 @@ export default function MBTITestClient({ initialQuestions = MBTI_QUESTIONS }: MB
 
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = questionsList.length;
-  const isComplete = answeredCount === totalQuestions;
-  const progressPercent = Math.round((answeredCount / totalQuestions) * 100);
+  const isComplete = totalQuestions > 0 && answeredCount === totalQuestions;
+  const progressPercent = Math.round(totalQuestions ? (answeredCount / totalQuestions) * 100 : 0);
 
   const handleSubmit = async () => {
     if (!isComplete || isSubmitting) return;
 
     setIsSubmitting(true);
-    const { type, scores } = calculateMbtiType(answers, questionsList);
-
-    // 1. Thử gửi tới backend_ai_ml (/api/mbti/submit)
+    setError("");
     try {
-      const answersDict: Record<string, string> = {};
-      Object.entries(answers).forEach(([k, v]) => {
-        answersDict[k] = v === 1 ? "A" : "B";
-      });
-      await aiService.submitMBTI({
-        studentName: studentName.trim() || "Thí sinh 2k8",
-        answers: answersDict,
-      });
-    } catch {
-      // Offline fallback
-    }
-
-    // 2. Lưu vào CSDL Supabase thông qua API /api/mbti/submit
-    let savedResultId: string | null = null;
-    let savedSessionId: string | null = null;
-    try {
-      const res = await fetch("/api/mbti/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentName: studentName.trim() || "Thí sinh 2k8",
-          mbtiType: type,
-          answers,
-          scores,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        savedResultId = data.resultId;
-        savedSessionId = data.sessionId;
-      }
-    } catch (e) {
-      console.warn("Không thể lưu kết quả trắc nghiệm vào DB, tiếp tục với bộ nhớ phiên:", e);
-    }
-
-    // 3. Lưu vào sessionStorage để truyền sang trang /ket-qua-tu-van
-    if (typeof window !== "undefined") {
-      const payload = {
-        type,
-        studentName: studentName.trim() || "Thí sinh 2k8",
-        scores,
-        answers,
-        resultId: savedResultId,
-        sessionId: savedSessionId,
-        completedAt: new Date().toISOString(),
-      };
-      sessionStorage.setItem("UTC_MBTI_RESULT", JSON.stringify(payload));
-    }
-
-    // 3. Chuyển hướng sang trang kết quả tư vấn
-    const params = new URLSearchParams({
-      type,
-      ...(studentName.trim() ? { name: studentName.trim() } : {}),
-      ...(savedResultId ? { id: savedResultId } : {}),
-    });
-    router.push(`/ket-qua-tu-van?${params.toString()}`);
+      const response = await api<{ data: { result_id: string; mbti_type: string } }>("ai", "/api/mbti/submit", { studentName: studentName.trim() || undefined, answers });
+      if (!response.data.result_id) throw Error("Backend chưa lưu được kết quả. Vui lòng thử lại.");
+      router.push(`/ket-qua-tu-van?id=${encodeURIComponent(response.data.result_id)}`);
+    } catch (e) { setError(publicError(e instanceof Error ? e.message : "Không thể nộp bài trắc nghiệm")); }
+    finally { setIsSubmitting(false); }
   };
 
   return (
     <div className="flex flex-col w-full space-y-7 pb-16">
+      {error && <p role="alert" className="text-red-700">{error}</p>}
       {/* 1. Header Banner Phong Cách Neo-Brutalism */}
       <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-52 h-52 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
@@ -104,7 +59,7 @@ export default function MBTITestClient({ initialQuestions = MBTI_QUESTIONS }: MB
             TƯ VẤN HƯỚNG NGHIỆP UTC
           </span>
           <span className="px-3 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            20 CÂU HỎI TỪ CSDL SUPABASE
+            {totalQuestions} CÂU HỎI
           </span>
           <span className="px-3 py-1 bg-[#e0f2fe] text-[#0369a1] font-bold text-[12px] border-[1.5px] border-[#111827] rounded-lg">
             Khám phá tiềm năng kỹ sư & nhà quản lý

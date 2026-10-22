@@ -20,6 +20,7 @@ const adminNavGroups: AdminNavGroup[] = [
     groupName: "Tổng Quan",
     items: [
       { label: "Bảng Điều Khiển", href: "/admin", icon: "dashboard" },
+      { label: "Quản Lý Hồ Sơ", href: "/admin/ho-so", icon: "folder_shared" },
     ],
   },
   {

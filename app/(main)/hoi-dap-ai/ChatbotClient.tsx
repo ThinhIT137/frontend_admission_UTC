@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { aiService } from "@/libs/api-services/aiService";
+import { api } from "@/libs/api-services/browser-api";
 
 export interface ProgramKnowledge {
   maChuongTrinh: string;
@@ -78,6 +78,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       },
     },
   ]);
+  const sessionId = useRef<string | undefined>(undefined);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
@@ -320,12 +321,13 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
 
     try {
       // 1. Thử gọi Microservice AI backend (backend_ai_ml /api/chat)
-      const aiRes = await aiService.askChat({ message: q });
-      if (aiRes.success && aiRes.data?.reply) {
+      const aiRes = await api<{ success: boolean; data: { answer: string; session_id: string } }>("ai", "/api/chat", { message: q, session_id: sessionId.current });
+      sessionId.current = aiRes.data?.session_id;
+      if (aiRes.success && aiRes.data?.answer) {
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: "bot",
-          text: aiRes.data.reply,
+          text: aiRes.data.answer,
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           richData: { type: "general" },
         };
@@ -343,7 +345,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: "bot",
-        text: response.text,
+        text: "[Tra cứu nội bộ — AI hiện không kết nối được]\n" + response.text,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         richData: response.richData,
       };

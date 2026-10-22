@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "text": "Bạn hào hứng với việc thuyết trình, dẫn dắt đội nhóm và điều phối hiện trường công trình hơn là ngồi nghiên cứu tài liệu một mình.",
+    "dimension": "EI",
+    "positive_trait": "E",
+    "context_field": "Kỹ năng điều hành & Quản lý"
+  },
+  {
+    "id": 2,
+    "text": "Bạn cảm thấy tập trung và làm việc hiệu quả nhất khi có không gian yên tĩnh để viết code, vẽ bản thiết kế hoặc giải toán kỹ thuật.",
+    "dimension": "EI",
+    "positive_trait": "I",
+    "context_field": "Nghiên cứu & Lập trình"
+  },
+  {
+    "id": 3,
+    "text": "Khi gặp sự cố kỹ thuật hóc búa, xu hướng đầu tiên của bạn là thảo luận sôi nổi ngay với bạn bè và đồng nghiệp xung quanh.",
+    "dimension": "EI",
+    "positive_trait": "E",
+    "context_field": "Giao tiếp & Phản biện"
+  },
+  {
+    "id": 4,
+    "text": "Bạn thường có xu hướng suy nghĩ độc lập và tự tìm giải pháp trước khi đưa ra ý kiến trong cuộc họp nhóm.",
+    "dimension": "EI",
+    "positive_trait": "I",
+    "context_field": "Tư duy độc lập"
+  },
+  {
+    "id": 5,
+    "text": "Bạn thích các hoạt động giao thương, đàm phán hợp đồng cung ứng và mở rộng mạng lưới quan hệ đối tác logistics.",
+    "dimension": "EI",
+    "positive_trait": "E",
+    "context_field": "Kinh tế & Chuỗi cung ứng"
+  },
+  {
+    "id": 6,
+    "text": "Bạn thích làm việc trực tiếp với máy móc cụ thể, số liệu đo đạc thực tế và tiêu chuẩn thi công rõ ràng hơn là các mô hình lý thuyết.",
+    "dimension": "SN",
+    "positive_trait": "S",
+    "context_field": "Kỹ thuật cơ khí & Xây dựng"
+  },
+  {
+    "id": 7,
+    "text": "Bạn đam mê tìm hiểu các xu hướng công nghệ tương lai như Trí tuệ nhân tạo (AI), Xe tự hành, Robot thông minh và Thành phố thông minh.",
+    "dimension": "SN",
+    "positive_trait": "N",
+    "context_field": "Công nghệ cao & AI"
+  },
+  {
+    "id": 8,
+    "text": "Bạn tin tưởng vào các quy trình kỹ thuật đã được thực chứng qua thời gian hơn là áp dụng ngay những giải pháp thử nghiệm chưa xác thực.",
+    "dimension": "SN",
+    "positive_trait": "S",
+    "context_field": "Quy chuẩn & Kiểm định"
+  },
+  {
+    "id": 9,
+    "text": "Bạn thích phân tích bức tranh tổng thể, quy hoạch mạng lưới giao thông đô thị và dự báo xu hướng phát triển 5-10 năm tới.",
+    "dimension": "SN",
+    "positive_trait": "N",
+    "context_field": "Quy hoạch & Tầm nhìn chiến lược"
+  },
+  {
+    "id": 10,
+    "text": "Bạn thường nảy ra nhiều ý tưởng độc đáo, sáng tạo ra các phương án thiết kế kiến trúc hoặc mô hình tối ưu mới lạ.",
+    "dimension": "SN",
+    "positive_trait": "N",
+    "context_field": "Sáng tạo & Đổi mới"
+  },
+  {
+    "id": 11,
+    "text": "Khi đưa ra quyết định, bạn luôn ưu tiên tính chính xác toán học, độ an toàn chịu lực và hiệu quả kinh tế lên trên cảm tính cá nhân.",
+    "dimension": "TF",
+    "positive_trait": "T",
+    "context_field": "Logic toán học & Tính toán kết cấu"
+  },
+  {
+    "id": 12,
+    "text": "Khi thiết kế công trình hoặc phát triển phần mềm, bạn đặc biệt quan tâm đến trải nghiệm tiện nghi, cảm xúc và sự hài lòng của người dùng.",
+    "dimension": "TF",
+    "positive_trait": "F",
+    "context_field": "Trải nghiệm người dùng & Nhân văn"
+  },
+  {
+    "id": 13,
+    "text": "Bạn đánh giá cao các lập luận dựa trên dữ liệu định lượng, bằng chứng thực nghiệm và tư duy phản biện sắc bén.",
+    "dimension": "TF",
+    "positive_trait": "T",
+    "context_field": "Khoa học dữ liệu & Phản biện"
+  },
+  {
+    "id": 14,
+    "text": "Bạn quan tâm sâu sắc đến việc bảo vệ môi trường, tính bền vững xã hội và giảm thiểu khí thải giao thông vì tương lai cộng đồng.",
+    "dimension": "TF",
+    "positive_trait": "F",
+    "context_field": "Bền vững môi trường & Xã hội"
+  },
+  {
+    "id": 15,
+    "text": "Trong công việc kỹ thuật, sự công bằng, minh bạch và tuân thủ nghiêm ngặt quy chế quan trọng hơn việc nhân nhượng tình cảm.",
+    "dimension": "TF",
+    "positive_trait": "T",
+    "context_field": "Kỷ luật & Nguyên tắc"
+  },
+  {
+    "id": 16,
+    "text": "Bạn luôn lập kế hoạch chi tiết, phân chia giai đoạn thi công rõ ràng và hoàn thành công việc trước hạn định deadline.",
+    "dimension": "JP",
+    "positive_trait": "J",
+    "context_field": "Quản lý tiến độ dự án"
+  },
+  {
+    "id": 17,
+    "text": "Bạn có khả năng ứng biến nhanh nhạy, xử lý tốt các sự cố kỹ thuật phát sinh đột xuất ngay tại hiện trường.",
+    "dimension": "JP",
+    "positive_trait": "P",
+    "context_field": "Xử lý sự cố & Ứng biến"
+  },
+  {
+    "id": 18,
+    "text": "Bạn luôn duy trì không gian làm việc ngăn nắp, hệ thống thư mục file tài liệu, bản vẽ kỹ thuật có cấu trúc bài bản.",
+    "dimension": "JP",
+    "positive_trait": "J",
+    "context_field": "Tổ chức & Trật tự"
+  },
+  {
+    "id": 19,
+    "text": "Bạn thích để ngỏ các phương án để có thể thay đổi linh hoạt theo diễn biến thực tế của dự án.",
+    "dimension": "JP",
+    "positive_trait": "P",
+    "context_field": "Thích ứng linh hoạt"
+  },
+  {
+    "id": 20,
+    "text": "Bạn cảm thấy yên tâm và làm việc tự tin nhất khi có hướng dẫn vận hành chuẩn (SOP) và quy trình từng bước rõ ràng.",
+    "dimension": "JP",
+    "positive_trait": "J",
+    "context_field": "Quy trình chuẩn hóa"
+  }
+]

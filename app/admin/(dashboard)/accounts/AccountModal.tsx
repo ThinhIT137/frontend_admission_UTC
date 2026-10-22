@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState, useEffect } from "react";
 import { VaiTroAdmin } from "@/constants/role";
@@ -69,7 +70,7 @@ export function AccountModal({ isOpen, onClose, account, roles }: AccountModalPr
       }
       onClose();
     } catch (error: any) {
-      toast.error(error.message || "Đã có lỗi xảy ra");
+      toast.error(publicError(error.message || "Đã có lỗi xảy ra"));
     } finally {
       setIsLoading(false);
     }

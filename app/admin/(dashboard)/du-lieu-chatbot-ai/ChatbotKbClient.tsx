@@ -1,9 +1,11 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { saveKnowledge, deleteKnowledge } from "@/actions/content.action";
 import { toast } from "sonner";
 
 export interface TriThucAiItem {
@@ -57,47 +59,31 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const [saving, setSaving] = useState(false);
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!answer.trim()) {
-      toast.error("Vui lòng nhập nội dung câu trả lời chuẩn!");
-      return;
-    }
-
-    if (editingRow) {
-      setData((prev) =>
-        prev.map((item) =>
-          item.ma_tri_thuc === editingRow.ma_tri_thuc
-            ? {
-                ...item,
-                chu_de: topic,
-                cau_hoi_mau: question,
-                noi_dung: answer,
-              }
-            : item
-        )
-      );
-      toast.success("Cập nhật tri thức AI thành công!");
-    } else {
-      const newItem: TriThucAiItem = {
-        ma_tri_thuc: Date.now().toString(),
-        chu_de: topic,
-        cau_hoi_mau: question || "Câu hỏi thường gặp",
-        noi_dung: answer,
-        trang_thai: "active",
-        create_at: new Date().toISOString(),
-      };
-      setData((prev) => [newItem, ...prev]);
-      toast.success("Thêm mới bộ tri thức AI thành công!");
-    }
-    setIsModalOpen(false);
+    if (saving) return;
+    setSaving(true);
+    try {
+      const row = await saveKnowledge({ id: editingRow?.ma_tri_thuc, topic, question, answer });
+      setData(prev => editingRow ? prev.map(item => item.ma_tri_thuc === row.ma_tri_thuc ? row : item) : [row, ...prev]);
+      toast.success("Đã lưu tri thức vào database");
+      if (row.syncWarning) toast.warning(row.syncWarning);
+      setIsModalOpen(false);
+    } catch (err) { toast.error(publicError(err instanceof Error ? err.message : "Không thể lưu tri thức")); }
+    finally { setSaving(false); }
   };
-
-  const handleDelete = () => {
-    if (!deletingRow) return;
-    setData((prev) => prev.filter((item) => item.ma_tri_thuc !== deletingRow.ma_tri_thuc));
-    toast.success("Đã xóa mục tri thức AI!");
-    setDeletingRow(null);
+  const handleDelete = async () => {
+    if (!deletingRow || saving) return;
+    setSaving(true);
+    try {
+      const result = await deleteKnowledge(deletingRow.ma_tri_thuc);
+      setData(prev => prev.filter(item => item.ma_tri_thuc !== deletingRow.ma_tri_thuc));
+      setDeletingRow(null);
+      toast.success("Đã xóa tri thức khỏi database");
+      if (result.syncWarning) toast.warning(result.syncWarning);
+    } catch (err) { toast.error(publicError(err instanceof Error ? err.message : "Không thể xóa tri thức")); }
+    finally { setSaving(false); }
   };
 
   const columns: Column<TriThucAiItem>[] = [

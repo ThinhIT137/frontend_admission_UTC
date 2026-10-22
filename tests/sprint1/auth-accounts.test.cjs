@@ -64,7 +64,7 @@ for (const scenario of ["missing", "invalid", "deleted account", "valid"]) {
         f.tokens.verifyRefreshToken.mock.mockImplementation(async () =>
             scenario === "invalid" ? null : { userId: "actor" },
         );
-        f.db.admin.findFirstOrThrow.mock.mockImplementation(async () =>
+        f.db.admin.findUnique.mock.mockImplementation(async () =>
             scenario === "deleted account" ? null : user,
         );
         if (scenario === "valid") {
@@ -83,6 +83,7 @@ for (const scenario of ["missing", "invalid", "deleted account", "valid"]) {
 for (const scenario of ["missing", "invalid", "valid"]) {
     test(`getAdminId: ${scenario}`, async () => {
         const f = fixture();
+          f.db.admin.findUnique.mock.mockImplementation(async () => ({ vai_tro: { ten_vai_tro: "chuyen_vien" } }));
         f.cookies.getCookie.mock.mockImplementation(async () =>
             scenario === "missing" ? undefined : "access",
         );

@@ -10,6 +10,7 @@ export const danhMucMonService = {
     },
 
     create: async (ma_mon: string, ten_mon: string) => {
+        await adminService.getAdminId();
         return await prisma.danhMucMonHoc.create({
             data: {
                 ma_mon,
@@ -19,6 +20,7 @@ export const danhMucMonService = {
     },
 
     update: async (ma_mon: string, ten_mon: string) => {
+        await adminService.getAdminId();
         return await prisma.danhMucMonHoc.update({
             where: { ma_mon },
             data: {
@@ -28,8 +30,10 @@ export const danhMucMonService = {
     },
 
     delete: async (ma_mon: string) => {
+        await adminService.getAdminId();
         return await prisma.danhMucMonHoc.delete({
             where: { ma_mon }
         });
     }
 };
+import { adminService } from "./user.service";

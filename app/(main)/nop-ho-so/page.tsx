@@ -70,5 +70,6 @@ export default async function NopHoSoPage() {
     console.error("Lỗi lấy chương trình đào tạo:", e);
   }
 
-  return <NopHoSoClient methods={methods} programs={programs} />;
+  const subjects = await prismaPublic.danhMucMonHoc.findMany({ select: { ma_mon: true, ten_mon: true } });
+  return <NopHoSoClient methods={methods} programs={programs} subjects={subjects} />;
 }

@@ -3,7 +3,8 @@ import { adminService } from "@/services/user.service";
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
-    const redirectUrl = searchParams.get("redirect") || "/admin";
+    const requested = searchParams.get("redirect") || "/admin";
+    const redirectUrl = requested.startsWith("/admin") && !requested.startsWith("//") && !requested.includes("\\") ? requested : "/admin";
 
     try {
         await adminService.refreshAccessToken();

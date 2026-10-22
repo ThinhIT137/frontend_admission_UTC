@@ -1,9 +1,11 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { saveArticle, deleteArticle } from "@/actions/content.action";
 import { toast } from "sonner";
 
 export interface ArticleData {
@@ -67,53 +69,29 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const [saving, setSaving] = useState(false);
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      toast.error("Vui lòng nhập tiêu đề văn bản/bài viết!");
-      return;
-    }
-
-    if (editingRow) {
-      setData((prev) =>
-        prev.map((item) =>
-          item.id === editingRow.id
-            ? {
-                ...item,
-                title,
-                category,
-                summary,
-                content,
-                fileName,
-                status,
-              }
-            : item
-        )
-      );
-      toast.success("Cập nhật bài viết thành công!");
-    } else {
-      const newArticle: ArticleData = {
-        id: Date.now().toString(),
-        title,
-        category,
-        summary,
-        content,
-        fileName: fileName || "Tai_lieu_dinh_kem_UTC.pdf",
-        fileSize: "2.4 MB",
-        publishedDate: new Date().toISOString().split("T")[0],
-        status,
-      };
-      setData((prev) => [newArticle, ...prev]);
-      toast.success("Thêm văn bản đề án mới thành công!");
-    }
-    setIsModalOpen(false);
+    if (saving) return;
+    setSaving(true);
+    try {
+      const row = await saveArticle({ id: editingRow?.id, title, category, content, status });
+      setData(prev => editingRow ? prev.map(item => item.id === row.id ? row : item) : [row, ...prev]);
+      toast.success("Đã lưu bài viết");
+      setIsModalOpen(false);
+    } catch (err) { toast.error(publicError(err instanceof Error ? err.message : "Không thể lưu bài viết")); }
+    finally { setSaving(false); }
   };
-
-  const handleDelete = () => {
-    if (!deletingRow) return;
-    setData((prev) => prev.filter((item) => item.id !== deletingRow.id));
-    toast.success("Đã xóa bài viết thành công!");
-    setDeletingRow(null);
+  const handleDelete = async () => {
+    if (!deletingRow || saving) return;
+    setSaving(true);
+    try {
+      await deleteArticle(deletingRow.id);
+      setData(prev => prev.filter(item => item.id !== deletingRow.id));
+      setDeletingRow(null);
+      toast.success("Đã xóa bài viết");
+    } catch (err) { toast.error(publicError(err instanceof Error ? err.message : "Không thể xóa bài viết")); }
+    finally { setSaving(false); }
   };
 
   const handleDownload = (article: ArticleData) => {

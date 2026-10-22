@@ -1,4 +1,5 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { updateAdminAction } from "@/actions/admin_account.action";
@@ -48,7 +49,7 @@ export function ProfileForm({ ma_admin, initialName, initialEmail, vai_tro }: Pr
       
       router.refresh(); // Gọi next/navigation router để lấy dữ liệu mới từ Server
     } catch (error: any) {
-      toast.error(error.message || "Đã có lỗi xảy ra");
+      toast.error(publicError(error.message || "Đã có lỗi xảy ra"));
     } finally {
       setIsLoading(false);
     }

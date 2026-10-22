@@ -1,0 +1,495 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model VaiTro {
+  ma_vai_tro  String  @id @default(uuid())
+  ten_vai_tro String  @unique
+  mo_ta       String?
+  admins      Admin[]
+
+  @@map("vai_tro")
+}
+
+model Admin {
+  ma_admin           String                 @id @default(uuid())
+  ho_ten             String
+  email              String                 @unique
+  mat_khau           String
+  create_at          DateTime               @default(now())
+  ma_vai_tro         String
+  vai_tro            VaiTro                 @relation(fields: [ma_vai_tro], references: [ma_vai_tro])
+  score_imports      AdmissionScoreImport[]
+  chuong_trinh       ChuongTrinhDaoTao[]
+  lich_su_diem_chuan LichSuDiemChuan[]
+  lo_trinh           LoTrinhTuyenSinh[]
+  nganh_hoc          NganhHoc[]
+  nguyen_vong        NguyenVongSinhVien[]
+  bai_viet           TrangNoiDung[]
+  tri_thuc_ai        TriThucAi[]
+
+  @@map("admin")
+}
+
+model ThiSinh {
+  cccd                  String               @id @db.VarChar(12)
+  ho_ten                String
+  so_dien_thoai         String               @unique
+  khu_vuc               String?
+  doi_tuong_uu_tien     String?
+  diem_uu_tien_he_thong Float?               @default(0)
+  create_at             DateTime             @default(now())
+  email                 String?
+  /// Mật khẩu đã băm có salt; không lưu hoặc trả mật khẩu gốc.
+  password              String?
+  bang_diem             BangDiem[]
+  chung_chi             ChungChi[]
+  diem_to_hop           DiemToHop[]
+  giai_thuong           GiaiThuong[]
+  trac_nghiem           KetQuaTracNghiem[]
+  nguyen_vong           NguyenVongSinhVien[]
+
+  @@map("thi_sinh")
+}
+
+model GiaiThuong {
+  ma_giai_thuong   String         @id @default(uuid())
+  cccd             String         @db.VarChar(12)
+  giai_thuong      HangGiaiThuong
+  loai_giai_thuong CapGiaiThuong
+  mon_hoc          MonHoc
+  thi_sinh         ThiSinh        @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+
+  @@index([cccd])
+  @@map("giai_thuong")
+}
+
+model ChungChi {
+  ma_chung_chi     String         @id @default(uuid())
+  cccd             String         @db.VarChar(12)
+  loai_chung_chi   String
+  diem_hoac_hang   String
+  ngay_cap         DateTime?      @db.Date
+  ngay_het_han     DateTime?      @db.Date
+  file_dinh_kem    String
+  trang_thai_duyet TrangThaiDuyet @default(cho)
+  create_at        DateTime       @default(now())
+  thi_sinh         ThiSinh        @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+
+  @@index([cccd])
+  @@map("chung_chi")
+}
+
+model DanhMucMonHoc {
+  ma_mon        String          @id
+  ten_mon       String
+  diem_chi_tiet DiemChiTiet[]
+  to_hop_mon_1  ToHopXetTuyen[] @relation("ToHopMon1")
+  to_hop_mon_2  ToHopXetTuyen[] @relation("ToHopMon2")
+  to_hop_mon_3  ToHopXetTuyen[] @relation("ToHopMon3")
+
+  @@map("danh_muc_mon_hoc")
+}
+
+model BangDiem {
+  ma_bang_diem  String        @id @default(uuid())
+  cccd          String        @db.VarChar(12)
+  loai_diem     LoaiBangDiem
+  nam_hoc       Int
+  thi_sinh      ThiSinh       @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  diem_chi_tiet DiemChiTiet[]
+  diem_to_hop   DiemToHop[]
+
+  @@index([cccd])
+  @@map("bang_diem")
+}
+
+model DiemChiTiet {
+  ma_chi_tiet  String        @id @default(uuid())
+  ma_bang_diem String
+  ma_mon       String
+  diem_so      Float?
+  bang_diem    BangDiem      @relation(fields: [ma_bang_diem], references: [ma_bang_diem], onDelete: Cascade)
+  mon_hoc      DanhMucMonHoc @relation(fields: [ma_mon], references: [ma_mon])
+
+  @@unique([ma_bang_diem, ma_mon])
+  @@map("diem_chi_tiet")
+}
+
+model ToHopXetTuyen {
+  ma_to_hop   String               @id
+  ma_mon_1    String
+  ma_mon_2    String
+  ma_mon_3    String
+  ctdt_to_hop CtdtToHop[]
+  diem_to_hop DiemToHop[]
+  nguyen_vong NguyenVongSinhVien[]
+  mon_1       DanhMucMonHoc        @relation("ToHopMon1", fields: [ma_mon_1], references: [ma_mon])
+  mon_2       DanhMucMonHoc        @relation("ToHopMon2", fields: [ma_mon_2], references: [ma_mon])
+  mon_3       DanhMucMonHoc        @relation("ToHopMon3", fields: [ma_mon_3], references: [ma_mon])
+
+  @@map("to_hop_xet_tuyen")
+}
+
+model DiemToHop {
+  ma_diem_to_hop String        @id @default(uuid())
+  cccd           String        @db.VarChar(12)
+  ma_bang_diem   String
+  ma_to_hop      String
+  tong_diem_goc  Float
+  create_at      DateTime      @default(now())
+  thi_sinh       ThiSinh       @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  bang_diem      BangDiem      @relation(fields: [ma_bang_diem], references: [ma_bang_diem], onDelete: Cascade)
+  to_hop         ToHopXetTuyen @relation(fields: [ma_to_hop], references: [ma_to_hop])
+
+  @@unique([ma_bang_diem, ma_to_hop])
+  @@index([cccd])
+  @@map("diem_to_hop")
+}
+
+model KhoiNganh {
+  ma_khoi_nganh  String     @id @default(uuid())
+  ten_khoi_nganh String
+  nganh_hoc      NganhHoc[]
+
+  @@map("khoi_nganh")
+}
+
+model NganhHoc {
+  ma_nganh         String              @id
+  ten_nganh        String
+  khoi_kien_thuc   String?
+  ma_admin_quan_ly String
+  create_at        DateTime            @default(now())
+  ma_khoi_nganh    String?
+  chuong_trinh     ChuongTrinhDaoTao[]
+  admin            Admin               @relation(fields: [ma_admin_quan_ly], references: [ma_admin])
+  khoi_nganh       KhoiNganh?          @relation(fields: [ma_khoi_nganh], references: [ma_khoi_nganh])
+
+  @@map("nganh_hoc")
+}
+
+model ChuongTrinhDaoTao {
+  ma_chuong_trinh    String               @id
+  ma_nganh           String
+  ten_chuong_trinh   String
+  de_cuong           String?
+  ma_admin_quan_ly   String
+  create_at          DateTime             @default(now())
+  luot_xem           Int                  @default(0)
+  mo_ta_ngan         String?
+  chuan_dau_ra       LoaiChuanDauRa[]
+  admin              Admin                @relation(fields: [ma_admin_quan_ly], references: [ma_admin])
+  nganh              NganhHoc             @relation(fields: [ma_nganh], references: [ma_nganh])
+  hoc_phan           CtdtHocPhan[]
+  ctdt_to_hop        CtdtToHop[]
+  du_doan_diem_chuan DuDoanDiemChuan[]
+  lich_su_diem_chuan LichSuDiemChuan[]
+  nguyen_vong        NguyenVongSinhVien[]
+
+  @@index([ma_nganh])
+  @@map("chuong_trinh_dao_tao")
+}
+
+model CtdtToHop {
+  ma_ctdt_to_hop  String            @id @default(uuid())
+  ma_chuong_trinh String
+  ma_to_hop       String
+  nam             Int
+  chuong_trinh    ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+  to_hop          ToHopXetTuyen     @relation(fields: [ma_to_hop], references: [ma_to_hop])
+
+  @@unique([ma_chuong_trinh, ma_to_hop, nam])
+  @@map("ctdt_to_hop")
+}
+
+model PhuongThucXetTuyen {
+  ma_phuong_thuc   String               @id
+  ten_phuong_thuc  String
+  diem_trung_tuyen DiemTrungTuyen[]
+  nguyen_vong      NguyenVongSinhVien[]
+
+  @@map("phuong_thuc_xet_tuyen")
+}
+
+model LichSuDiemChuan {
+  ma_ls_dc          String            @id @default(uuid())
+  ma_chuong_trinh   String
+  nam               Int
+  chi_tieu          Int
+  trung_tuyen       Int?
+  ma_admin_cap_nhat String
+  create_at         DateTime          @default(now())
+  diem_trung_tuyen  DiemTrungTuyen[]
+  admin             Admin             @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
+  chuong_trinh      ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
+
+  @@unique([ma_chuong_trinh, nam])
+  @@map("lich_su_diem_chuan")
+}
+
+model DiemTrungTuyen {
+  ma_diem_tt             String             @id @default(uuid())
+  ma_ls_dc               String
+  ma_phuong_thuc         String
+  diem                   Float
+  create_at              DateTime           @default(now())
+  diem_uu_tien_toi_thieu Float?
+  dieu_kien_mon          Json?
+  nguyen_vong_toi_da     Int?
+  lich_su                LichSuDiemChuan    @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
+  phuong_thuc            PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
+
+  @@unique([ma_ls_dc, ma_phuong_thuc])
+  @@map("diem_trung_tuyen")
+}
+
+model DuDoanDiemChuan {
+  ma_du_doan_dc   String            @id @default(uuid())
+  ma_chuong_trinh String
+  nam_du_doan     Int
+  diem_du_doan    Float
+  ngay_tinh_toan  DateTime
+  create_at       DateTime          @default(now())
+  chuong_trinh    ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+
+  @@index([ma_chuong_trinh, nam_du_doan])
+  @@map("du_doan_diem_chuan")
+}
+
+model NguyenVongSinhVien {
+  ma_ho_so             String                 @id @default(uuid())
+  cccd                 String                 @db.VarChar(12)
+  ma_chuong_trinh      String
+  trang_thai           TrangThaiHoSo          @default(cho)
+  ket_qua              String?
+  diem_uu_tien_ap_dung Float?
+  tong_diem_xet_tuyen  Float?
+  ma_to_hop            String?
+  ma_phuong_thuc       String
+  nguon_du_lieu        NguonDuLieu
+  nguyen_vong          Int
+  nam_tuyen_sinh       Int
+  ma_admin_xu_ly       String?
+  create_at            DateTime               @default(now())
+  chot_ket_qua_at      DateTime?              @db.Timestamp(6)
+  cong_bo_at           DateTime?              @db.Timestamp(6)
+  diem_trace           Json?
+  nguon_ket_qua        String?
+  notification         AdmissionNotification?
+  thi_sinh             ThiSinh                @relation(fields: [cccd], references: [cccd], onDelete: Cascade)
+  admin                Admin?                 @relation(fields: [ma_admin_xu_ly], references: [ma_admin])
+  chuong_trinh         ChuongTrinhDaoTao      @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
+  phuong_thuc          PhuongThucXetTuyen     @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
+  to_hop               ToHopXetTuyen?         @relation(fields: [ma_to_hop], references: [ma_to_hop])
+
+  @@index([cccd, nam_tuyen_sinh])
+  @@index([ma_chuong_trinh, nam_tuyen_sinh])
+  @@map("nguyen_vong_sinh_vien")
+}
+
+model AdmissionNotification {
+  ma_ho_so String             @id
+  email    String?
+  status   String             @default("pending")
+  attempts Int                @default(0)
+  error    String?
+  sent_at  DateTime?          @db.Timestamp(6)
+  ho_so    NguyenVongSinhVien @relation(fields: [ma_ho_so], references: [ma_ho_so], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("admission_notification")
+}
+
+model AdmissionScoreImport {
+  digest     String   @id
+  source     String
+  year       Int
+  admin_id   String
+  row_count  Int
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  admin      Admin    @relation(fields: [admin_id], references: [ma_admin], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("admission_score_import")
+}
+
+model KetQuaTracNghiem {
+  ma_ket_qua          String   @id @default(uuid())
+  cccd                String?  @db.VarChar(12)
+  session_id          String
+  nhom_tinh_cach      String?
+  goi_y_nganh         String?
+  thoi_gian_thuc_hien DateTime
+  create_at           DateTime @default(now())
+  thi_sinh            ThiSinh? @relation(fields: [cccd], references: [cccd])
+
+  @@index([cccd])
+  @@index([session_id])
+  @@map("ket_qua_trac_nghiem")
+}
+
+model TriThucAi {
+  ma_tri_thuc        String   @id @default(uuid())
+  chu_de             String
+  cau_hoi_mau        String?
+  noi_dung           String
+  trang_thai         String   @default("active")
+  ma_admin_phu_trach String
+  create_at          DateTime @default(now())
+  admin              Admin    @relation(fields: [ma_admin_phu_trach], references: [ma_admin])
+
+  @@map("tri_thuc_ai")
+}
+
+model TrangNoiDung {
+  ma_bai_viet      String    @id @default(uuid())
+  tieu_de          String
+  noi_dung_html    String
+  chuyen_muc       String
+  ma_admin_tac_gia String
+  ngay_dang        DateTime?
+  admin            Admin     @relation(fields: [ma_admin_tac_gia], references: [ma_admin])
+
+  @@map("trang_noi_dung")
+}
+
+model LoTrinhTuyenSinh {
+  ma_su_kien         String    @id @default(uuid())
+  ten_su_kien        String
+  thoi_gian_bat_dau  DateTime
+  thoi_gian_ket_thuc DateTime?
+  ghi_chu            String?
+  ma_admin_cap_nhat  String
+  admin              Admin     @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
+
+  @@map("lo_trinh_tuyen_sinh")
+}
+
+model HocPhan {
+  ma_hoc_phan       String        @id
+  ten_hoc_phan      String
+  so_tin_chi        Int
+  so_tiet_ly_thuyet Int?          @default(0)
+  so_tiet_thuc_hanh Int?          @default(0)
+  mo_ta             String?
+  create_at         DateTime      @default(now())
+  ctdt              CtdtHocPhan[]
+
+  @@map("hoc_phan")
+}
+
+model CtdtHocPhan {
+  ma_ctdt_hoc_phan String            @id @default(uuid())
+  ma_chuong_trinh  String
+  ma_hoc_phan      String
+  nam_ap_dung      Int
+  hoc_ky           Int
+  loai             LoaiHocPhan       @default(bat_buoc)
+  khoi_kien_thuc   String?
+  chuong_trinh     ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh], onDelete: Cascade)
+  hoc_phan         HocPhan           @relation(fields: [ma_hoc_phan], references: [ma_hoc_phan])
+
+  @@unique([ma_chuong_trinh, nam_ap_dung, ma_hoc_phan])
+  @@index([ma_chuong_trinh, nam_ap_dung, hoc_ky])
+  @@map("ctdt_hoc_phan")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model cau_hoi_mbti {
+  id                Int       @id @default(autoincrement())
+  noi_dung          String
+  chieu_do          String    @db.VarChar(10)
+  chieu_tich_cuc    String    @db.VarChar(5)
+  linh_vuc_ngu_canh String?   @db.VarChar(255)
+  trang_thai        String?   @default("active") @db.VarChar(20)
+  create_at         DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+enum LoaiBangDiem {
+  lop_10
+  lop_11
+  lop_12
+  tnTHPT
+
+  @@map("loai_bang_diem")
+}
+
+enum HangGiaiThuong {
+  giai_nhat
+  giai_nhi
+  giai_ba
+  khuyen_khich
+
+  @@map("hang_giai_thuong")
+}
+
+enum CapGiaiThuong {
+  toan_quoc
+  tinh
+  mien_bac
+  mien_nam
+
+  @@map("cap_giai_thuong")
+}
+
+enum MonHoc {
+  toan
+  van
+  anh
+  vat_ly
+  hoa_hoc
+  sinh_hoc
+  dia_ly
+  lich_su
+  gdcd
+  tin_hoc
+
+  @@map("mon_hoc_enum")
+}
+
+enum TrangThaiHoSo {
+  cho
+  hop_le
+  tu_choi
+  dang_xu_ly
+  do
+  truot
+
+  @@map("trang_thai_ho_so")
+}
+
+enum TrangThaiDuyet {
+  cho
+  hop_le
+  tu_choi
+
+  @@map("trang_thai_duyet")
+}
+
+enum NguonDuLieu {
+  tu_nop
+  dong_bo_bo
+
+  @@map("nguon_du_lieu")
+}
+
+enum LoaiChuanDauRa {
+  CU_NHAN
+  KY_SU
+  THAC_SI
+  TIEN_SI
+  KHAC
+}
+
+enum LoaiHocPhan {
+  bat_buoc
+  tu_chon
+
+  @@map("loai_hoc_phan")
+}
+
+

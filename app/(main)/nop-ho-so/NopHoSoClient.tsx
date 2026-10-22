@@ -1,9 +1,14 @@
 "use client";
+import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import AcademicEvidenceFields, { AcademicDraft, emptyTranscript } from "./AcademicEvidenceFields";
+import { academicPayload } from "./academic-payload";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { submitHoSoAction } from "./nop-ho-so.server";
+import { submitApplication } from "./submit-api.server";
+import CandidateSession from "@/components/CandidateSession";
 
 export interface MethodOption {
   ma_phuong_thuc: string;
@@ -21,9 +26,10 @@ export interface ProgramOption {
 interface Props {
   methods: MethodOption[];
   programs: ProgramOption[];
+  subjects?: Array<{ ma_mon: string; ten_mon: string }>;
 }
 
-export default function NopHoSoClient({ methods, programs }: Props) {
+export default function NopHoSoClient({ methods, programs, subjects = [] }: Props) {
   // 4 Bước nộp hồ sơ chuẩn:
   // Bước 1: Chọn Phương thức & Nguyện vọng ngành
   // Bước 2: Thông tin cá nhân & Đối tượng ưu tiên
@@ -46,9 +52,12 @@ export default function NopHoSoClient({ methods, programs }: Props) {
 
   // Checklist & Upload files
   const [uploadedFiles, setUploadedFiles] = useState<
-    Array<{ id: string; loaiGiayTo: string; fileName: string; fileSize?: string; uploadedAt: string }>
+    Array<{ id: string; loaiGiayTo: string; fileName: string; fileSize?: string; storageKey: string; uploadedAt: string }>
   >([]);
 
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [preference, setPreference] = useState(1);
+  const [academic, setAcademic] = useState<AcademicDraft>({ bang_diem: [emptyTranscript(new Date().getFullYear())], chung_chi: [], giai_thuong: [] });
   // Submission Status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -58,6 +67,7 @@ export default function NopHoSoClient({ methods, programs }: Props) {
     hoTen: string;
   } | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const copyMaHoSo = (code: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -108,28 +118,25 @@ export default function NopHoSoClient({ methods, programs }: Props) {
 
   const currentChecklist = getRequiredDocuments(selectedMethod);
 
-  // Xử lý giả lập upload file minh chứng
-  const handleSimulateUpload = (docTitle: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const newDoc = {
-      id: Math.random().toString(),
-      loaiGiayTo: docTitle,
-      fileName: file.name,
-      fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      uploadedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setUploadedFiles((prev) => [...prev.filter((f) => f.loaiGiayTo !== docTitle), newDoc]);
+  const handleSimulateUpload = async (docTitle: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (uploading) return;
+    setUploading(true);
+    const form = new FormData(); form.set("file", file); setSubmitError("");
+    const previous = uploadedFiles.find(f => f.loaiGiayTo === docTitle);
+    if (previous) form.set("key", previous.storageKey);
+    try {
+      const response = await fetch("/api/evidence", { method: previous ? "PUT" : "POST", body: form });
+      const data = await response.json(); if (!response.ok) throw Error(data.message);
+      const newDoc = { id: data.key, storageKey: data.key, loaiGiayTo: docTitle, fileName: file.name, fileSize: (file.size / 1048576).toFixed(2) + " MB", uploadedAt: new Date().toLocaleTimeString("vi-VN") };
+      setUploadedFiles(prev => [...prev.filter(f => f.loaiGiayTo !== docTitle), newDoc]);
+      toast.success(previous ? "Đã thay minh chứng" : "Đã tải minh chứng");
+    } catch (err) { toast.error(publicError(err)); } finally { setUploading(false); e.target.value = ""; }
   };
 
-  const handleRemoveFile = (docTitle: string) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.loaiGiayTo !== docTitle));
-  };
-
-  // Xác nhận nộp hồ sơ (Kết nối trực tiếp CSDL Supabase qua Server Action)
+  // Xác nhận nộp hồ sơ qua server action và API backend điểm.
   const handleFinalSubmit = async () => {
+    if (uploading) { toast.error("Vui lòng chờ tải minh chứng hoàn tất."); return; }
     setSubmitError("");
 
     const trimmedCccd = cccd.trim();
@@ -156,72 +163,22 @@ export default function NopHoSoClient({ methods, programs }: Props) {
     setIsSubmitting(true);
 
     try {
-      const result = await submitHoSoAction({
-        hoTen: trimmedHoTen,
-        cccd: trimmedCccd,
-        soDienThoai: trimmedPhone,
-        email: email.trim(),
-        khuVuc,
-        doiTuongUuTien,
-        maPhuongThuc: selectedMethod,
-        maChuongTrinh: selectedProgram,
-        maToHop: selectedToHop || availableToHops[0] || "A00",
-        tongDiemXetTuyen: rawScore ? Number(rawScore) : null,
-        giayToDinhKem: uploadedFiles.map((f) => ({
-          loaiGiayTo: f.loaiGiayTo,
-          fileName: f.fileName,
-          fileSize: f.fileSize,
-        })),
+      const evidence = academicPayload(academic);
+      const linkedKeys = new Set([...evidence.chung_chi, ...evidence.giai_thuong].map(c => c.file_dinh_kem));
+      const result = await submitApplication({
+        cccd: trimmedCccd, ma_phuong_thuc: selectedMethod, ma_chuong_trinh: selectedProgram,
+        profile: { ho_ten: trimmedHoTen, so_dien_thoai: trimmedPhone, khu_vuc: khuVuc, doi_tuong_uu_tien: doiTuongUuTien, ...(email.trim() ? {email:email.trim()} : {}) },
+        ma_to_hop: selectedToHop || availableToHops[0] || undefined, nam_tuyen_sinh: year, nguyen_vong: preference,
+        ...evidence,
+        chung_chi: [...evidence.chung_chi, ...uploadedFiles.filter(f => !linkedKeys.has(f.storageKey)).map(f => ({ loai_chung_chi: "MINH_CHUNG: " + f.loaiGiayTo, diem_hoac_hang: "Không áp dụng — tài liệu hồ sơ", file_dinh_kem: f.storageKey }))],
       });
 
       if (!result.success || !result.maHoSo) {
-        setSubmitError(result.error || "Lỗi lưu hồ sơ vào hệ thống tuyển sinh. Vui lòng kiểm tra lại kết nối.");
+        setSubmitError(publicError(result.error || "Lỗi lưu hồ sơ vào hệ thống tuyển sinh. Vui lòng kiểm tra lại kết nối."));
         return;
       }
 
       const generatedMaHoSo = result.maHoSo;
-
-      // Đồng bộ bản lưu vào localStorage để hiển thị offline tức thời nếu cần
-      if (typeof window !== "undefined") {
-        try {
-          const newSubmission = {
-            maHoSo: generatedMaHoSo,
-            cccd: trimmedCccd,
-            hoTen: trimmedHoTen,
-            soDienThoai: trimmedPhone,
-            email: email.trim(),
-            khuVuc,
-            doiTuongUuTien,
-            maPhuongThuc: selectedMethod,
-            tenPhuongThuc: methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc || selectedMethod,
-            maChuongTrinh: selectedProgram,
-            tenChuongTrinh: currentProgramData?.ten_chuong_trinh || selectedProgram,
-            maToHop: selectedToHop || availableToHops[0] || "A00",
-            tongDiemXetTuyen: rawScore ? Number(rawScore) : null,
-            trangThai: "cho" as const,
-            ketQuaGhiChu: "Đã tiếp nhận hồ sơ trực tuyến, đang chờ Hội đồng Tuyển sinh đối soát",
-            ngayNop: new Date().toLocaleDateString("vi-VN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }),
-            giayToDinhKem: uploadedFiles.map((f) => ({
-              ma_chung_chi: f.id,
-              loai_chung_chi: f.loaiGiayTo,
-              diem_hoac_hang: "Bản số hóa trực tuyến",
-              file_dinh_kem: f.fileName,
-              trang_thai_duyet: "cho",
-            })),
-          };
-
-          const existingListStr = localStorage.getItem("UTC_SUBMITTED_APPLICATIONS") || "[]";
-          const existingList = JSON.parse(existingListStr);
-          existingList.unshift(newSubmission);
-          localStorage.setItem("UTC_SUBMITTED_APPLICATIONS", JSON.stringify(existingList));
-        } catch (e) {
-          // ignore localstorage error
-        }
-      }
 
       setSubmitSuccess({
         maHoSo: generatedMaHoSo,
@@ -230,7 +187,7 @@ export default function NopHoSoClient({ methods, programs }: Props) {
       });
       setCurrentStep(4);
     } catch (e: any) {
-      setSubmitError(e?.message || "Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau.");
+      setSubmitError(publicError(e?.message || "Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau."));
     } finally {
       setIsSubmitting(false);
     }
@@ -238,6 +195,25 @@ export default function NopHoSoClient({ methods, programs }: Props) {
 
   return (
     <div className="flex flex-col w-full space-y-7 pb-16">
+      <CandidateSession onAuthenticated={user => {
+        setHoTen(user.ho_ten); setCccd(user.cccd); setSoDienThoai(user.so_dien_thoai);
+        fetch("/api/evidence?list=1").then(async response => {
+          if (!response.ok) throw Error("Không tải được minh chứng");
+          const files: Array<{key:string;name:string}> = await response.json();
+          setUploadedFiles(files.map(f=>({id:f.key,storageKey:f.key,fileName:f.name,loaiGiayTo:f.key,uploadedAt:"Đã lưu"})));
+        }).catch(error=>console.error("[Danh sách minh chứng]", error));
+      }} onLogout={() => { setUploadedFiles([]); setCccd(""); setAcademic({bang_diem:[emptyTranscript(year)],chung_chi:[],giai_thuong:[]}); }} />
+      <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Mùa tuyển sinh và nguyện vọng</h2>
+        <label>Năm <input aria-label="Năm nộp hồ sơ" className="border p-2 w-24" type="number" min={2000} max={2100} value={year} onChange={e => setYear(Number(e.target.value))} /></label>
+        <label className="ml-4">Nguyện vọng <input aria-label="Thứ tự nguyện vọng" className="border p-2 w-20" type="number" min={1} value={preference} onChange={e => setPreference(Number(e.target.value))} /></label>
+      </section>
+      <AcademicEvidenceFields value={academic} onChange={setAcademic} subjects={subjects} year={year} files={uploadedFiles} />
+      <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Kho minh chứng của tôi</h2>
+        <p className="text-sm">File lưu trong thư mục CCCD của tài khoản. Có thể dùng lại file đã có hoặc thay bằng file cùng định dạng khi hồ sơ chưa được xử lý. Tối đa 5 MB/file.</p>
+        <label className="underline cursor-pointer">Tải thêm minh chứng chứng chỉ / giải thưởng<input type="file" className="block" disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload("Tài liệu bổ sung " + Date.now(),e)} /></label>
+        {uploading && <p role="status">Đang tải minh chứng…</p>}
+        {uploadedFiles.map(f=><div key={f.storageKey} className="flex flex-wrap items-center gap-3"><a target="_blank" rel="noreferrer" className="underline" href={`/api/evidence?key=${encodeURIComponent(f.storageKey)}`}>{f.fileName}</a><label className="underline cursor-pointer">Thay file<input type="file" aria-label={"Thay file " + f.fileName} disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload(f.loaiGiayTo,e)} /></label></div>)}
+      </section>
       {/* 1. Header Banner Phong Cách Neo-Brutalism */}
       <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-52 h-52 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
@@ -561,7 +537,7 @@ export default function NopHoSoClient({ methods, programs }: Props) {
             </div>
 
             {/* Bảng Checklist Giấy Tờ Bắt Buộc */}
-            <div className="space-y-3">
+            <div className="space-y-3" data-testid="application-checklist">
               {currentChecklist.map((item, idx) => {
                 const uploaded = uploadedFiles.find((f) => f.loaiGiayTo === item.title);
 
@@ -599,38 +575,22 @@ export default function NopHoSoClient({ methods, programs }: Props) {
                         {uploaded ? (
                           <p className="text-[12px] text-[#166534] font-medium mt-0.5 flex items-center gap-1">
                             <span className="material-symbols-outlined text-[15px]">attach_file</span>
-                            Đã tải: <strong>{uploaded.fileName}</strong> ({uploaded.fileSize}) lúc {uploaded.uploadedAt}
+                            Đã tải: <a className="underline" target="_blank" rel="noreferrer" href={`/api/evidence?key=${encodeURIComponent(uploaded.storageKey)}`}>{uploaded.fileName}</a> ({uploaded.fileSize}) lúc {uploaded.uploadedAt}
                           </p>
                         ) : (
                           <p className="text-[12px] text-[#6b7280] mt-0.5">
-                            Chấp nhận định dạng .pdf, .jpg, .png (Dung lượng tối đa 10MB)
+                            Chấp nhận định dạng .pdf, .jpg, .png (Dung lượng tối đa 5MB)
                           </p>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      {uploaded ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(item.title)}
-                          className="px-3 py-1.5 bg-[#fee2e2] hover:bg-[#fecaca] text-[#dc2626] font-bold text-[12px] rounded-lg border border-[#dc2626] flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">delete</span>
-                          Xóa & tải lại
-                        </button>
-                      ) : (
-                        <label className="px-4 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[12px] rounded-lg border-[1.5px] border-[#111827] shadow-[2px_2px_0px_#111827] cursor-pointer flex items-center gap-1.5 transition-all active:translate-y-[1px]">
-                          <span className="material-symbols-outlined text-[16px]">upload</span>
-                          <span>Tải file lên</span>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="hidden"
-                            onChange={(e) => handleSimulateUpload(item.title, e)}
-                          />
-                        </label>
-                      )}
+                      {!uploaded && uploadedFiles.length > 0 && <select aria-label={"Dùng minh chứng đã có: " + item.title} className="border rounded p-2" value="" onChange={e=>setUploadedFiles(prev=>prev.map(f=>f.storageKey===e.target.value?{...f,loaiGiayTo:item.title}:f))}><option value="">Dùng file đã có</option>{uploadedFiles.map(f=><option key={f.storageKey} value={f.storageKey}>{f.fileName}</option>)}</select>}
+                      <label className="px-4 py-2 bg-blue-800 text-white rounded cursor-pointer">
+                        {uploaded ? "Thay minh chứng" : "Tải file lên"}
+                        <input type="file" aria-label={uploaded ? "Thay " + item.title : item.title} accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={e => handleSimulateUpload(item.title, e)} />
+                      </label>
                     </div>
                   </div>
                 );
@@ -682,10 +642,10 @@ export default function NopHoSoClient({ methods, programs }: Props) {
                   <div>
                     <div className="flex flex-wrap items-center gap-2 mb-1 justify-center sm:justify-start">
                       <span className="px-3 py-0.5 bg-[#86efac] text-[#065f46] font-stamp text-[12px] font-black rounded-md border border-[#16a34a] uppercase">
-                        ĐÃ LƯU CSDL TUYỂN SINH UTC
+                        ĐÃ TIẾP NHẬN HỒ SƠ
                       </span>
                       <span className="px-2.5 py-0.5 bg-[#dbeafe] text-[#1e40af] text-[11px] font-bold rounded-md border border-[#93c5fd]">
-                        Bảng nguyen_vong_sinh_vien
+                        Chờ đối soát
                       </span>
                     </div>
                     <h3 className="font-display font-black text-[24px] sm:text-[28px] text-[#14532d] mt-1">
