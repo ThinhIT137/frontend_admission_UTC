@@ -1,3 +1,4 @@
+import { refreshCandidateSession } from "@/services/candidate-auth.service";
 import { tokenService } from "@/services/token.service";
 import { adminService } from "@/services/user.service";
 import { cookies } from "next/headers";
@@ -101,6 +102,7 @@ export async function backendRequest<T>(
                     : "admin",
         });
     let token: string | undefined;
+    let candidateRefreshed = false;
     if (auth === "admin") {
         const current = jar.get("accessToken")?.value;
         if (
@@ -126,29 +128,8 @@ export async function backendRequest<T>(
     } else if (auth === "candidate") {
         token = jar.get("candidateToken")?.value;
         if (!token && jar.get("candidateRefresh")) {
-            const refreshed = await backendRequest<{
-                access_token: string;
-                refresh_token: string;
-            }>("score", "/auth/candidate/refresh", {
-                method: "POST",
-                body: { refresh_token: jar.get("candidateRefresh")!.value },
-                auth: "public",
-            });
-            const opts = {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax" as const,
-                path: "/",
-            };
-            jar.set("candidateToken", refreshed.access_token, {
-                ...opts,
-                maxAge: 900,
-            });
-            jar.set("candidateRefresh", refreshed.refresh_token, {
-                ...opts,
-                maxAge: 604800,
-            });
-            token = refreshed.access_token;
+            token = await refreshCandidateSession();
+            candidateRefreshed = true;
         }
     }
     if (auth !== "public" && !token)
@@ -215,35 +196,15 @@ export async function backendRequest<T>(
             throw new BackendError("Không thể làm mới phiên đăng nhập", 401);
         }
     }
-    // Token thí sinh hết hạn cũng được đổi qua backend điểm rồi thử lại yêu cầu một lần.
+    // Next.js xác minh và làm mới token thí sinh rồi thử lại API điểm đúng một lần.
     if (
         response.status === 401 &&
         service === "score" &&
         auth === "candidate" &&
+        !candidateRefreshed &&
         jar.get("candidateRefresh")
     ) {
-        const refreshed = await backendRequest<{
-            access_token: string;
-            refresh_token: string;
-        }>("score", "/auth/candidate/refresh", {
-            method: "POST",
-            body: { refresh_token: jar.get("candidateRefresh")!.value },
-        });
-        const opts = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax" as const,
-            path: "/",
-        };
-        jar.set("candidateToken", refreshed.access_token, {
-            ...opts,
-            maxAge: 900,
-        });
-        jar.set("candidateRefresh", refreshed.refresh_token, {
-            ...opts,
-            maxAge: 604800,
-        });
-        headers.Authorization = `Bearer ${refreshed.access_token}`;
+        headers.Authorization = `Bearer ${await refreshCandidateSession()}`;
         response = await fetch(url, {
             redirect: "error",
             method: options.method || "GET",

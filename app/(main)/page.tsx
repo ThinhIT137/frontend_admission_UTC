@@ -1,225 +1,34 @@
-"use client";
-
+﻿"use client";
 import Link from "next/link";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { FeatureCard } from "@/components/ui/FeatureCard";
-import { Timeline } from "@/components/ui/Timeline";
-import { StatCard } from "@/components/ui/StatCard";
+import { useState } from "react";
+import { ArrowRight, Search, Calculator, ChartColumn, Compass, FileCheck, CalendarDays, Sparkles, GraduationCap } from "lucide-react";
 
+// Máy tính nhanh chỉ cộng điểm nhập; điều kiện và ưu tiên được xử lý ở trang quy đổi.
 export default function HomePage() {
-  return (
-    <div className="flex flex-col w-full space-y-8 pb-12">
-      {/* 1. Hero Scrapbook Section */}
-      <section
-        className="relative bg-[#fffdf7] p-6 lg:p-8 pt-8 border-[3px] border-[#1e1b14] shadow-[6px_6px_0px_#000525] rounded-[24px]"
-        style={{ borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px" }}
-      >
-        {/* Stickers Top */}
-        <div className="absolute top-1 left-10 w-28 h-7 bg-[#fcd34d] border-[2px] border-[#1e1b14] -rotate-3 shadow-[2px_2px_0px_#000525] pointer-events-none z-20 flex items-center justify-center">
-          <span className="font-bold text-[12px] text-[#1e1b14] uppercase tracking-wider font-display">
-            UTC
-          </span>
-        </div>
-        <div className="absolute top-3 right-16 w-24 h-7 bg-[#a78bfa] border-[2px] border-[#1e1b14] rotate-6 shadow-[2px_2px_0px_#000525] pointer-events-none z-20"></div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          {/* Left Hero Column */}
-          <div className="lg:col-span-7 flex flex-col space-y-4 z-10">
-            <div className="inline-flex items-center gap-2 self-start bg-[#fed7aa] border-[2.5px] border-[#1e1b14] px-3 py-1 shadow-[2px_2px_0px_#000525] rotate-[-1deg]">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0284c7] animate-ping"></span>
-              <span className="font-bold text-[12px] text-[#1e1b14] uppercase font-display">
-                CỔNG TƯ VẤN 
-              </span>
-            </div>
-
-            <h1 className="text-[32px] lg:text-[42px] font-extrabold text-[#111827] tracking-tight leading-[1.15] font-display uppercase">
-              HỆ THỐNG TƯ VẤN & HỖ TRỢ THÔNG TIN TUYỂN SINH UTC
-            </h1>
-
-            <p className="text-[15px] lg:text-[16px] text-[#4b5563] font-medium leading-relaxed max-w-xl">
-              Cổng thông tin hỗ trợ thí sinh tra cứu điểm chuẩn, quy đổi điểm xét tuyển đa phương thức và trắc nghiệm MBTI hướng nghiệp kỹ sư công nghệ.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link
-                href="/tra-cuu-nganh-hoc"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[16px] border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] hover:shadow-[6px_6px_0px_#111827] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all rounded-[12px]"
-              >
-                <span>Khám phá ngay</span>
-                <span className="material-symbols-outlined text-[20px] font-bold">
-                  north_east
-                </span>
-              </Link>
-
-              <Link
-                href="/tinh-diem-quy-doi"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-[#fff] text-[#111827] font-bold text-[15px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] hover:bg-[#fef08a] transition-all rounded-[10px]"
-              >
-                <span className="material-symbols-outlined text-[#0284c7] text-[20px]">
-                  calculate
-                </span>
-                <span>Tính điểm ngay</span>
-              </Link>
-
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#dbeafe] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rotate-2 ml-auto lg:ml-2 rounded-[8px]">
-                <span className="material-symbols-outlined text-[#0284c7] text-[18px]">
-                  verified
-                </span>
-                <span className="font-bold text-[12px] text-[#1e1b14] uppercase">
-                  MÃ TRƯỜNG: GHA
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Hero Image Card */}
-          <div className="lg:col-span-5 relative flex justify-center items-center py-4">
-            <div className="relative w-full max-w-[340px]">
-              <div className="relative bg-white p-3 pb-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rotate-[-2deg] rounded-[8px]">
-                <div className="absolute -top-3 left-1/3 w-20 h-6 bg-[#fdba74] border-[2px] border-[#111827] rotate-2 pointer-events-none z-10 shadow-[1px_1px_0px_#111827]"></div>
-                <div className="relative aspect-[4/3] w-full overflow-hidden border-[2px] border-[#111827] bg-[#000525] flex items-center justify-center p-4">
-                  <div className="text-center text-white">
-                    <span className="material-symbols-outlined text-[64px] text-[#fdb712] mb-1">
-                      school
-                    </span>
-                    <p className="font-display font-bold text-[18px]">UTC CAMPUS 2026</p>
-                    <p className="font-stamp text-[11px] text-[#ffdea8]">
-                      ĐẠI HỌC GIAO THÔNG VẬN TẢI
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-3 px-1 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[15px] text-[#111827] leading-tight font-display">
-                      Cơ sở Cầu Giấy • Hà Nội
-                    </p>
-                    <p className="text-[11px] text-[#4b5563] font-semibold uppercase tracking-wider">
-                      Trường ĐH Giao thông Vận tải
-                    </p>
-                  </div>
-                  <span className="font-extrabold text-[13px] text-white bg-[#0284c7] px-2.5 py-0.5 border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[4px]">
-                    2026
-                  </span>
-                </div>
-              </div>
-
-              {/* Decorative Badges */}
-              <div className="absolute -bottom-4 -left-3 px-3 py-1 bg-[#86efac] border-[2.5px] border-[#111827] text-[#111827] font-black text-[13px] rotate-6 shadow-[3px_3px_0px_#111827] uppercase tracking-wider rounded-[6px] z-30">
-                MỚI NHẤT
-              </div>
-              <div className="absolute -top-4 -right-3 px-3 py-1 bg-[#38bdf8] border-[2.5px] border-[#111827] text-[#111827] font-black text-[12px] -rotate-6 shadow-[3px_3px_0px_#111827] uppercase tracking-wider rounded-[6px] z-30">
-                K66 SELECTION
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Disclaimer Banner */}
-      <DisclaimerBanner />
-
-      {/* 3. Feature Tool Cards (4 Bento modules) */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-8 bg-[#fdb712] border-[2px] border-[#000525] shadow-[2px_2px_0px_#000525]"></div>
-            <h2 className="font-display font-bold text-[24px] text-[#000525] uppercase tracking-tight">
-              CÔNG CỤ NỔI BẬT
-            </h2>
-          </div>
-          <span className="font-stamp text-[12px] text-[#45464f] bg-[#eee7db] px-2.5 py-1 border border-[#000525] shadow-[2px_2px_0px_#000525] font-bold">
-            4 CHỨC NĂNG CỐT LÕI
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pt-2">
-          <FeatureCard
-            title="Tính điểm quy đổi"
-            description="Quy đổi điểm thi IELTS, HSA, TSA, V-SAT và tốt nghiệp THPT sang thang điểm UTC."
-            badge="QUY ĐỔI"
-            badgeBg="bg-[#fef08a]"
-            icon="laptop_mac"
-            iconBg="bg-[#e0f2fe]"
-            iconColor="text-[#0284c7]"
-            btnText="Bắt đầu tính"
-            btnBg="bg-[#0284c7]"
-            btnColor="text-white"
-            href="/tinh-diem-quy-doi"
-            rotateClass="-rotate-1"
-          />
-
-          <FeatureCard
-            title="Trắc nghiệm MBTI"
-            description="Khám phá tính cách kỹ sư công nghệ và gợi ý ngành học phù hợp tại trường."
-            badge="20 CÂU"
-            badgeBg="bg-[#dbeafe]"
-            icon="psychology"
-            iconBg="bg-[#ffedd5]"
-            iconColor="text-[#ea580c]"
-            btnText="Làm trắc nghiệm"
-            btnBg="bg-[#ea580c]"
-            btnColor="text-white"
-            href="/trac-nghiem-mbti"
-            rotateClass="rotate-1"
-            tapeBg="bg-[#fed7aa]"
-          />
-
-          <FeatureCard
-            title="Tra cứu ngành học"
-            description="Thông tin chỉ tiêu, điểm chuẩn 3 năm, học phí và các tổ hợp xét tuyển UTC."
-            badge="35+ NGÀNH"
-            badgeBg="bg-[#bbf7d0]"
-            icon="manage_search"
-            iconBg="bg-[#f0fdf4]"
-            iconColor="text-[#16a34a]"
-            btnText="Xem chi tiết"
-            btnBg="bg-white"
-            btnColor="text-[#111827]"
-            href="/tra-cuu-nganh-hoc"
-            rotateClass="-rotate-1"
-            tapeBg="bg-[#bbf7d0]"
-          />
-
-          <FeatureCard
-            title="Lộ trình nhập học"
-            description="Các mốc thời gian xét tuyển sớm, đăng ký NV và nộp hồ sơ K66 chính thức."
-            badge="QUAN TRỌNG"
-            badgeBg="bg-[#fecdd3]"
-            icon="map"
-            iconBg="bg-[#faf5ff]"
-            iconColor="text-[#9333ea]"
-            btnText="Xem mốc thời gian"
-            btnBg="bg-white"
-            btnColor="text-[#111827]"
-            href="/lo-trinh-tuyen-sinh"
-            rotateClass="rotate-1"
-            tapeBg="bg-[#e9d5ff]"
-          />
-        </div>
-      </section>
-
-      {/* 4. Timeline Component */}
-      <Timeline />
-
-      {/* 5. Stats Highlights Bento */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatCard
-          value="35+"
-          title="Ngành & Chương Trình"
-          subtitle="Kỹ thuật Giao thông, CNTT, Logistics, Tự động hóa, Kinh tế..."
-        />
-        <StatCard
-          value="05"
-          title="Phương Thức Xét Tuyển"
-          subtitle="Xét tuyển thẳng, học bạ, thi tốt nghiệp THPT, ĐGNL ĐHQG & ĐHBK."
-        />
-        <StatCard
-          value="96%"
-          title="Sinh Viên Có Việc Làm"
-          subtitle="Được các tập đoàn công nghệ và hạ tầng săn đón ngay sau tốt nghiệp."
-        />
-      </section>
+ const [scores, setScores] = useState(["", "", ""]);
+ const valid = scores.every(s => s.trim() !== "" && Number.isFinite(Number(s)) && Number(s) >= 0 && Number(s) <= 10);
+ const sum = valid ? scores.reduce((total, value) => total + Number(value), 0).toFixed(2) : "—";
+ const features = [
+  { icon: ChartColumn, title: "Tra cứu điểm chuẩn & chỉ tiêu", text: "Đối chiếu điểm trúng tuyển theo từng năm và phương thức xét tuyển.", href: "/thong-tin-tuyen-sinh", tag: "Dữ liệu tham khảo", color: "blue" },
+  { icon: Calculator, title: "Công cụ tính điểm quy đổi & xét tuyển", text: "Tính điểm, xem điều kiện và đối chiếu với chương trình bạn quan tâm.", href: "/tinh-diem-quy-doi", tag: "Đa phương thức", color: "orange" },
+  { icon: Compass, title: "Tra cứu chương trình đào tạo", text: "Tìm hiểu chương trình đào tạo, môn học và định hướng nghề nghiệp.", href: "/tra-cuu-nganh-hoc", tag: "Khám phá UTC", color: "blue" },
+  { icon: FileCheck, title: "Nộp & theo dõi hồ sơ tuyển sinh", text: "Gửi hồ sơ trực tuyến và theo dõi trạng thái các nguyện vọng của bạn.", href: "/nguyen-vong-cua-toi", tag: "Dành cho thí sinh", color: "orange" },
+ ];
+ return <div className="mx-auto max-w-[1440px] space-y-7 pb-8 text-[#192b59]">
+  <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#182b65] via-[#2346a1] to-[#394d9a] px-6 py-8 text-white shadow-lg shadow-blue-950/10 sm:p-9 xl:p-11">
+   <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-40 h-[500px] w-[500px] rounded-full border-[80px] border-white/[.025]"/>
+   <div className="relative grid items-center gap-8 xl:grid-cols-[1.35fr_1fr]">
+    <div><span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-400"><GraduationCap size={15}/>Đại học Giao thông vận tải · Cơ sở Hà Nội</span>
+     <h1 className="mt-5 max-w-xl text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-[40px] xl:text-[43px]">Hành trình kiến tạo <span className="text-amber-400">tương lai</span> &amp; công nghệ</h1>
+     <p className="mt-4 max-w-lg text-sm leading-7 text-blue-100">Khám phá ngành học, tìm hiểu phương thức xét tuyển và chuẩn bị hồ sơ của bạn. Cổng thông tin đồng hành cùng hành trình đến với UTC.</p>
+     <form action="/tra-cuu-nganh-hoc" className="mt-6 flex gap-2 rounded-xl border border-white/15 bg-white/10 p-2"><label htmlFor="home-major-search" className="sr-only">Tên chương trình hoặc mã xét tuyển</label><div className="relative min-w-0 flex-1"><Search size={16} aria-hidden="true" className="absolute left-3 top-3 text-slate-400"/><input id="home-major-search" name="term" placeholder="Nhập tên chương trình, mã xét tuyển…" className="h-10 w-full rounded-lg bg-white pl-9 pr-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-amber-400"/></div><button className="flex items-center gap-2 rounded-lg bg-amber-400 px-3 text-xs font-bold text-[#172653] hover:bg-amber-300">Tìm kiếm<ArrowRight size={14}/></button></form>
+     <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/15 pt-5 text-[10px] leading-5 text-blue-100"><div><strong className="block text-xl font-bold text-amber-400">GHA</strong>Mã tuyển sinh Hà Nội</div><div><strong className="block text-xl font-bold text-amber-400">Đa phương thức</strong>Lựa chọn lộ trình phù hợp</div><div><strong className="block text-xl font-bold text-amber-400">Trực tuyến</strong>Tra cứu &amp; nộp hồ sơ</div></div>
     </div>
-  );
+    <div className="rounded-2xl border border-white/10 bg-[#14214d] p-5 shadow-xl sm:p-6"><div className="flex items-start gap-3"><span className="rounded-lg bg-amber-400/10 p-2 text-amber-400"><Calculator size={20}/></span><div><h2 className="text-sm font-bold">Tính nhanh tổng điểm 3 môn</h2><p className="mt-1 text-[11px] text-blue-200/70">Điểm từng môn theo thang 10</p></div></div><div className="mt-5 grid grid-cols-3 gap-2">{scores.map((score, i) => <label key={i} className="text-[10px] font-semibold text-blue-100">Điểm môn {i + 1}<input type="number" inputMode="decimal" min="0" max="10" step="0.01" value={score} onChange={e => setScores(scores.map((s, index) => index === i ? e.target.value : s))} className="mt-2 h-11 w-full rounded-lg border border-[#354d92] bg-[#1d3064] px-2 text-center text-sm font-bold text-white outline-none focus:border-amber-400"/></label>)}</div><div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-blue-400/20 bg-blue-400/10 p-3"><div><p className="text-[10px] font-semibold text-blue-100">Tổng 3 môn · chưa cộng ưu tiên</p><p className="mt-1 text-[9px] text-blue-200/70">Chưa đánh giá điều kiện xét tuyển</p></div><output aria-live="polite" className="whitespace-nowrap text-2xl font-extrabold text-amber-400">{sum}<span className="ml-1 text-[10px] text-blue-100">/30</span></output></div>{scores.some(s => s !== "" && (Number(s) < 0 || Number(s) > 10)) && <p className="mt-2 text-xs text-orange-200" role="alert">Điểm mỗi môn phải từ 0 đến 10.</p>}<Link href="/tinh-diem-quy-doi" className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-3 text-xs font-bold text-[#15234f] hover:bg-amber-400">Quy đổi &amp; đối chiếu điểm xét tuyển<ArrowRight size={15}/></Link></div>
+   </div>
+  </section>
+  <section><div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="flex items-center gap-2 text-base font-bold"><span className="h-2 w-2 rounded-full bg-orange-500"/>Hệ thống tiện ích xét tuyển trọng tâm</h2><p className="mt-1 text-xs leading-5 text-slate-500">Công cụ tra cứu, tính điểm và lộ trình dành cho thí sinh.</p></div><Link href="/thong-tin-tuyen-sinh" className="hidden items-center gap-1 text-[11px] font-semibold text-blue-700 sm:flex">Xem hướng dẫn<ArrowRight size={13}/></Link></div><div className="grid gap-4 md:grid-cols-2">{features.map(({icon: Icon,...f}) => <article key={f.href} className="rounded-xl border border-slate-200 bg-white p-5"><div className="flex items-start gap-3"><span className={`rounded-lg p-2.5 ${f.color === "blue" ? "bg-blue-50 text-blue-800" : "bg-orange-50 text-orange-600"}`}><Icon size={20}/></span><div className="flex-1"><h3 className="text-sm font-bold">{f.title}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{f.text}</p></div></div><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><span className="rounded bg-slate-50 px-2 py-1 text-[10px] text-slate-500">{f.tag}</span><Link href={f.href} className="flex items-center gap-2 text-xs font-bold text-blue-800">Mở tiện ích<ArrowRight size={14}/></Link></div></article>)}</div></section>
+  <section className="grid gap-3 sm:grid-cols-2">{[{Icon:Sparkles,title:"Trắc nghiệm hướng nghiệp",href:"/trac-nghiem-mbti"},{Icon:CalendarDays,title:"Lộ trình & mốc thời gian",href:"/lo-trinh-tuyen-sinh"}].map(({Icon,title,href}) => <Link key={href} href={href} className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs font-semibold"><Icon size={18} className="text-blue-600"/>{title}<ArrowRight size={14} className="ml-auto"/></Link>)}</section>
+  <p className="text-center text-[10px] leading-5 text-slate-500">Thông tin và kết quả đối chiếu mang tính tham khảo. Vui lòng kiểm tra đề án tuyển sinh chính thức trước khi nộp hồ sơ.</p>
+ </div>;
 }

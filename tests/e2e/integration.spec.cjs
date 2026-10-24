@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { SignJWT } = require('jose');
+const { randomUUID } = require('node:crypto');
 async function login(page) {
   await page.goto('/admin/login');
   await page.locator('input[type=text]').fill('super_admin@example.invalid');
@@ -18,12 +19,12 @@ test('Candidate uploads evidence, submits through score API, admin reviews and c
   await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible();
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4GQAAAAASUVORK5CYII=', 'base64');
-  let response = await context.request.post('/api/evidence', { multipart:{file:{name:'evidence.png',mimeType:'image/png',buffer:png}} });
-  expect(response.ok(), await response.text()).toBeTruthy();const file=await response.json();
-  response = await context.request.post('/api/backend/score/ho-so', { data:{ma_chuong_trinh:'GHA14',ma_phuong_thuc:'PT200',ma_to_hop:'A00',nam_tuyen_sinh:new Date().getFullYear(),nguyen_vong:1,
+  const coordinated={operation_id:randomUUID(),cccd,profile:{ho_ten:'NGUYEN VAN TEST',so_dien_thoai:'0'+cccd.slice(-9),khu_vuc:'KV1',doi_tuong_uu_tien:'NONE'},file_keys:['draft:test'],submission:{ma_chuong_trinh:'GHA14',ma_phuong_thuc:'PT200',ma_to_hop:'A00',nam_tuyen_sinh:new Date().getFullYear(),nguyen_vong:1,
     bang_diem:[{loai_diem:'lop_12',nam_hoc:2026,diem_mon:[{ma_mon:'TOAN',diem_so:9},{ma_mon:'LY',diem_so:8},{ma_mon:'HOA',diem_so:8}]}],
-    chung_chi:[{loai_chung_chi:'Hoc ba',diem_hoac_hang:'Chua doi soat',file_dinh_kem:file.key}]} });
-  expect(response.ok(), await response.text()).toBeTruthy();const id=(await response.json()).ma_ho_so;
+    chung_chi:[{loai_chung_chi:'Hoc ba',diem_hoac_hang:'Chua doi soat',file_dinh_kem:'draft:test'}],giai_thuong:[]}};
+  const response=await context.request.post('/api/application-submission',{multipart:{payload:JSON.stringify(coordinated),files:{name:'evidence.png',mimeType:'image/png',buffer:png}}});
+  expect(response.ok(), await response.text()).toBeTruthy();const id=(await response.json()).maHoSo;
+  const list=await context.request.get('/api/evidence?list=1');expect(list.ok()).toBeTruthy();const file=(await list.json())[0];expect(file?.key).toBeTruthy();
   expect((await context.request.get('/api/backend/score/ho-so')).status()).toBe(401);
   await page.goto('/nop-ho-so');
   await expect(page.getByPlaceholder('Gồm 12 chữ số')).toHaveCount(0);
@@ -44,7 +45,7 @@ test('Candidate uploads evidence, submits through score API, admin reviews and c
   for (let i = 0; i < uploadCount; i++) {
     // Fields remain available for replacement; upload each checklist item once.
     await uploads.nth(i).setInputFiles({ name: `minh-chung-${i+1}.png`, mimeType: 'image/png', buffer: png });
-    await expect(page.getByRole('link', { name: `minh-chung-${i+1}.png`, exact: true }).first()).toBeVisible();
+    await expect(page.getByText(`minh-chung-${i+1}.png — chờ nộp`, { exact: true }).first()).toBeVisible();
   }
   await page.getByRole('button',{name:/Tiếp tục: Rà soát/}).click();
   await page.getByRole('button',{name:/Xác Nhận Nộp Hồ Sơ Chính Thức/i}).click();
@@ -63,7 +64,7 @@ test('Admin API refreshes expired access token using HttpOnly refresh cookie',as
   expect((await context.cookies()).find(c=>c.name==='accessToken').value).not.toBe(expired);
 });
 test('Public program comparison uses database histories and needs no admin login',async({page})=>{
-  await page.goto('/so-sanh-chuong-trinh');await page.getByLabel('Chương trình 1',{exact:true}).selectOption('GHA14');await page.getByLabel('Chương trình 2',{exact:true}).selectOption('TEST02');await page.getByRole('button',{name:'So sánh',exact:true}).click();await expect(page.getByRole('table')).toContainText('Công nghệ thông tin TEST');await expect(page.getByRole('table')).toContainText('Kỹ thuật TEST');await expect(page.getByText(/Biến động điểm chuẩn/)).toBeVisible();
+  await page.goto('/so-sanh-chuong-trinh');await page.getByLabel('Chương trình 1',{exact:true}).selectOption('GHA14');await page.getByLabel('Chương trình 2',{exact:true}).selectOption('TEST02');await page.getByRole('button',{name:'So sánh',exact:true}).click();await expect(page.getByRole('table')).toContainText('Công nghệ thông tin TEST');await expect(page.getByRole('table')).toContainText('Kỹ thuật TEST');await expect(page.getByText('Xem biến động điểm chuẩn',{exact:true})).toBeVisible();
 });
 test('MBTI submits numerical answers to AI and retrieves persisted result after reload',async({page})=>{
   await page.goto('/trac-nghiem-mbti');await expect(page.getByTitle('Rất đồng ý',{exact:true})).toHaveCount(20);

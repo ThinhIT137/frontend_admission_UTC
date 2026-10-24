@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ScoreHistoryTable, { type ScoreHistoryItem } from "./ScoreHistoryTable";
 import PublishedText from "@/components/admission/PublishedText";
 import { safeExternalUrl } from "@/components/admission/admission-data";
 
@@ -42,16 +43,6 @@ interface CombinationItem {
   ten_mon_3?: string;
 }
 
-interface ScoreHistoryItem {
-  nam: number;
-  chi_tieu: number;
-  diem: number | null;
-  ma_phuong_thuc: string;
-  ten_phuong_thuc: string;
-  ma_chuong_trinh: string;
-  ten_chuong_trinh: string;
-}
-
 interface Props {
   major: {
     ma_nganh: string;
@@ -86,20 +77,13 @@ export default function ChiTietNganhClient({ major, programs, initialProgramId, 
     && (knowledge === "ALL" || c.khoi_kien_thuc === knowledge)
     && `${c.ma_hoc_phan} ${c.hoc_phan?.ten_hoc_phan ?? ""}`.toLocaleLowerCase("vi").includes(search.trim().toLocaleLowerCase("vi")));
   const years = [...new Set(scoreHistory.map(s => s.nam))].sort((a, b) => b - a);
-  const [scoreYear, setScoreYear] = useState(String(years[0] ?? "ALL"));
-  const [scoreMethod, setScoreMethod] = useState("ALL");
-  const [scoreProgram, setScoreProgram] = useState("ALL");
-  const methods = [...new Map(scoreHistory.filter(s => s.ma_phuong_thuc !== "N/A").map(s => [s.ma_phuong_thuc, s.ten_phuong_thuc])).entries()];
-  const scores = scoreHistory.filter(s => (scoreYear === "ALL" || String(s.nam) === scoreYear)
-    && (scoreMethod === "ALL" || s.ma_phuong_thuc === scoreMethod)
-    && (scoreProgram === "ALL" || s.ma_chuong_trinh === scoreProgram));
   // Quota belongs to program/year, not to each method row.
   const latestQuota = [...new Map(scoreHistory.filter(s => s.nam === years[0]).map(s => [s.ma_chuong_trinh, s.chi_tieu])).values()].reduce((sum, n) => sum + n, 0);
   const outlineUrl = safeExternalUrl(program?.de_cuong);
   const card = "rounded-2xl border-[3px] border-[#111827] bg-[#fffdf7] p-5 sm:p-6 shadow-[4px_4px_0px_#111827]";
   const input = "mt-1 w-full rounded-lg border border-slate-400 bg-white p-2 font-normal";
   function resetCourses() { setCohort(""); setSemester("ALL"); setKnowledge("ALL"); setSearch(""); }
-  return <div className="space-y-6 pb-12 text-[#0d1b4e]">
+  return <div className="min-w-0 max-w-full space-y-6 pb-12 text-[#0d1b4e]">
     <header className={card}>
       <p className="font-bold text-blue-700">{major.khoi_nganh?.ten_khoi_nganh || "Ngành đào tạo"} · {major.ma_nganh}</p>
       <h1 className="mt-2 text-2xl sm:text-3xl font-black">{major.ten_nganh}</h1>
@@ -140,14 +124,6 @@ export default function ChiTietNganhClient({ major, programs, initialProgramId, 
       {combinations.length ? <ul className="grid gap-2 sm:grid-cols-2">{combinations.map(c => <li key={c.ma_to_hop} className="rounded-lg border border-slate-300 p-3"><strong>{c.ma_to_hop}</strong> · {[c.ten_mon_1, c.ten_mon_2, c.ten_mon_3].filter(Boolean).join(" – ")}</li>)}</ul> : <p>Chưa công bố tổ hợp xét tuyển.</p>}
     </section>
 
-    <section className={card} id="diem-chuan"><h2 className="text-xl font-black">Chỉ tiêu và lịch sử điểm chuẩn</h2>
-      <p className="mt-2 text-sm text-slate-600">Điểm lịch sử chỉ để tham khảo. Chỉ tiêu là tổng của chương trình theo năm, không cộng lặp theo từng phương thức.</p>
-      <div className="my-4 grid gap-3 sm:grid-cols-3">
-        <label className="font-bold">Năm điểm chuẩn<select className={input} value={scoreYear} onChange={e => setScoreYear(e.target.value)}><option value="ALL">Tất cả năm</option>{years.map(y => <option key={y}>{y}</option>)}</select></label>
-        <label className="font-bold">Chương trình điểm chuẩn<select className={input} value={scoreProgram} onChange={e => setScoreProgram(e.target.value)}><option value="ALL">Tất cả chương trình</option>{programs.map(p => <option key={p.ma_chuong_trinh} value={p.ma_chuong_trinh}>{p.ten_chuong_trinh}</option>)}</select></label>
-        <label className="font-bold">Phương thức điểm chuẩn<select className={input} value={scoreMethod} onChange={e => setScoreMethod(e.target.value)}><option value="ALL">Tất cả phương thức</option>{methods.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-      </div>
-      {!scores.length ? <p>{scoreHistory.length ? "Không có dữ liệu phù hợp với bộ lọc." : "Chưa công bố chỉ tiêu hoặc điểm chuẩn."}</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b-2 border-slate-400"><th className="p-2">Năm</th><th className="p-2">Chương trình</th><th className="p-2">Phương thức</th><th className="p-2">Chỉ tiêu chương trình</th><th className="p-2">Điểm chuẩn</th></tr></thead><tbody>{scores.map((s, i) => <tr key={`${s.nam}-${s.ma_chuong_trinh}-${s.ma_phuong_thuc}-${i}`} className="border-b border-slate-200"><td className="p-2">{s.nam}</td><td className="p-2">{s.ten_chuong_trinh}</td><td className="p-2">{s.ma_phuong_thuc === "N/A" ? "Chưa công bố" : s.ten_phuong_thuc}</td><td className="p-2">{s.chi_tieu}</td><td className="p-2">{s.diem != null && s.diem > 0 ? s.diem : "Chưa công bố"}</td></tr>)}</tbody></table></div>}
-    </section>
+    <ScoreHistoryTable scoreHistory={scoreHistory} />
   </div>;
 }

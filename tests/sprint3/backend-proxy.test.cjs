@@ -6,6 +6,7 @@ function fixture(initial = { accessToken: 'old', refreshToken: 'refresh' }) {
   const jar = { get: name => tokens.has(name) ? { value: tokens.get(name) } : undefined, set: (name, value) => tokens.set(name, value) };
   const refresh = mock.fn(async () => { tokens.set('accessToken', 'new'); });
   const request = loader({ 'server-only': {}, 'next/headers': { cookies: async () => jar },
+    '@/services/candidate-auth.service': { refreshCandidateSession: async () => { tokens.set('candidateToken','new-candidate'); tokens.set('candidateRefresh','rotated'); return 'new-candidate'; } },
     '@/services/user.service': { adminService: { getCurrentUser: async () => ({ ma_admin: 'A1', vai_tro: { ten_vai_tro: 'super_admin' } }), refreshAccessToken: refresh } },
     '@/services/token.service': { tokenService: { verifyAccessToken: async token => token === 'expired' ? null : { userId: 'A1' } } },
   })('libs/api-services/backend.server.ts').backendRequest;
@@ -29,7 +30,7 @@ test('Candidate access expiration rotates the candidate refresh token and retrie
     if(url.endsWith('/refresh')){assert.equal(JSON.parse(opts.body).refresh_token,'refresh-candidate');return{status:200,ok:true,json:async()=>({access_token:'new-candidate',refresh_token:'rotated'})};}
     return calls===1?{status:401,ok:false,json:async()=>({})}:{status:200,ok:true,json:async()=>({cccd:'000000000099'})};
   });
-  await f.request('score','/auth/candidate/me',{auth:'candidate'});assert.equal(calls,3);assert.equal(f.tokens.get('candidateRefresh'),'rotated');
+  await f.request('score','/auth/candidate/me',{auth:'candidate'});assert.equal(calls,2);assert.equal(f.tokens.get('candidateRefresh'),'rotated');
 });
 test('AI privileged requests use server internal key rather than the admin JWT',async t=>{
   const previous=process.env.AI_INTERNAL_API_KEY;process.env.AI_INTERNAL_API_KEY='unit-internal-key';t.after(()=>{if(previous===undefined)delete process.env.AI_INTERNAL_API_KEY;else process.env.AI_INTERNAL_API_KEY=previous});

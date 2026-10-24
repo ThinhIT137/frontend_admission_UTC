@@ -1,3 +1,4 @@
+import { Search, ArrowRight, GraduationCap, RotateCcw, Check, Building2, SlidersHorizontal, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { KhoiNganh } from "@/app/generated/prisma/browser";
 import { Dispatch, SetStateAction } from "react";
 
@@ -70,10 +71,10 @@ const FilterAndSearchBar = ({
     };
 
     return (
-        <div className="bg-white p-5 md:p-6 pt-7 md:pt-8 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[16px] relative flex flex-col gap-5">
-            {/* QUICK SEARCH TOOL Badge */}
-            <div className="absolute -top-4 right-6 px-3 py-1 bg-[#fdb712] border-[2px] border-[#111827] font-stamp text-[12px] font-bold text-[#111827] shadow-[2px_2px_0px_#111827]">
-                QUICK SEARCH TOOL
+        <div className="bg-white p-5 md:p-6 pt-7 md:pt-8 border border-slate-200 shadow-sm rounded-[16px] relative flex flex-col gap-5">
+            {/* BỘ LỌC NGÀNH HỌC Badge */}
+            <div className="self-start rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
+                BỘ LỌC NGÀNH HỌC
             </div>
 
             {/* Top 5 Filters */}
@@ -81,9 +82,7 @@ const FilterAndSearchBar = ({
                 {/* TÌM TÊN / MÃ NGÀNH */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#0284c7] uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            search
-                        </span>
+                        <Search size={16} aria-hidden="true" />
                         Tìm Tên / Mã Ngành
                     </label>
                     <input
@@ -91,22 +90,20 @@ const FilterAndSearchBar = ({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Ví dụ: Logistics, CNTT,..."
-                        className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all placeholder:text-[#9ca3af] placeholder:font-normal"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all placeholder:text-[#9ca3af] placeholder:font-normal"
                     />
                 </div>
 
                 {/* KHOA / VIỆN QUẢN LÝ */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#0284c7] uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            domain
-                        </span>
+                        <Building2 size={16} aria-hidden="true" />
                         Khoa / Viện Quản Lý
                     </label>
                     <select
                         value={selectedFaculty}
                         onChange={(e) => setSelectedFaculty(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all appearance-none cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all appearance-none cursor-pointer"
                     >
                         <option value="">Tất cả các Khoa/ Viện</option>
                         {data_khoa_vien.map((data) => (
@@ -123,15 +120,13 @@ const FilterAndSearchBar = ({
                 {/* TỔ HỢP XÉT TUYỂN */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#0284c7] uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            checklist
-                        </span>
+                        <SlidersHorizontal size={16} aria-hidden="true" />
                         Tổ Hợp Xét Tuyển
                     </label>
                     <select
                         value={selectedToHop}
                         onChange={(e) => setSelectedToHop(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all appearance-none cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all appearance-none cursor-pointer"
                     >
                         <option value="">Tất cả tổ hợp (A00, A01...)</option>
                         {data_to_hop?.map((toHop: any) => (
@@ -145,9 +140,7 @@ const FilterAndSearchBar = ({
                 {/* MỨC ĐIỂM CHUẨN 2026 */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#0284c7] uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            trending_up
-                        </span>
+                        <GraduationCap size={16} aria-hidden="true" />
                         Điểm tối đa tham khảo
                     </label>
                     <input
@@ -158,21 +151,19 @@ const FilterAndSearchBar = ({
                         placeholder="Không giới hạn"
                         value={selectedDiemChuan || ""}
                         onChange={(e) => setSelectedDiemChuan(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all appearance-none cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all appearance-none cursor-pointer"
                     />
                 </div>
                 {/* NĂM HỌC */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#0284c7] uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            calendar_month
-                        </span>
+                        <CalendarDays size={16} aria-hidden="true" />
                         Năm Tuyển Sinh
                     </label>
                     <select
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border-[2px] border-[#111827] rounded-[8px] font-bold text-[13px] text-[#111827] outline-none focus:shadow-[2px_2px_0px_#111827] transition-all appearance-none cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all appearance-none cursor-pointer"
                     >
                         <option value={2026}>Năm 2026</option>
                         <option value={2025}>Năm 2025</option>
@@ -189,37 +180,35 @@ const FilterAndSearchBar = ({
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center justify-start gap-2">
                     <span className="text-[11px] font-bold text-[#4b5563] uppercase flex items-center gap-1 mr-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                            push_pin
-                        </span>
+                        <GraduationCap size={16} aria-hidden="true" />
                         Lọc Nhanh Tổ Hợp:
                     </span>
                     <button
                         onClick={() => locNhanh.toHopA00()}
-                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
                             selectedToHop === "A00"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
-                                : "bg-[#bae6fd] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
+                                : "bg-[#bae6fd] text-[#14244e] hover:shadow-md"
                         }`}
                     >
                         Tổ hợp A00 (Toán, Lý, Hóa)
                     </button>
                     <button
                         onClick={() => locNhanh.toHopA01()}
-                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
                             selectedToHop === "A01"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
-                                : "bg-[#38bdf8] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
+                                : "bg-[#38bdf8] text-[#14244e] hover:shadow-md"
                         }`}
                     >
                         Tổ hợp A01 (Toán, Lý, Anh)
                     </button>
                     <button
                         onClick={() => locNhanh.toHopD01()}
-                        className={`px-3 py-1 border-[2px] border-[#111827] rounded-full text-[11px] font-bold transition-all ${
+                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
                             selectedToHop === "D01"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-[2px_2px_0px_#111827]"
-                                : "bg-[#fed7aa] text-[#111827] hover:shadow-[2px_2px_0px_#111827]"
+                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
+                                : "bg-[#fed7aa] text-[#14244e] hover:shadow-md"
                         }`}
                     >
                         Tổ hợp D01 (Toán, Văn, Anh)
@@ -229,7 +218,7 @@ const FilterAndSearchBar = ({
                             locNhanh.datlai();
                             if (setSortOption) setSortOption("score-desc");
                         }}
-                        className="px-3 py-1 border-[2px] border-dashed border-[#111827] rounded-full text-[11px] font-bold text-[#111827] hover:bg-[#f3f4f6] transition-all whitespace-nowrap ml-1 cursor-pointer"
+                        className="px-3 py-1 border border-dashed border-slate-200 rounded-full text-[11px] font-bold text-[#14244e] hover:bg-[#f3f4f6] transition-all whitespace-nowrap ml-1 cursor-pointer"
                     >
                         Đặt lại bộ lọc
                     </button>
@@ -239,15 +228,13 @@ const FilterAndSearchBar = ({
                 {setSortOption && (
                     <div className="flex items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#e5e7eb]">
                         <span className="text-[11px] font-black text-[#0d1b4e] uppercase flex items-center gap-1 shrink-0">
-                            <span className="material-symbols-outlined text-[16px] text-[#0284c7]">
-                                sort
-                            </span>
+                            <GraduationCap size={16} aria-hidden="true" />
                             Sắp xếp:
                         </span>
                         <select
                             value={sortOption || "score-desc"}
                             onChange={(e) => setSortOption(e.target.value)}
-                            className="px-3 py-1.5 bg-[#faf3e6] border-[2px] border-[#111827] rounded-xl font-bold text-[12px] text-[#0d1b4e] outline-none cursor-pointer focus:shadow-[2px_2px_0px_#111827]"
+                            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[12px] text-[#0d1b4e] outline-none cursor-pointer focus:shadow-sm"
                         >
                             <option value="score-desc">Điểm chuẩn: Cao → Thấp</option>
                             <option value="score-asc">Điểm chuẩn: Thấp → Cao</option>

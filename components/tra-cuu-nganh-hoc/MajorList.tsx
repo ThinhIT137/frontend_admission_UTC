@@ -1,9 +1,11 @@
-import { MajorFromApi } from "@/app/(main)/tra-cuu-nganh-hoc/page";
+import { Search, ArrowRight, GraduationCap, RotateCcw, Check, Building2, SlidersHorizontal, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import type { MajorFromApi } from "@/app/(main)/tra-cuu-nganh-hoc/MajorLookupClient";
 import MajorCard from "./MajorCard";
 
 interface MajorListProps {
     dataNganhHoc: MajorFromApi[];
     selectedYear: number;
+    selectedMethod?: string;
     currentPage: number;
     setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
     totalPages: number;
@@ -13,6 +15,7 @@ interface MajorListProps {
 export default function MajorList({
     dataNganhHoc,
     selectedYear,
+    selectedMethod,
     currentPage,
     setCurrentPage,
     totalPages,
@@ -20,11 +23,9 @@ export default function MajorList({
 }: MajorListProps) {
     if (dataNganhHoc.length === 0) {
         return (
-            <div className="bg-white p-12 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[16px] text-center space-y-3">
-                <span className="material-symbols-outlined text-[48px] text-[#9ca3af]">
-                    search_off
-                </span>
-                <h3 className="font-display font-bold text-[18px] text-[#111827]">
+            <div className="bg-white p-12 border border-slate-200 shadow-sm rounded-[16px] text-center space-y-3">
+                <Search size={16} aria-hidden="true" />
+                <h3 className="font-display font-bold text-[18px] text-[#14244e]">
                     Không tìm thấy ngành học phù hợp
                 </h3>
                 <p className="text-[13px] text-[#6b7280]">
@@ -43,14 +44,15 @@ export default function MajorList({
                         major={major}
                         idx={idx}
                         selectedYear={selectedYear}
+                        selectedMethod={selectedMethod}
                     />
                 ))}
             </div>
 
             {/* Pagination Controls Bar */}
             {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] rounded-[12px] mt-6">
-                    <div className="text-[13px] font-bold text-[#111827]">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 border border-slate-200 shadow-sm rounded-[12px] mt-6">
+                    <div className="text-[13px] font-bold text-[#14244e]">
                         Hiển thị{" "}
                         <span className="text-[#0284c7]">
                             {(currentPage - 1) * pageSize + 1} -{" "}
@@ -70,9 +72,9 @@ export default function MajorList({
                         <button
                             disabled={currentPage === 1}
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            className="px-3 py-1.5 bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#fcd34d] text-[#111827] font-bold text-[13px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[6px] transition-all flex items-center gap-1"
+                            className="px-3 py-1.5 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#fcd34d] text-[#14244e] font-bold text-[13px] border border-slate-200 shadow-sm rounded-[6px] transition-all flex items-center gap-1"
                         >
-                            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                            <ChevronLeft size={16} aria-hidden="true" />
                             Trang trước
                         </button>
 
@@ -94,9 +96,9 @@ export default function MajorList({
                                             )}
                                             <button
                                                 onClick={() => setCurrentPage(page)}
-                                                className={`w-9 h-9 font-bold text-[13px] border-[2px] border-[#111827] rounded-[6px] transition-all ${currentPage === page
-                                                        ? "bg-[#0284c7] text-white shadow-[2px_2px_0px_#111827]"
-                                                        : "bg-white text-[#111827] hover:bg-[#fed7aa]"
+                                                className={`w-9 h-9 font-bold text-[13px] border border-slate-200 rounded-[6px] transition-all ${currentPage === page
+                                                        ? "bg-[#0284c7] text-white shadow-sm"
+                                                        : "bg-white text-[#14244e] hover:bg-[#fed7aa]"
                                                     }`}
                                             >
                                                 {page}
@@ -109,10 +111,10 @@ export default function MajorList({
                         <button
                             disabled={currentPage === totalPages}
                             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            className="px-3 py-1.5 bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#fcd34d] text-[#111827] font-bold text-[13px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[6px] transition-all flex items-center gap-1"
+                            className="px-3 py-1.5 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#fcd34d] text-[#14244e] font-bold text-[13px] border border-slate-200 shadow-sm rounded-[6px] transition-all flex items-center gap-1"
                         >
                             Trang sau
-                            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                            <ChevronRight size={16} aria-hidden="true" />
                         </button>
                     </div>
                 </div>

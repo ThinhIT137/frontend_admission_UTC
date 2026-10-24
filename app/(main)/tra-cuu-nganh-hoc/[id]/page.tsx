@@ -201,6 +201,9 @@ export default async function MajorDetailPage({ params }: PageProps) {
               nam: ls.nam,
               chi_tieu: ls.chi_tieu,
               diem: dt.diem,
+              nguyen_vong_toi_da: dt.nguyen_vong_toi_da,
+              diem_uu_tien_toi_thieu: dt.diem_uu_tien_toi_thieu,
+              dieu_kien_mon: dt.dieu_kien_mon,
               ma_phuong_thuc: dt.ma_phuong_thuc,
               ten_phuong_thuc: dt.phuong_thuc?.ten_phuong_thuc || dt.ma_phuong_thuc,
               ma_chuong_trinh: p.ma_chuong_trinh,
@@ -250,7 +253,7 @@ export default async function MajorDetailPage({ params }: PageProps) {
   }
 
   return (
-    <div className="flex flex-col w-full space-y-6 pb-14">
+    <div className="flex min-w-0 max-w-full flex-col w-full space-y-6 pb-14">
       {/* Nút quay lại */}
       <div>
         <Link

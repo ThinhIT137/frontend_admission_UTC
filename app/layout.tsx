@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  icons: { icon: [{ url: "/utc_logo.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "64x64", type: "image/x-icon" }], shortcut: "/favicon.ico" },
   title: "Cổng Tuyển Sinh Đại Học Giao Thông Vận Tải - UTC",
   description: "Hệ thống tư vấn & hỗ trợ thông tin tuyển sinh Đại học Giao thông Vận tải (UTC Cơ sở Hà Nội)",
 };

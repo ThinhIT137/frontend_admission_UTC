@@ -6,6 +6,7 @@ import {
 import { paginationRequest } from "@/libs/pagination";
 import prisma, { prismaPublic } from "@/libs/prisma";
 import { adminService } from "./user.service";
+import type { Prisma } from "@/app/generated/prisma/client";
 
 const normalize = (s: string) =>
     s
@@ -65,32 +66,52 @@ export const chuongTrinhDaoTaoService = {
         faculty: string;
         year: number;
     }) => {
+        if (diemChuan > 0 && !Number.isFinite(diemChuan)) throw new Error("Điểm không hợp lệ");
+        // Lọc điểm tại DB, chỉ đối chiếu đúng năm và phương thức.
+        const where = {
+            ...(faculty && { nganh: { ma_khoi_nganh: faculty } }),
+            ...(toHop && { ctdt_to_hop: { some: { ma_to_hop: toHop, nam: year } } }),
+            ...(diemChuan > 0 ? { lich_su_diem_chuan: { some: {
+                nam: year,
+                ...(diemChuan > 0 && { diem_trung_tuyen: { some: {
+                    ma_phuong_thuc: phuongThuc, diem: { gt: 0, lte: diemChuan },
+                } } }),
+            } } } : { OR: [
+                { lich_su_diem_chuan: { some: { nam: year } } },
+                { du_doan_diem_chuan: { some: { nam_du_doan: year } } },
+            ] }),
+        };
+        // Chỉ lấy dữ liệu công khai dùng trên thẻ ngành, bỏ trường quản trị và khung môn.
+        const select = {
+            ma_chuong_trinh: true, ma_nganh: true, ten_chuong_trinh: true, de_cuong: true,
+            nganh: { select: { ten_nganh: true, khoi_kien_thuc: true } },
+            ctdt_to_hop: { where: { nam: year }, select: { ma_to_hop: true } },
+            lich_su_diem_chuan: {
+                where: { nam: year },
+                orderBy: { nam: "desc" as const },
+                select: { nam: true, chi_tieu: true, diem_trung_tuyen: {
+                    where: { ma_phuong_thuc: phuongThuc }, select: { diem: true, ma_phuong_thuc: true, phuong_thuc: { select: { ten_phuong_thuc: true } } },
+                } },
+            },
+            du_doan_diem_chuan: { where: { nam_du_doan: year },
+                orderBy: [{ ngay_tinh_toan: "desc" }, { ma_du_doan_dc: "asc" }],
+                select: { ma_du_doan_dc: true, nam_du_doan: true, diem_du_doan: true, ngay_tinh_toan: true } },
+        } satisfies Prisma.ChuongTrinhDaoTaoSelect;
+        // Không tìm chữ: phân trang ngay trong DB. Có tìm chữ: giữ tìm không dấu
+        // và xếp độ khớp bằng JS để bảo toàn kết quả tìm kiếm hiện có.
+        if (!term?.trim()) {
+            const [data, total] = await Promise.all([
+                prismaPublic.chuongTrinhDaoTao.findMany({ where, select,
+                    orderBy: { ma_chuong_trinh: "asc" }, skip: (page - 1) * pageSize, take: pageSize }),
+                prismaPublic.chuongTrinhDaoTao.count({ where }),
+            ]);
+            return { data, total, page, pageSize };
+        }
         const data = await prismaPublic.chuongTrinhDaoTao.findMany({
-            where: {
-                ...(faculty && { nganh: { ma_khoi_nganh: faculty } }),
-                ...(toHop && {
-                    ctdt_to_hop: { some: { ma_to_hop: toHop, nam: year } },
-                }),
-                lich_su_diem_chuan: { some: { nam: year } },
-            },
-            include: {
-                nganh: { include: { khoi_nganh: true } },
-                ctdt_to_hop: true,
-                lich_su_diem_chuan: {
-                    include: {
-                        diem_trung_tuyen: { include: { phuong_thuc: true } },
-                    },
-                },
-            },
-            orderBy: { ma_chuong_trinh: "asc" },
+            where, select, orderBy: { ma_chuong_trinh: "asc" },
         });
 
         let rows = data;
-        if (diemChuan > 0) {
-            if (!Number.isFinite(diemChuan)) throw new Error("Điểm không hợp lệ");
-            rows = rows.filter(r => r.lich_su_diem_chuan.some(h => h.nam === year && h.diem_trung_tuyen.some(d => d.ma_phuong_thuc === phuongThuc && d.diem > 0 && d.diem <= diemChuan)));
-        }
-
         // 3. term: tìm không dấu, mọi từ đều phải xuất hiện, xếp theo độ khớp
         if (term?.trim()) {
             const tokens = normalize(term).split(/\s+/);

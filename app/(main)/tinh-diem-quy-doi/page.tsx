@@ -35,6 +35,7 @@ export default async function ScoreCalculatorPage() {
         },
         ctdt_to_hop: {
           select: {
+            nam: true,
             ma_to_hop: true,
             to_hop: {
               select: {
@@ -55,6 +56,9 @@ export default async function ScoreCalculatorPage() {
               select: {
                 diem: true,
                 ma_phuong_thuc: true,
+                dieu_kien_mon: true,
+                diem_uu_tien_toi_thieu: true,
+                nguyen_vong_toi_da: true,
                 phuong_thuc: {
                   select: {
                     ma_phuong_thuc: true,
@@ -64,6 +68,10 @@ export default async function ScoreCalculatorPage() {
               },
             },
           },
+        },
+        du_doan_diem_chuan: {
+          select: { ma_du_doan_dc: true, nam_du_doan: true, diem_du_doan: true, ngay_tinh_toan: true },
+          orderBy: [{ nam_du_doan: "desc" }, { ngay_tinh_toan: "desc" }, { ma_du_doan_dc: "asc" }],
         },
       },
       orderBy: { ma_chuong_trinh: "asc" },
@@ -99,6 +107,7 @@ export default async function ScoreCalculatorPage() {
     <TinhDiemQuyDoiClient
       initialPrograms={programs}
       initialToHops={toHops}
+      referenceYear={Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()))}
     />
   );
 }

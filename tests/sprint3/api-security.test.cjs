@@ -6,7 +6,7 @@ const {loader}=require('../sprint1/helpers.cjs');
 const server={NextResponse:{json:(value,options)=>Response.json(value,options)}};
 const security=loader({'server-only':{},'next/server':server})('libs/api-security.ts');
 function environment(t,values){for(const [key,value]of Object.entries(values)){const old=process.env[key];if(value===undefined)delete process.env[key];else process.env[key]=value;t.after(()=>old===undefined?delete process.env[key]:process.env[key]=old);}}
-function backend(){const jar=new Map([['accessToken','admin'],['refreshToken','refresh'],['candidateToken','candidate'],['candidateRefresh','refresh']]);return loader({'server-only':{},'next/headers':{cookies:async()=>({get:key=>jar.has(key)?{value:jar.get(key)}:undefined,set:(key,value)=>jar.set(key,value)})},'@/services/token.service':{tokenService:{verifyAccessToken:async()=>true}},'@/services/user.service':{adminService:{getCurrentUser:async()=>({vai_tro:{ten_vai_tro:'super_admin'}}),refreshAccessToken:async()=>{jar.set('accessToken','refreshed');}}}})('libs/api-services/backend.server.ts');}
+function backend(){const jar=new Map([['accessToken','admin'],['refreshToken','refresh'],['candidateToken','candidate'],['candidateRefresh','refresh']]);return loader({'@/services/candidate-auth.service':{refreshCandidateSession:async()=>{jar.set('candidateToken','fresh');jar.set('candidateRefresh','rotated');return 'fresh';}},'server-only':{},'next/headers':{cookies:async()=>({get:key=>jar.has(key)?{value:jar.get(key)}:undefined,set:(key,value)=>jar.set(key,value)})},'@/services/token.service':{tokenService:{verifyAccessToken:async()=>true}},'@/services/user.service':{adminService:{getCurrentUser:async()=>({vai_tro:{ten_vai_tro:'super_admin'}}),refreshAccessToken:async()=>{jar.set('accessToken','refreshed');}}}})('libs/api-services/backend.server.ts');}
 test('transport uses only server config, production HTTPS and explicit loopback exception',t=>{
  environment(t,{NODE_ENV:'production',API_APPLICATION_SCORE:undefined,NEXT_PUBLIC_API_APPLICATION_SCORE:'https://ignored.test',ALLOW_LOOPBACK_BACKEND_HTTP:undefined});const b=backend();
  assert.throws(()=>b.backendUrl('score','/ho-so'),e=>e.status===503);
@@ -75,9 +75,9 @@ test('lookup UI login gate and logout suppress late personal responses',async t=
 });
 test('candidate session GET accepts actual same-origin Request and blocks foreign/null origins before backend',async()=>{
  const upstream=mock.fn(async()=>({cccd:'000000000001',ho_ten:'Candidate'}));
- const route=loader({'server-only':{},'next/server':server,'next/headers':{cookies:async()=>({})},'@/libs/api-services/backend.server':{backendRequest:upstream}})('app/api/candidate/session/route.ts');
+ const route=loader({'server-only':{},'next/server':server,'next/headers':{cookies:async()=>({})},'@/services/candidate-auth.service':{currentCandidate:upstream},'@/libs/api-services/backend.server':{backendRequest:async()=>{throw Error('must not contact backend for session');}}})('app/api/candidate/session/route.ts');
  const response=await route.GET(new Request('https://app.test/api/candidate/session',{headers:{origin:'https://app.test'}}));
- assert.equal(response.status,200);assert.deepEqual(await response.json(),{cccd:'000000000001',ho_ten:'Candidate'});assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.equal(upstream.mock.calls[0].arguments[2].auth,'candidate');
+ assert.equal(response.status,200);assert.deepEqual(await response.json(),{cccd:'000000000001',ho_ten:'Candidate'});assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.equal(upstream.mock.calls[0].arguments.length,0);
  for(const origin of ['https://evil.test','http://app.test','null'])assert.equal((await route.GET(new Request('https://app.test/api/candidate/session',{headers:{origin}}))).status,403);
  assert.equal(upstream.mock.callCount(),1);
 });

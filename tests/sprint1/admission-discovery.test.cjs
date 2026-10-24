@@ -7,7 +7,58 @@ const link = { __esModule: true, default: ({ children, ...props }) => React.crea
 const compareCalls = [];
 const load = loader({ 'next/link': link, 'next/navigation': { usePathname: () => '/so-sanh-chuong-trinh' }, '@/actions/compare.action': { comparePrograms: async ids => { compareCalls.push(ids); if (new Set(ids).size < 2) throw Error('Chọn 2–3 chương trình'); return ids.map(id => ({ ma_chuong_trinh: id, ten_chuong_trinh: id, nganh: { ten_nganh: 'Major' }, ctdt_to_hop: [], lich_su_diem_chuan: [{ nam: 2026, chi_tieu: 12, diem_trung_tuyen: [{ ma_phuong_thuc: 'THPT', diem: 24, phuong_thuc: { ten_phuong_thuc: 'THPT' } }, { ma_phuong_thuc: 'HB', diem: 28, phuong_thuc: { ten_phuong_thuc: 'Học bạ' } }] }] })); } } });
 const data = load('components/admission/admission-data.ts');
-async function mount(t, file, props) {
+const historyRows = [
+  { id:'new', year:2026, majorCode:'N', majorName:'Major', programCode:'A', programName:'Alpha', quota:0, combinations:['A00','A00'], scores:[{methodCode:'THPT',methodName:'Exam',score:0,maxPreference:2,minPriorityScore:0,subjectConditions:{Math:8,Bad:'9',Negative:-1,Overflow:11,HTML:'<script>bad</script>'}}] },
+  { id:'old', year:2025, majorCode:'N', majorName:'Major', programCode:'A', programName:'Alpha', quota:10, combinations:['D01'], scores:[{methodCode:'HB',methodName:'Transcript',score:27,subjectConditions:['invalid']}] },
+];
+
+test('quota grid uses latest year, seven columns and only valid stored conditions', async t => {
+  const {doc,change}=await mount(t,'app/(main)/thong-tin-tuyen-sinh/AdmissionHistoryTable.tsx',{admissionHistory:historyRows});
+  assert.equal(doc.querySelectorAll('thead th').length,7);
+  assert.equal(doc.querySelector('select').value,'2026');
+  const row=doc.querySelector('tbody tr:nth-child(2)');
+  assert.equal(row.children[3].textContent,'0');
+  assert.equal(row.children[5].textContent,'A00');
+  assert.match(row.children[6].textContent,/Math:.*8/);
+  assert.match(row.children[6].textContent,/2/);
+  assert.match(row.children[6].textContent,/0/);
+  assert.doesNotMatch(row.children[6].textContent,/Bad|Negative|Overflow|HTML|script/);
+  assert.equal(doc.querySelector('tbody a').getAttribute('href'),'/tra-cuu-nganh-hoc/A');
+  await change(doc.querySelector('select'),'2025');
+  assert.equal(doc.querySelectorAll('tbody').length,1);
+  assert.match(doc.querySelector('tbody').textContent,/D01/);
+  assert.match(doc.querySelector('tbody').textContent,/Chưa công bố/);
+  await React.act(async()=>[...doc.querySelectorAll('button')].find(b=>b.textContent==='Lịch sử điểm chuẩn').click());
+  assert.equal(doc.querySelectorAll('thead th').length,6);
+  assert.match(doc.querySelector('tbody tr:nth-child(2)').textContent,/Chưa công bố/);
+  assert.match(doc.querySelector('tbody').textContent,/27/);
+  await change(doc.querySelectorAll('select')[1],'HB');
+  assert.equal(doc.querySelectorAll('tbody').length,1);
+  assert.equal(doc.querySelectorAll('thead th').length,5);
+  assert.equal(doc.querySelector('th[scope=rowgroup]').colSpan,5);
+});
+
+test('quota empty source and failed source remain distinct',async t=>{
+  const {doc}=await mount(t,'app/(main)/thong-tin-tuyen-sinh/AdmissionHistoryTable.tsx',{admissionHistory:[]});
+  assert.match(doc.body.textContent,/Chưa công bố dữ liệu/);
+  assert.equal(doc.querySelector('table'),null);
+  const html=require('react-dom/server').renderToStaticMarkup(React.createElement(load('app/(main)/thong-tin-tuyen-sinh/AdmissionHistoryTable.tsx').default,{admissionHistory:[],loadFailed:true}));
+  assert.match(html,/Chưa tải được dữ liệu/);
+});
+
+test('server maps combinations by exact year without leaking another year',async()=>{
+  let query;
+  const db=Object.fromEntries(['phuongThucXetTuyen','khoiNganh','triThucAi','trangNoiDung','loTrinhTuyenSinh'].map(n=>[n,{findMany:async()=>[]}]));
+  db.nganhHoc={count:async()=>1}; db.chuongTrinhDaoTao={findMany:async()=>[]};
+  const program={ten_chuong_trinh:'Alpha',nganh:{ma_nganh:'N',ten_nganh:'Major'},ctdt_to_hop:[{nam:2026,ma_to_hop:'A00'},{nam:2025,ma_to_hop:'D01'}]};
+  db.lichSuDiemChuan={findMany:async q=>{query=q;return [2026,2025].map(nam=>({ma_ls_dc:String(nam),nam,ma_chuong_trinh:'A',chi_tieu:0,chuong_trinh:program,diem_trung_tuyen:[{ma_phuong_thuc:'THPT',diem:0,phuong_thuc:{ten_phuong_thuc:'Exam'},nguyen_vong_toi_da:2,diem_uu_tien_toi_thieu:0,dieu_kien_mon:{Math:8}}]}));}};
+  const el=await loader({'@/libs/prisma':{prismaPublic:db},'./ThongTinTuyenSinhClient':{default:()=>null}})('app/(main)/thong-tin-tuyen-sinh/page.tsx').default();
+  assert.ok(query.include.chuong_trinh.include.ctdt_to_hop.select.nam);
+  assert.deepEqual(el.props.admissionHistory.map(r=>r.combinations),[['A00'],['D01']]);
+  assert.equal(el.props.admissionHistory[0].quota,0);
+  assert.deepEqual(el.props.admissionHistory[0].scores[0],{methodCode:'THPT',methodName:'Exam',score:0,maxPreference:2,minPriorityScore:0,subjectConditions:{Math:8}});
+});
+async function mount(t, file, props, moduleLoader = load) {
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost' });
   const restore = [];
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })) {
@@ -16,7 +67,7 @@ async function mount(t, file, props) {
     restore.push(() => old ? Object.defineProperty(global, key, old) : delete global[key]);
   }
   const root = require('react-dom/client').createRoot(dom.window.document.getElementById('root'));
-  const module = load(file);
+  const module = moduleLoader(file);
   await React.act(async () => root.render(React.createElement(module.default || module.Sidebar, props)));
   t.after(async () => { await React.act(async () => root.unmount()); dom.window.close(); restore.forEach(fn => fn()); });
   return { doc: dom.window.document, change: async (el, value) => React.act(async () => { el.value = value; el.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }) };
@@ -62,7 +113,7 @@ test('program switch resets actual course filters and replaces curriculum/conten
 test('info server restricts publication query and preserves partial data on failure', async t => {
   let query;
   const db = Object.fromEntries(['phuongThucXetTuyen','khoiNganh','triThucAi','lichSuDiemChuan','loTrinhTuyenSinh'].map(name => [name, { findMany: async () => [] }]));
-  db.nganhHoc = { count: async () => 3 }; db.chuongTrinhDaoTao = { count: async () => 4 };
+  db.nganhHoc = { count: async () => 3 }; db.chuongTrinhDaoTao = { findMany: async () => Array.from({length:4},(_,i)=>({ma_chuong_trinh:String(i),ten_chuong_trinh:'Program',nganh:{ma_nganh:'M',ten_nganh:'Major'}})) };
   db.trangNoiDung = { findMany: async q => { query = q; throw Error('DB unavailable'); } };
   t.mock.method(console, 'error', () => {});
   const component = await loader({ '@/libs/prisma': { prismaPublic: db }, './ThongTinTuyenSinhClient': { default: () => null } })('app/(main)/thong-tin-tuyen-sinh/page.tsx').default();
@@ -82,9 +133,60 @@ test('comparison forwards two or three selections and renders the selected metho
   await change(doc.querySelectorAll('select')[0], 'A'); await change(doc.querySelectorAll('select')[1], 'B');
   await React.act(async () => doc.querySelector('button').click());
   assert.deepEqual(compareCalls.at(-1), ['A', 'B']);
-  assert.match(doc.querySelector('tbody').textContent, /24 \/ 12/);
-  await change(doc.querySelector('[aria-label="Phương thức so sánh"]'), 'HB'); assert.match(doc.querySelector('tbody').textContent, /28 \/ 12/); assert.doesNotMatch(doc.querySelector('tbody').textContent, /24 \/ 12/);
-  await change(doc.querySelectorAll('select')[2], 'C'); await React.act(async () => doc.querySelector('button').click()); assert.deepEqual(compareCalls.at(-1), ['A', 'B', 'C']);
+  const metrics = () => [...doc.querySelectorAll('tbody')][1].querySelectorAll('tr');
+  assert.equal(metrics()[1].children[1].textContent, '24');
+  assert.equal(metrics()[2].children[1].textContent, '12');
+  assert.equal(doc.querySelectorAll('col').length, 3);
+  assert.equal(doc.querySelector('details').open, false);
+  await change(doc.querySelector('[aria-label="Phương thức so sánh"]'), 'HB');
+  assert.equal(metrics()[1].children[1].textContent, '28');
+  assert.equal(metrics()[2].children[1].textContent, '12');
+  await change(doc.querySelectorAll('select')[2], 'C');
+  assert.equal(doc.querySelector('table'), null);
+  await React.act(async () => doc.querySelector('button').click()); assert.deepEqual(compareCalls.at(-1), ['A', 'B', 'C']);
+  assert.equal(doc.querySelectorAll('col').length, 4);
+  const columnWidths = [...doc.querySelectorAll('col')].slice(1).map(c=>c.style.width);
+  assert.equal(new Set(columnWidths).size, 1);
+  assert.match(columnWidths[0], /calc/);
+});
+
+test('comparison separates yearly metrics, preserves zero quota and exact-year combinations with a common chart scale', async t => {
+  const history = (nam, quota, exam, transcript) => ({nam,chi_tieu:quota,diem_trung_tuyen:[{ma_phuong_thuc:'THPT',diem:exam,phuong_thuc:{ten_phuong_thuc:'Exam'}},{ma_phuong_thuc:'HB',diem:transcript,phuong_thuc:{ten_phuong_thuc:'Transcript'}}]});
+  const programs = ['A','B'].map((id,index)=>({ma_chuong_trinh:id,ten_chuong_trinh:`Full program ${id} with a deliberately long name`,nganh:{ten_nganh:'Major'},ctdt_to_hop:[{nam:2025,ma_to_hop:'D01'},{nam:2026,ma_to_hop:'A00'},{nam:2026,ma_to_hop:'A00'}],lich_su_diem_chuan:[history(2025,null,null,15),history(2026,index?12:0,index?20:10,index?0:30)]}));
+  const customLoad = loader({'@/actions/compare.action':{comparePrograms:async()=>programs}});
+  const {doc,change}=await mount(t,'app/(main)/so-sanh-chuong-trinh/CompareClient.tsx',{programs},customLoad);
+  await React.act(async()=>doc.querySelector('button').click());
+  assert.match(doc.querySelector('[role=alert]').textContent,/chương trình 1/);
+  await change(doc.querySelectorAll('select')[0],'A');await change(doc.querySelectorAll('select')[1],'B');
+  await React.act(async()=>doc.querySelector('button').click());
+  assert.deepEqual([...doc.querySelectorAll('th[scope=rowgroup]')].map(x=>x.textContent),['Năm 2026','Năm 2025']);
+  const groups=[...doc.querySelectorAll('tbody')].slice(1);
+  const cells=(group,row)=>[...groups[group].querySelectorAll('tr')[row].querySelectorAll('td')].map(x=>x.textContent);
+  assert.deepEqual(cells(0,1),['10','20']);assert.deepEqual(cells(0,2),['0','12']);assert.deepEqual(cells(0,3),['A00','A00']);
+  assert.deepEqual(cells(1,1),['Chưa có điểm','Chưa có điểm']);assert.deepEqual(cells(1,2),['Chưa có dữ liệu','Chưa có dữ liệu']);assert.deepEqual(cells(1,3),['D01','D01']);
+  assert.match(doc.querySelector('thead').textContent,/Full program A with a deliberately long name/);
+  const heights=()=>[...doc.querySelectorAll('details div[style]')].filter(x=>x.style.height.endsWith('%')).map(x=>Number.parseFloat(x.style.height));
+  assert.equal(heights().length,2);assert.equal(heights()[1]/heights()[0],2);assert.ok(heights()[1]<100);assert.equal(doc.querySelector('details').open,false);
+  await change(doc.querySelector('[aria-label="Phương thức so sánh"]'),'HB');
+  assert.deepEqual(cells(0,1),['30','Chưa có điểm']);assert.deepEqual(heights(),[37.5,75,37.5]);
+});
+
+test('vertical charts align chronological missing-year slots and use an accessible shared scale above DGNL scores', async t => {
+  const result = ['A','B','C'].map((id,index)=>({ma_chuong_trinh:id,ten_chuong_trinh:id,nganh:{ten_nganh:'Major'},ctdt_to_hop:[],lich_su_diem_chuan:index===2?[]:[{nam:2026,chi_tieu:1,diem_trung_tuyen:[{ma_phuong_thuc:'DGNL',diem:120,phuong_thuc:{ten_phuong_thuc:'DGNL'}}]},...(index===0?[{nam:2024,chi_tieu:1,diem_trung_tuyen:[{ma_phuong_thuc:'DGNL',diem:80,phuong_thuc:{ten_phuong_thuc:'DGNL'}}]}]:[])]}));
+  const {doc,change}=await mount(t,'app/(main)/so-sanh-chuong-trinh/CompareClient.tsx',{programs:result},loader({'@/actions/compare.action':{comparePrograms:async()=>result}}));
+  for(let i=0;i<3;i++)await change(doc.querySelectorAll('select')[i],result[i].ma_chuong_trinh);
+  await React.act(async()=>doc.querySelector('button').click());
+  const regions=[...doc.querySelectorAll('details [role=region]')];
+  assert.equal(regions.length,2);assert.ok(regions.every(x=>x.tabIndex===0));
+  const lists=[...doc.querySelectorAll('details ul')];
+  assert.deepEqual([...lists[0].children].map(x=>x.textContent),['2024: 80','2026: 120']);
+  assert.deepEqual([...lists[1].children].map(x=>x.textContent),['2024: Chưa có điểm','2026: 120']);
+  const plot=region=>[...region.querySelectorAll('div[style]')].filter(x=>x.style.height.endsWith('%'));
+  assert.deepEqual(plot(regions[0]).map(x=>x.style.height),['40%','60%']);
+  assert.deepEqual(plot(regions[1]).map(x=>x.style.height),['60%']);
+  for(const region of regions){assert.match(region.textContent,/200/);assert.match(region.textContent,/150/);assert.match(region.textContent,/100/);assert.match(region.textContent,/50/);assert.match(region.textContent,/0/);}
+  assert.match(doc.querySelector('details').textContent,/Chưa có dữ liệu cho phương thức này/);
+  assert.equal(doc.querySelector('details').open,false);
 });
 test('direct program B route selects B curriculum even when program A sorts first', async t => {
   const programs = ['A', 'B'].map(id => ({ ma_chuong_trinh: id, ten_chuong_trinh: `Program ${id}`, mo_ta_ngan: `Description ${id}`, ctdt_to_hop: [], lich_su_diem_chuan: [], hoc_phan: [{ ma_ctdt_hoc_phan: `course-${id}`, ma_hoc_phan: `course-${id}`, nam_ap_dung: 2026, hoc_ky: 1, loai: 'bat_buoc', hoc_phan: { ten_hoc_phan: `Curriculum ${id}`, so_tin_chi: 3 } }] }));

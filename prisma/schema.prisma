@@ -7,6 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
+// Ghi nhận chính xác các ID/file của một lần nộp để hoàn tác khi Storage lỗi.
+model SubmissionOperation {
+  operation_id String   @id
+  cccd         String   @db.VarChar(12)
+  status       String
+  dossier_id   String   @unique
+  payload_hash String
+  journal      Json
+  created_at   DateTime @db.Timestamp(3)
+
+  @@index([cccd], map: "ix_submission_operation_cccd")
+  @@map("submission_operation")
+}
+
 model VaiTro {
   ma_vai_tro  String  @id @default(uuid())
   ten_vai_tro String  @unique
@@ -32,31 +46,32 @@ model Admin {
   bai_viet           TrangNoiDung[]
   tri_thuc_ai        TriThucAi[]
   score_imports      AdmissionScoreImport[]
+  tinTucs            TinTuc[]
 
   @@map("admin")
 }
 
 model ThiSinh {
-  cccd                  String               @id @db.VarChar(12)
-  ho_ten                String
-  email                 String?
+  cccd                    String               @id @db.VarChar(12)
+  ho_ten                  String
+  email                   String?
   /// Mật khẩu đã băm có salt; không lưu hoặc trả mật khẩu gốc.
-  password              String?
-  activation_otp_hash   String?
-  activation_otp_expires DateTime? @db.Timestamp(6)
-  activation_otp_sent_at DateTime? @db.Timestamp(6)
-  activation_otp_attempts Int @default(0)
-  so_dien_thoai         String               @unique
-  khu_vuc               String?
-  doi_tuong_uu_tien     String?
-  diem_uu_tien_he_thong Float?               @default(0)
-  create_at             DateTime             @default(now())
-  bang_diem             BangDiem[]
-  chung_chi             ChungChi[]
-  diem_to_hop           DiemToHop[]
-  giai_thuong           GiaiThuong[]
-  trac_nghiem           KetQuaTracNghiem[]
-  nguyen_vong           NguyenVongSinhVien[]
+  password                String?
+  activation_otp_hash     String?
+  activation_otp_expires  DateTime?            @db.Timestamp(6)
+  activation_otp_sent_at  DateTime?            @db.Timestamp(6)
+  activation_otp_attempts Int                  @default(0)
+  so_dien_thoai           String               @unique
+  khu_vuc                 String?
+  doi_tuong_uu_tien       String?
+  diem_uu_tien_he_thong   Float?               @default(0)
+  create_at               DateTime             @default(now())
+  bang_diem               BangDiem[]
+  chung_chi               ChungChi[]
+  diem_to_hop             DiemToHop[]
+  giai_thuong             GiaiThuong[]
+  trac_nghiem             KetQuaTracNghiem[]
+  nguyen_vong             NguyenVongSinhVien[]
 
   @@map("thi_sinh")
 }
@@ -414,6 +429,68 @@ model cau_hoi_mbti {
   linh_vuc_ngu_canh String?   @db.VarChar(255)
   trang_thai        String?   @default("active") @db.VarChar(20)
   create_at         DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model TinTuc {
+  id            BigInt          @id @default(autoincrement())
+  // Thông tin bài viết
+  tieu_de       String          @db.VarChar(255)
+  slug          String          @unique @db.VarChar(300)
+  tom_tat       String?         @db.Text
+  anh_dai_dien  String?         @db.Text
+  // Nội dung CMS (Tiptap JSON -> PostgreSQL JSONB)
+  noi_dung      Json            @db.JsonB
+  noi_dung_text String?         @db.Text
+  // Phân loại và xuất bản
+  chuyen_muc    Chuyen_muc
+  trang_thai    TrangThaiTinTuc @default(nhap)
+  ghim          Boolean         @default(false)
+  // Thống kê
+  luot_xem      Int             @default(0)
+  // Thời gian
+  ngay_dang     DateTime?       @db.Timestamptz(6)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @updatedAt @db.Timestamptz(6)
+  // Admin quản lý
+  ma_admin      String
+  admin         Admin           @relation(fields: [ma_admin], references: [ma_admin])
+
+  // Tài liệu đính kèm
+  tai_lieu TaiLieuTinTuc[]
+
+  @@index([chuyen_muc, trang_thai, ngay_dang(sort: Desc)])
+  @@index([trang_thai, ghim, ngay_dang(sort: Desc)])
+  @@map("tin_tuc")
+}
+
+model TaiLieuTinTuc {
+  id         String @id @default(uuid())
+  tin_tuc_id BigInt
+
+  ten_file   String   @db.VarChar(255)
+  duong_dan  String   @db.Text
+  mime_type  String   @db.VarChar(100)
+  kich_thuoc BigInt?
+  thu_tu     Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  tin_tuc TinTuc @relation(fields: [tin_tuc_id], references: [id], onDelete: Cascade)
+
+  @@index([tin_tuc_id, thu_tu])
+  @@map("tai_lieu_tin_tuc")
+}
+
+enum Chuyen_muc {
+  de_an
+  quy_che
+  tin_tuc
+  huong_dan
+}
+
+enum TrangThaiTinTuc {
+  nhap
+  xuat_ban
+  an
 }
 
 enum LoaiBangDiem {

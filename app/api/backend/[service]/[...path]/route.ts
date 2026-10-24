@@ -32,6 +32,7 @@ function policy(
             return "admin";
     }
     if (service === "score") {
+        if (method === "POST" && path === "/diem/tinh-diem-doi-soat") return "public";
         if (method === "POST" && path === "/xet-tuyen/nhap-diem-thpt") return "admin";
         if (method === "GET" && /^\/xet-tuyen\/thong-bao\/\d{4}$/.test(path)) return "admin";
         if (["GET", "POST"].includes(method) && path === "/diem-chuan")
@@ -104,9 +105,11 @@ async function handle(
                 { status: 404 },
             );
         if (service === "ai" && auth === "public") publicApiLimiter.check("public-ai", 120);
+        if (service === "score" && path === "/diem/tinh-diem-doi-soat") publicApiLimiter.check("public-score-calculator", 60);
         if (
             service === "score" &&
             auth === "public" &&
+            path !== "/diem/tinh-diem-doi-soat" &&
             !request.nextUrl.searchParams.get("ma_ho_so") &&
             !request.nextUrl.searchParams.get("cccd")
         ) {
@@ -116,7 +119,7 @@ async function handle(
             );
         }
         // Cho phép thân yêu cầu rỗng khi phù hợp (ví dụ DELETE), nhưng vẫn giới hạn JSON đầu vào.
-        const body = request.method === "GET" ? undefined : await readBoundedJson(request, 100_000, true);
+        const body = request.method === "GET" ? undefined : await readBoundedJson(request, path === "/diem/tinh-diem-doi-soat" ? 4096 : 100_000, true);
         if (
             service === "ai" &&
             /^\/api\/predict\/(admission-chance|recommend-majors)$/.test(path)

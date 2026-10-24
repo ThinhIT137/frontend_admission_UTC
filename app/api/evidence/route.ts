@@ -17,6 +17,8 @@ function storage() {
 /** POST thêm file mới; PUT thay nội dung file đã có. Trả key để gắn vào hồ sơ, không trả URL công khai. */
 export async function POST(request: NextRequest) {
   try {
+    // File mới phải đi cùng điều phối nộp hồ sơ; chọn file trong form chưa ghi Storage.
+    if (request.method !== "PUT") throw new BackendError("Hãy nộp hồ sơ để lưu minh chứng mới", 409);
     if (request.headers.get("origin") && new URL(request.headers.get("origin")!).host !== request.headers.get("host")) return NextResponse.json({}, { status: 403 });
     // CCCD lấy từ JWT đã xác minh, không lấy từ tên thư mục do người dùng tự nhập.
     const me = await backendRequest<{ cccd: string }>("score", "/auth/candidate/me", { auth: "candidate" });

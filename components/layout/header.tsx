@@ -1,58 +1,13 @@
-"use client";
-
-interface HeaderProps {
-  isSidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
-}
-
+﻿"use client";
+import Link from "next/link";
+import { Menu, Search, ArrowUpRight, House } from "lucide-react";
+interface HeaderProps { isSidebarOpen?: boolean; onToggleSidebar?: () => void }
 export function Header({ isSidebarOpen = true, onToggleSidebar }: HeaderProps) {
-  return (
-    <header className="w-full h-16 bg-[#fff9ee] border-b-[3px] border-[#000525] px-4 sm:px-6 flex items-center justify-between shadow-[0_3px_0px_#000525]">
-      {/* Left: Toggle Button & Portal Tag & Hotline */}
-      <div className="flex items-center gap-3">
-        {onToggleSidebar && (
-          <button
-            onClick={onToggleSidebar}
-            className="w-9 h-9 border-[2px] border-[#000525] bg-[#fdb712] hover:bg-[#e2a20a] active:scale-95 flex items-center justify-center shadow-[2px_2px_0px_#000525] rounded-[8px] transition-all shrink-0"
-            title={isSidebarOpen ? "Thu gọn thanh menu" : "Mở rộng thanh menu"}
-          >
-            <span className="material-symbols-outlined text-[20px] text-[#000525]">
-              {isSidebarOpen ? "menu_open" : "menu"}
-            </span>
-          </button>
-        )}
-
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#fdb712] border-[2px] border-[#000525] shadow-[2px_2px_0px_#000525] rounded-[4px]">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#ba1a1a] animate-pulse"></span>
-          <span className="font-stamp text-[11px] sm:text-[12px] font-bold text-[#000525] uppercase">
-            CỔNG TUYỂN SINH CHÍNH THỨC
-          </span>
-        </div>
-
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-[#f4ede0] border-[2px] border-[#000525] rounded-[4px]">
-          <span className="material-symbols-outlined text-[#000525] text-[18px]">call</span>
-          <span className="font-stamp text-[11px] text-[#000525] font-bold">
-            HOTLINE 24/7: (024) 3766 3311
-          </span>
-        </div>
-      </div>
-
-      {/* Right User Status Badge */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 pl-2 border-l-[2px] border-[#c6c5d0]">
-          <div className="text-right hidden sm:block">
-            <span className="block font-stamp text-[13px] font-bold text-[#000525] leading-tight">
-              Thí sinh 2k8
-            </span>
-            <span className="block font-stamp text-[10px] font-bold text-[#7c5800] uppercase">
-              UTC (GHA)
-            </span>
-          </div>
-          <div className="w-9 h-9 rounded-full border-[2px] border-[#000525] bg-[#fdb712] flex items-center justify-center shadow-[2px_2px_0px_#000525] overflow-hidden">
-            <span className="material-symbols-outlined text-[#000525]">face</span>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
+ return <header className="flex h-16 w-full items-center gap-3 border-b border-slate-200 bg-white px-4 text-[#192b59] sm:px-6">
+ <button type="button" onClick={onToggleSidebar} aria-label={isSidebarOpen ? "Thu gọn thanh menu" : "Mở rộng thanh menu"} aria-expanded={isSidebarOpen} aria-controls="portal-sidebar" data-sidebar-toggle className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"><Menu size={19}/></button>
+ <Link href="/" className="hidden items-center gap-2 text-[11px] font-medium lg:flex"><House size={14}/>Trang chủ<span className="mx-2 text-slate-300">/</span>Tuyển sinh đại học</Link>
+ <form action="/tra-cuu-nganh-hoc" className="relative min-w-0 flex-1"><label htmlFor="header-major-search" className="sr-only">Tìm chương trình, mã xét tuyển</label><Search aria-hidden="true" size={15} className="absolute left-3 top-3 text-slate-400"/><input id="header-major-search" name="term" placeholder="Tìm chương trình, mã xét tuyển…" className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-2 text-xs outline-none focus:border-blue-500"/></form>
+ <span className="hidden rounded-lg bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-900 xl:block">Cơ sở Hà Nội · GHA</span>
+ <Link href="/nop-ho-so" className="flex shrink-0 items-center gap-1 rounded-lg bg-[#192b59] px-3 py-2.5 text-[11px] font-bold text-white hover:bg-blue-800"><ArrowUpRight size={14}/><span className="hidden sm:inline">Đăng ký xét tuyển</span><span className="sm:hidden">Nộp hồ sơ</span></Link>
+ </header>;
 }

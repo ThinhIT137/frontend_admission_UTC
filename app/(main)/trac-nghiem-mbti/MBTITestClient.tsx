@@ -1,10 +1,12 @@
 "use client";
 import { publicError } from "@/libs/client-error";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import PageMotion from "@/components/ui/PageMotion";
+import { useLoading } from "@/contexts/loadingContext";
 import { useRouter } from "next/navigation";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { MBTI_QUESTIONS, MbtiQuestion, calculateMbtiType } from "./mbtiData";
+import { MbtiQuestion } from "./mbtiData";
 import { api } from "@/libs/api-services/browser-api";
 
 interface MBTITestClientProps {
@@ -13,6 +15,11 @@ interface MBTITestClientProps {
 
 export default function MBTITestClient({ initialQuestions = [] }: MBTITestClientProps) {
   const router = useRouter();
+  const { beginLoading } = useLoading();
+  const reduced = useReducedMotion();
+  const questionStart = useRef<HTMLDivElement>(null);
+  const submitRelease = useRef<(() => void) | null>(null);
+  useEffect(() => () => submitRelease.current?.(), []);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [studentName, setStudentName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,10 +27,13 @@ export default function MBTITestClient({ initialQuestions = [] }: MBTITestClient
   const [questionsList, setQuestions] = useState<MbtiQuestion[]>(initialQuestions);
   const [error, setError] = useState("");
   useEffect(() => {
+    const release = beginLoading();
+    let active = true;
     api<{ data: Array<{ id: number; text: string; dimension: "EI" | "SN" | "TF" | "JP"; positive_trait: string }> }>("ai", "/api/mbti/questions")
-      .then(r => setQuestions(r.data.map(q => ({ id: q.id, text: q.text, dimension: q.dimension, direction: ["I", "N", "F", "P"].includes(q.positive_trait) ? -1 : 1 }))))
-      .catch(e => setError(publicError(e.message)));
-  }, []);
+      .then(r => { if (active) setQuestions(r.data.map(q => ({ id: q.id, text: q.text, dimension: q.dimension, direction: ["I", "N", "F", "P"].includes(q.positive_trait) ? -1 : 1 }))); })
+      .catch(e => { if (active) setError(publicError(e.message)); }).finally(release);
+    return () => { active = false; release(); };
+  }, [beginLoading]);
 
   const handleSelect = (qId: number, value: number) => {
     setAnswers((prev) => ({ ...prev, [qId]: value }));
@@ -32,204 +42,45 @@ export default function MBTITestClient({ initialQuestions = [] }: MBTITestClient
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = questionsList.length;
   const isComplete = totalQuestions > 0 && answeredCount === totalQuestions;
-  const progressPercent = Math.round(totalQuestions ? (answeredCount / totalQuestions) * 100 : 0);
 
   const handleSubmit = async () => {
     if (!isComplete || isSubmitting) return;
 
     setIsSubmitting(true);
+    const release = beginLoading();
+    submitRelease.current = release;
     setError("");
     try {
       const response = await api<{ data: { result_id: string; mbti_type: string } }>("ai", "/api/mbti/submit", { studentName: studentName.trim() || undefined, answers });
       if (!response.data.result_id) throw Error("Backend chưa lưu được kết quả. Vui lòng thử lại.");
       router.push(`/ket-qua-tu-van?id=${encodeURIComponent(response.data.result_id)}`);
     } catch (e) { setError(publicError(e instanceof Error ? e.message : "Không thể nộp bài trắc nghiệm")); }
-    finally { setIsSubmitting(false); }
+    finally { release(); submitRelease.current = null; setIsSubmitting(false); }
   };
-
-  return (
-    <div className="flex flex-col w-full space-y-7 pb-16">
-      {error && <p role="alert" className="text-red-700">{error}</p>}
-      {/* 1. Header Banner Phong Cách Neo-Brutalism */}
-      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-52 h-52 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="px-3 py-1 bg-[#0d1b4e] text-white font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            TƯ VẤN HƯỚNG NGHIỆP UTC
-          </span>
-          <span className="px-3 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            {totalQuestions} CÂU HỎI
-          </span>
-          <span className="px-3 py-1 bg-[#e0f2fe] text-[#0369a1] font-bold text-[12px] border-[1.5px] border-[#111827] rounded-lg">
-            Khám phá tiềm năng kỹ sư & nhà quản lý
-          </span>
-        </div>
-
-        <h1 className="font-display font-black text-[26px] sm:text-[34px] text-[#0d1b4e] uppercase leading-tight tracking-tight">
-          Trắc Nghiệm Tính Cách MBTI & Định Hướng Ngành Học UTC
-        </h1>
-
-        <p className="text-[14px] text-[#4b5563] mt-2 max-w-4xl leading-relaxed">
-          Bài trắc nghiệm được lấy trực tiếp từ ngân hàng câu hỏi chuẩn của Nhà trường trên cơ sở dữ liệu, kết hợp với đặc thù đào tạo các khối ngành <strong>Kỹ thuật - Công nghệ - Kinh tế - Quản lý Vận tải</strong> tại Trường Đại học Giao thông Vận tải. Giúp bạn thấu hiểu điểm mạnh, chọn môi trường học tập lý tưởng và tự tin gửi gắm nguyện vọng.
-        </p>
-      </div>
-
-      <DisclaimerBanner />
-
-      {/* 2. Container Bảng Câu Hỏi & Form Nhập Tên */}
-      <div className="bg-white p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-6">
-        {/* Thanh Thông Tin Thí Sinh & Tiến Độ */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-5 bg-[#fffdf7] p-5 border-[2px] border-[#111827] rounded-xl">
-          <div className="w-full md:w-80">
-            <label className="block text-[12.5px] font-black text-[#0d1b4e] mb-1.5 uppercase">
-              Họ và tên thí sinh (Tùy chọn):
-            </label>
-            <input
-              type="text"
-              placeholder="Ví dụ: Nguyễn Văn An..."
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border-[2px] border-[#111827] rounded-xl font-bold text-[13.5px] text-[#0d1b4e] outline-none placeholder:text-[#9ca3af] focus:ring-2 focus:ring-[#fdb712]"
-            />
-          </div>
-
-          <div className="w-full md:w-96 text-left md:text-right">
-            <div className="flex items-center justify-between md:justify-end gap-3 mb-1.5">
-              <span className="font-stamp text-[12px] font-black text-[#0d1b4e] uppercase">
-                Tiến độ trả lời:
-              </span>
-              <span className="px-2.5 py-0.5 bg-[#fdb712] text-[#0d1b4e] border border-[#111827] font-black font-stamp text-[12px] rounded-md shadow-[1px_1px_0px_#111827]">
-                {answeredCount} / {totalQuestions} CÂU ({progressPercent}%)
-              </span>
-            </div>
-
-            <div className="w-full h-3.5 bg-[#f3f4f6] rounded-full border-[2px] border-[#111827] overflow-hidden p-0.5">
-              <div
-                className="h-full bg-gradient-to-r from-[#0284c7] to-[#16a34a] rounded-full transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-[#6b7280] italic mt-1">
-              * Hãy chọn đáp án theo phản xạ tự nhiên chân thật nhất của bạn.
-            </p>
-          </div>
-        </div>
-
-        {/* Danh Sách 20 Câu Hỏi Trắc Nghiệm Liền Mạch (Đã Bỏ Bộ Lọc) */}
-        <div className="space-y-4">
-          {questionsList.map((q, index) => {
-            const currentVal = answers[q.id];
-
-            return (
-              <div
-                key={q.id}
-                className={`p-5 border-[2px] border-[#111827] rounded-xl transition-all ${
-                  currentVal !== undefined
-                    ? "bg-[#fffdf7] shadow-[3px_3px_0px_#111827]"
-                    : "bg-[#faf8f5] shadow-[2px_2px_0px_#cbd5e1]"
-                }`}
-              >
-                <div className="flex items-start gap-3 mb-3.5">
-                  <span className="w-7 h-7 rounded-lg bg-[#0d1b4e] text-[#fdb712] font-stamp text-[12px] font-black flex items-center justify-center shrink-0 border border-[#111827] shadow-[1px_1px_0px_#111827]">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-display font-bold text-[15px] sm:text-[16px] text-[#0d1b4e] leading-snug">
-                      {q.text}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Thang đo 5 mức độ */}
-                <div className="bg-white p-3 border border-[#e5e7eb] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <span className="text-[11.5px] font-bold text-[#ba1a1a] flex items-center gap-1 shrink-0">
-                    <span className="material-symbols-outlined text-[16px]">close</span>
-                    Hoàn toàn không đồng ý
-                  </span>
-
-                  <div className="flex items-center gap-2 sm:gap-3.5 w-full sm:w-auto justify-center">
-                    {[
-                      { val: 1, label: "Rất không đồng ý", size: "w-8 h-8 sm:w-9 sm:h-9" },
-                      { val: 2, label: "Không đồng ý", size: "w-7 h-7 sm:w-8 sm:h-8" },
-                      { val: 3, label: "Trung lập", size: "w-6 h-6 sm:w-7 sm:h-7" },
-                      { val: 4, label: "Đồng ý", size: "w-7 h-7 sm:w-8 sm:h-8" },
-                      { val: 5, label: "Rất đồng ý", size: "w-8 h-8 sm:w-9 sm:h-9" },
-                    ].map((opt) => {
-                      const isSelected = currentVal === opt.val;
-
-                      let activeBg = "bg-[#0284c7]";
-                      if (opt.val <= 2) activeBg = "bg-[#ba1a1a]";
-                      if (opt.val === 3) activeBg = "bg-[#64748b]";
-                      if (opt.val >= 4) activeBg = "bg-[#16a34a]";
-
-                      return (
-                        <button
-                          key={opt.val}
-                          type="button"
-                          title={opt.label}
-                          onClick={() => handleSelect(q.id, opt.val)}
-                          className={`${opt.size} rounded-full border-[2px] border-[#111827] font-display font-black text-[12px] sm:text-[13px] transition-all flex items-center justify-center cursor-pointer ${
-                            isSelected
-                              ? `${activeBg} text-white scale-110 shadow-[2px_2px_0px_#111827]`
-                              : "bg-[#fffdf7] text-[#4b5563] hover:bg-[#ffdea8] hover:scale-105"
-                          }`}
-                        >
-                          {opt.val}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <span className="text-[11.5px] font-bold text-[#16a34a] flex items-center gap-1 shrink-0">
-                    Rất đồng ý
-                    <span className="material-symbols-outlined text-[16px]">check</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Nút Xem Kết Quả Tư Vấn & Lưu DB */}
-        <div className="pt-4 border-t-[2px] border-dashed border-[#e5e7eb] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-[13px] text-[#4b5563] font-medium">
-            {isComplete ? (
-              <span className="text-[#16a34a] font-bold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                Bạn đã hoàn thành đủ tất cả 20 câu hỏi! Nhấn nút bên cạnh để phân tích và lưu kết quả vào hệ thống.
-              </span>
-            ) : (
-              <span>
-                Còn lại <strong>{totalQuestions - answeredCount}</strong> câu chưa trả lời. Hãy hoàn thành để nhận báo cáo chuẩn xác nhất.
-              </span>
-            )}
-          </div>
-
-          <button
-            type="button"
-            disabled={!isComplete || isSubmitting}
-            onClick={handleSubmit}
-            className={`w-full sm:w-auto px-8 py-4 font-display font-black text-[16px] uppercase tracking-wider rounded-xl border-[3px] border-[#111827] shadow-[4px_4px_0px_#111827] transition-all flex items-center justify-center gap-2 ${
-              isComplete && !isSubmitting
-                ? "bg-[#ea580c] hover:bg-[#c2410c] text-white active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer"
-                : "bg-[#e5e7eb] text-[#9ca3af] cursor-not-allowed shadow-none"
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Đang Lưu & Phân Tích...</span>
-              </>
-            ) : (
-              <>
-                <span>Xem Báo Cáo Tư Vấn Ngành Học UTC</span>
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const [started, setStarted] = useState(false);
+  const [step, setStep] = useState(0);
+  // Cuộn sau khi React đã thay chặng câu hỏi, không cuộn mỗi lần chọn đáp án.
+  useEffect(() => {
+    if (!started || !questionStart.current) return;
+    questionStart.current.focus({ preventScroll: true });
+    questionStart.current.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, [started, step, reduced]);
+  const pageCount = Math.max(1, Math.ceil(totalQuestions / 5));
+  const currentQuestions = questionsList.slice(step * 5, (step + 1) * 5);
+  const groupComplete = currentQuestions.length > 0 && currentQuestions.every(q => answers[q.id] !== undefined);
+  return <PageMotion className="space-y-6 pb-12 text-[#14244e]">
+    <header className="rounded-2xl bg-gradient-to-br from-[#14244e] to-[#284b9c] p-7 text-white sm:p-10">
+      <p className="mb-4 text-xs font-bold uppercase tracking-widest text-amber-300">Một chút tò mò, một góc nhìn mới về bạn</p>
+      <h1 className="max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">Ngành học nào hợp với <span className="text-amber-300">cách bạn là chính mình?</span></h1>
+      <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-100">Khám phá tính cách MBTI và những hướng học tập đáng để thử. Không có đáp án đúng hay sai — chỉ cần chọn điều gần với bạn nhất.</p>
+      <div className="mt-6 flex flex-wrap gap-3 text-xs"><span className="rounded-full bg-white/10 px-4 py-2">{totalQuestions || "…"} câu hỏi ngắn</span><span className="rounded-full bg-white/10 px-4 py-2">Theo nhịp của bạn</span><span className="rounded-full bg-white/10 px-4 py-2">Có thể quay lại sửa đáp án</span></div>
+    </header>
+    {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
+    <p className="text-sm leading-6 text-slate-500">MBTI là gợi ý tự khám phá, không quyết định năng lực, ngành học hay kết quả tuyển sinh của bạn.</p>
+    {!started ? <section className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-2xl font-bold">Bắt đầu từ việc hiểu mình hơn</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Mỗi lượt chỉ có 5 câu để bạn dễ tập trung. Bạn có thể đổi lựa chọn trước khi xem kết quả; hãy trả lời theo điều thường đúng với mình.</p><label className="mt-6 block max-w-md text-sm font-semibold">Bạn muốn được gọi là gì? <span className="font-normal text-slate-500">(không bắt buộc)</span><input value={studentName} onChange={e => setStudentName(e.target.value)} placeholder="Tên của bạn" className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><button disabled={!totalQuestions} onClick={() => setStarted(true)} className="mt-6 rounded-xl bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600 disabled:opacity-50">{totalQuestions ? "Khám phá bản thân →" : "Đang tải câu hỏi…"}</button></section> : <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8">
+      <div ref={questionStart} tabIndex={-1} className="mb-6 scroll-mt-24 border-b border-slate-100 pb-5 outline-none"><div className="mb-3 flex flex-wrap justify-between gap-2 text-sm"><h2 className="font-semibold">Chặng {step + 1} / {pageCount}</h2><p aria-live="polite">Đã trả lời {answeredCount} / {totalQuestions} câu</p></div><progress aria-label="Tiến độ trả lời" value={answeredCount} max={totalQuestions} className="h-2 w-full accent-orange-500" /></div>
+      <div className="space-y-5">{currentQuestions.map((q, index) => <fieldset key={q.id} disabled={isSubmitting} className="rounded-xl border border-slate-200 bg-slate-50/70 p-5"><legend className="px-2 text-base font-semibold leading-7"><span className="mr-2 text-orange-700">{step * 5 + index + 1}.</span>{q.text}</legend><div className="mt-2 grid gap-2 sm:grid-cols-5">{["Rất không đồng ý", "Không đồng ý", "Trung lập", "Đồng ý", "Rất đồng ý"].map((label, i) => <label key={label} className={`flex min-h-16 cursor-pointer items-center gap-2 rounded-lg border p-3 text-xs leading-5 transition-colors ${answers[q.id] === i + 1 ? "border-orange-400 bg-orange-50 text-orange-900" : "border-slate-200 bg-white hover:border-blue-300"}`}><input type="radio" name={`question-${q.id}`} value={i + 1} checked={answers[q.id] === i + 1} onChange={() => handleSelect(q.id, i + 1)} className="shrink-0 accent-orange-500" />{label}</label>)}</div></fieldset>)}</div>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><button disabled={step === 0 || isSubmitting} onClick={() => setStep(value => value - 1)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold disabled:opacity-40">← Chặng trước</button><p className="text-xs text-slate-500">Bạn luôn có thể sửa câu trả lời.</p>{step < pageCount - 1 ? <button disabled={!groupComplete} onClick={() => setStep(value => value + 1)} className="rounded-xl bg-[#14244e] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Tiếp tục khám phá →</button> : <button disabled={!isComplete || isSubmitting} onClick={handleSubmit} className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">{isSubmitting ? "Đang phân tích…" : "Xem điều thú vị về bạn →"}</button>}</div>
+    </section>}
+  </PageMotion>;
 }

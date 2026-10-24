@@ -1,13 +1,12 @@
 "use client";
 import { publicError } from "@/libs/client-error";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import AcademicEvidenceFields, { AcademicDraft, emptyTranscript } from "./AcademicEvidenceFields";
 import { academicPayload } from "./academic-payload";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { submitApplication } from "./submit-api.server";
 import CandidateSession from "@/components/CandidateSession";
 
 export interface MethodOption {
@@ -52,7 +51,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
   // Checklist & Upload files
   const [uploadedFiles, setUploadedFiles] = useState<
-    Array<{ id: string; loaiGiayTo: string; fileName: string; fileSize?: string; storageKey: string; uploadedAt: string }>
+    Array<{ id: string; loaiGiayTo: string; fileName: string; fileSize?: string; storageKey: string; uploadedAt: string; file?: File }>
   >([]);
 
   const [year, setYear] = useState(new Date().getFullYear());
@@ -68,6 +67,22 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   } | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const pendingSubmission = useRef<FormData | null>(null);
+  const submitting = useRef(false);
+  const accountGeneration = useRef(0);
+  const activeOwner = useRef("");
+  const listVersion = useRef(0);
+  const listRequest = useRef<AbortController | null>(null);
+  const submitRequest = useRef<AbortController | null>(null);
+
+  const resetAccountForm = () => {
+    accountGeneration.current++; listVersion.current++;
+    listRequest.current?.abort(); submitRequest.current?.abort();
+    pendingSubmission.current = null; submitting.current = false;
+    setIsSubmitting(false); setSubmitSuccess(null); setSubmitError(""); setCurrentStep(1);
+    setUploadedFiles([]); setAcademic({bang_diem:[emptyTranscript(year)],chung_chi:[],giai_thuong:[]});
+    setHoTen(""); setCccd(""); setSoDienThoai(""); setEmail(""); setKhuVuc("KV2"); setDoiTuongUuTien("NONE");
+  };
 
   const copyMaHoSo = (code: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -120,22 +135,24 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
   const handleSimulateUpload = async (docTitle: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    if (uploading) return;
-    setUploading(true);
-    const form = new FormData(); form.set("file", file); setSubmitError("");
+    if (isSubmitting || pendingSubmission.current) { toast.error("Vui lòng hoàn tất lần nộp đang chờ trước."); return; }
+    if (!file.size || file.size > 5 * 1024 * 1024 || !/\.(pdf|jpe?g|png)$/i.test(file.name)) { toast.error("Chọn PDF/JPEG/PNG tối đa 5 MB."); return; }
     const previous = uploadedFiles.find(f => f.loaiGiayTo === docTitle);
-    if (previous) form.set("key", previous.storageKey);
-    try {
-      const response = await fetch("/api/evidence", { method: previous ? "PUT" : "POST", body: form });
-      const data = await response.json(); if (!response.ok) throw Error(data.message);
-      const newDoc = { id: data.key, storageKey: data.key, loaiGiayTo: docTitle, fileName: file.name, fileSize: (file.size / 1048576).toFixed(2) + " MB", uploadedAt: new Date().toLocaleTimeString("vi-VN") };
-      setUploadedFiles(prev => [...prev.filter(f => f.loaiGiayTo !== docTitle), newDoc]);
-      toast.success(previous ? "Đã thay minh chứng" : "Đã tải minh chứng");
-    } catch (err) { toast.error(publicError(err)); } finally { setUploading(false); e.target.value = ""; }
+    listVersion.current++;
+    const total = uploadedFiles.filter(f=>f.loaiGiayTo!==docTitle).reduce((sum,f)=>sum+(f.file?.size||0),0)+file.size;
+    if (total > 3800000) { toast.error("Tổng file mới tối đa 3,8 MB mỗi lần nộp."); return; }
+    const key = `draft:${crypto.randomUUID()}`;
+    // Chỉ giữ File trên máy. Thay lựa chọn không ghi đè bytes của minh chứng cũ.
+    setUploadedFiles(prev => [...prev.filter(f=>f.loaiGiayTo!==docTitle), {id:key,storageKey:key,loaiGiayTo:docTitle,fileName:file.name,file,
+      fileSize:(file.size/1048576).toFixed(2)+" MB",uploadedAt:"Chờ nộp hồ sơ"}]);
+    if (previous) setAcademic(prev=>({...prev,chung_chi:prev.chung_chi.map(c=>c.file_dinh_kem===previous.storageKey?{...c,file_dinh_kem:key}:c),
+      giai_thuong:prev.giai_thuong.map(a=>a.file_dinh_kem===previous.storageKey?{...a,file_dinh_kem:key}:a)}));
+    toast.success("Đã chọn file. File được lưu sau khi dữ liệu hồ sơ hợp lệ."); e.target.value = "";
   };
 
   // Xác nhận nộp hồ sơ qua server action và API backend điểm.
   const handleFinalSubmit = async () => {
+    if (submitting.current) return;
     if (uploading) { toast.error("Vui lòng chờ tải minh chứng hoàn tất."); return; }
     setSubmitError("");
 
@@ -161,24 +178,43 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
     }
 
     setIsSubmitting(true);
+    submitting.current = true;
+    const generation = accountGeneration.current;
 
     try {
+      if (!pendingSubmission.current) {
       const evidence = academicPayload(academic);
       const linkedKeys = new Set([...evidence.chung_chi, ...evidence.giai_thuong].map(c => c.file_dinh_kem));
-      const result = await submitApplication({
+      const submissionInput = {
         cccd: trimmedCccd, ma_phuong_thuc: selectedMethod, ma_chuong_trinh: selectedProgram,
         profile: { ho_ten: trimmedHoTen, so_dien_thoai: trimmedPhone, khu_vuc: khuVuc, doi_tuong_uu_tien: doiTuongUuTien, ...(email.trim() ? {email:email.trim()} : {}) },
         ma_to_hop: selectedToHop || availableToHops[0] || undefined, nam_tuyen_sinh: year, nguyen_vong: preference,
         ...evidence,
         chung_chi: [...evidence.chung_chi, ...uploadedFiles.filter(f => !linkedKeys.has(f.storageKey)).map(f => ({ loai_chung_chi: "MINH_CHUNG: " + f.loaiGiayTo, diem_hoac_hang: "Không áp dụng — tài liệu hồ sơ", file_dinh_kem: f.storageKey }))],
-      });
+      };
+      const {cccd:owner,profile,...submission} = submissionInput;
+      const fresh = uploadedFiles.filter(f=>f.file);
+      const form = new FormData();
+      const encoded = JSON.stringify({operation_id:crypto.randomUUID(),cccd:owner,profile,submission,file_keys:fresh.map(f=>f.storageKey)});
+      if (new TextEncoder().encode(encoded).length > 131072) throw Error("Dữ liệu biểu mẫu quá lớn. Vui lòng giảm số mục.");
+      if (fresh.length > 10 || fresh.reduce((sum,f)=>sum+f.file!.size,0)>3800000) throw Error("Tổng tối đa 10 file mới và 3,8 MB/lần.");
+      form.set("payload",encoded);
+      fresh.forEach(f=>form.append("files",f.file!));
+      pendingSubmission.current = form;
+      }
+      submitRequest.current = new AbortController();
+      const response = await fetch("/api/application-submission",{method:"POST",body:pendingSubmission.current,signal:submitRequest.current.signal});
+      const result = await response.json();
+      if (generation !== accountGeneration.current) return;
 
       if (!result.success || !result.maHoSo) {
-        setSubmitError(publicError(result.error || "Lỗi lưu hồ sơ vào hệ thống tuyển sinh. Vui lòng kiểm tra lại kết nối."));
+        if (["not_started","completed"].includes(result.rollback)) pendingSubmission.current = null;
+        setSubmitError(result.message || "Chưa xác nhận được lần nộp. Vui lòng thử lại để đối soát.");
         return;
       }
 
       const generatedMaHoSo = result.maHoSo;
+      pendingSubmission.current = null;
 
       setSubmitSuccess({
         maHoSo: generatedMaHoSo,
@@ -187,32 +223,37 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
       });
       setCurrentStep(4);
     } catch (e: any) {
+      if (generation !== accountGeneration.current) return;
       setSubmitError(publicError(e?.message || "Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau."));
     } finally {
-      setIsSubmitting(false);
+      if (generation === accountGeneration.current) { setIsSubmitting(false); submitting.current = false; }
     }
   };
 
   return (
     <div className="flex flex-col w-full space-y-7 pb-16">
       <CandidateSession onAuthenticated={user => {
+        if (activeOwner.current !== user.cccd) { resetAccountForm(); activeOwner.current = user.cccd; }
         setHoTen(user.ho_ten); setCccd(user.cccd); setSoDienThoai(user.so_dien_thoai);
-        fetch("/api/evidence?list=1").then(async response => {
+        listRequest.current?.abort(); listRequest.current = new AbortController();
+        const generation = accountGeneration.current, version = ++listVersion.current;
+        fetch("/api/evidence?list=1",{signal:listRequest.current.signal}).then(async response => {
           if (!response.ok) throw Error("Không tải được minh chứng");
           const files: Array<{key:string;name:string}> = await response.json();
+          if (generation !== accountGeneration.current || version !== listVersion.current || activeOwner.current !== user.cccd) return;
           setUploadedFiles(files.map(f=>({id:f.key,storageKey:f.key,fileName:f.name,loaiGiayTo:f.key,uploadedAt:"Đã lưu"})));
-        }).catch(error=>console.error("[Danh sách minh chứng]", error));
-      }} onLogout={() => { setUploadedFiles([]); setCccd(""); setAcademic({bang_diem:[emptyTranscript(year)],chung_chi:[],giai_thuong:[]}); }} />
+        }).catch(error=>{if(error?.name!=="AbortError")console.error("[Danh sách minh chứng]", error);});
+      }} onLogout={() => { activeOwner.current = ""; resetAccountForm(); }} />
       <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Mùa tuyển sinh và nguyện vọng</h2>
         <label>Năm <input aria-label="Năm nộp hồ sơ" className="border p-2 w-24" type="number" min={2000} max={2100} value={year} onChange={e => setYear(Number(e.target.value))} /></label>
         <label className="ml-4">Nguyện vọng <input aria-label="Thứ tự nguyện vọng" className="border p-2 w-20" type="number" min={1} value={preference} onChange={e => setPreference(Number(e.target.value))} /></label>
       </section>
       <AcademicEvidenceFields value={academic} onChange={setAcademic} subjects={subjects} year={year} files={uploadedFiles} />
       <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Kho minh chứng của tôi</h2>
-        <p className="text-sm">File lưu trong thư mục CCCD của tài khoản. Có thể dùng lại file đã có hoặc thay bằng file cùng định dạng khi hồ sơ chưa được xử lý. Tối đa 5 MB/file.</p>
+        <p className="text-sm">Chọn file cùng hồ sơ; hệ thống lưu dữ liệu thành công rồi mới lưu file vào thư mục CCCD. Lưu file lỗi sẽ hoàn tác dữ liệu lần nộp. Tối đa 10 file mới và tổng 3,8 MB/lần để phù hợp giới hạn Vercel.</p>
         <label className="underline cursor-pointer">Tải thêm minh chứng chứng chỉ / giải thưởng<input type="file" className="block" disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload("Tài liệu bổ sung " + Date.now(),e)} /></label>
         {uploading && <p role="status">Đang tải minh chứng…</p>}
-        {uploadedFiles.map(f=><div key={f.storageKey} className="flex flex-wrap items-center gap-3"><a target="_blank" rel="noreferrer" className="underline" href={`/api/evidence?key=${encodeURIComponent(f.storageKey)}`}>{f.fileName}</a><label className="underline cursor-pointer">Thay file<input type="file" aria-label={"Thay file " + f.fileName} disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload(f.loaiGiayTo,e)} /></label></div>)}
+        {uploadedFiles.map(f=><div key={f.storageKey} className="flex flex-wrap items-center gap-3">{f.file?<span>{f.fileName} — chờ nộp</span>:<a target="_blank" rel="noreferrer" className="underline" href={`/api/evidence?key=${encodeURIComponent(f.storageKey)}`}>{f.fileName}</a>}<label className="underline cursor-pointer">Thay file<input type="file" aria-label={"Thay file " + f.fileName} disabled={uploading || isSubmitting} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload(f.loaiGiayTo,e)} /></label></div>)}
       </section>
       {/* 1. Header Banner Phong Cách Neo-Brutalism */}
       <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
