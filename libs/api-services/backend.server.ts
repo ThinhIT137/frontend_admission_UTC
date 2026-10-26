@@ -154,6 +154,10 @@ export async function backendRequest<T>(
             503,
         );
     let response: Response;
+    // Chat có thêm thời gian truy xuất dữ liệu và chờ LLM (backend chờ tới 60s).
+    // Không tự retry POST: tránh tạo hai lượt hội thoại cho một lần bấm.
+    const timeoutMs = service === "ai" ? (pathnameForTimeout(path) === "/api/chat" ? 90000 : 45000) : 15000;
+    const signal = AbortSignal.timeout(timeoutMs);
     try {
         response = await fetch(url, {
             redirect: "error",
@@ -164,9 +168,13 @@ export async function backendRequest<T>(
                     ? undefined
                     : JSON.stringify(options.body),
             cache: "no-store",
-            signal: AbortSignal.timeout(service === "ai" ? 45000 : 15000),
+            signal,
         });
     } catch {
+        if (signal.aborted) {
+            console.error("[Backend timeout]", { service, timeoutMs });
+            throw new BackendError("Dịch vụ phản hồi quá thời gian chờ. Vui lòng thử lại sau.", 504);
+        }
         throw new BackendError(
             `Không kết nối được backend ${service === "ai" ? "AI" : "hồ sơ/điểm"}. Vui lòng thử lại.`,
         );
@@ -231,4 +239,8 @@ export async function backendRequest<T>(
         );
     }
     return json as T;
+}
+
+function pathnameForTimeout(path: string) {
+    return path.split("?")[0];
 }

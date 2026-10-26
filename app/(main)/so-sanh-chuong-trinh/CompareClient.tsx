@@ -87,7 +87,6 @@ export default function CompareClient({ programs }: { programs: Array<{ ma_chuon
           <thead><tr className="bg-[#14244e] text-white">
             <th scope="col" className="border-b border-r border-slate-300 p-4 text-left align-top">Tiêu chí</th>
             {rows.map((r, index) => <th id={`compare-program-${index}`} scope="col" key={r.ma_chuong_trinh} className="border-b border-r border-slate-300 p-4 text-left align-top last:border-r-0">
-              <span className="mb-2 inline-block rounded bg-white px-2 py-1 text-xs font-bold tracking-wide text-blue-950">{r.ma_chuong_trinh}</span>
               <span className="block break-words text-base leading-6">{r.ten_chuong_trinh}</span>
             </th>)}
           </tr></thead>
@@ -116,33 +115,40 @@ export default function CompareClient({ programs }: { programs: Array<{ ma_chuon
       </div>
       <details className="border-t border-slate-200 p-4 sm:p-6">
         <summary className="cursor-pointer font-semibold">Xem biến động điểm chuẩn</summary>
-        <p className="mt-3 text-sm text-slate-500">{methodName || "Chưa có phương thức"} · Các biểu đồ dùng chung thang điểm để dễ đối chiếu.</p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">{rows.map(r => {
-          const points = chartYears.map(year => {
+        <p id="comparison-chart-hint" className="mt-3 text-sm text-slate-500">{methodName || "Chưa có phương thức"} · Mỗi nhóm là một năm, các cột màu tương ứng với chương trình đã chọn. Dấu — là chưa có điểm.</p>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Chú giải chương trình">
+          {rows.map((r, index) => <li key={r.ma_chuong_trinh} className="flex items-start gap-2 text-sm leading-6">
+            <span aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 rounded" style={{ backgroundColor: ["#2563eb", "#eab308", "#dc2626"][index] }} />
+            <span><strong>{index + 1}.</strong> {r.ten_chuong_trinh}</span>
+          </li>)}
+        </ul>
+        <div role="region" aria-label="Biểu đồ so sánh điểm chuẩn các chương trình theo năm" aria-describedby="comparison-chart-hint" className="mt-6 rounded-xl border border-slate-200 bg-white p-3 sm:p-5">
+          <ul className="sr-only">{chartYears.flatMap(year => rows.map(r => {
             const score = r.lich_su_diem_chuan.find(h => h.nam === year)?.diem_trung_tuyen.find(d => d.ma_phuong_thuc === selectedMethod)?.diem;
-            return { year, score: validScore(score) ? score : null };
-          });
-          return <section key={r.ma_chuong_trinh} className="flex min-w-0 flex-col rounded-lg border border-slate-200 p-4"><h3 className="min-h-12 break-words text-sm font-semibold leading-6">{r.ma_chuong_trinh} · {r.ten_chuong_trinh}</h3>
-            {points.some(p => p.score !== null) ? <>
-              <ul className="sr-only" aria-label={`Điểm chuẩn ${r.ma_chuong_trinh}`}>{points.map(p => <li key={p.year}>{p.year}: {p.score === null ? "Chưa có điểm" : formatNumber(p.score)}</li>)}</ul>
-              <p id={`chart-hint-${r.ma_chuong_trinh}`} className="mt-2 text-xs text-slate-500">Trục ngang: năm · Trục dọc: điểm. Dấu —: chưa có điểm. Vuốt ngang nếu bảng dài.</p>
-              <div role="region" aria-label={`Biểu đồ cột ${r.ma_chuong_trinh}`} aria-describedby={`chart-hint-${r.ma_chuong_trinh}`} tabIndex={0} className="mt-auto max-w-full overflow-x-auto pb-2 pt-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800">
-                <div aria-hidden="true" style={{ minWidth: Math.max(260, chartYears.length * 60 + 44) }}>
-                  <div className="flex gap-2 pt-3">
-                    <div className="relative h-56 w-10 shrink-0 text-right text-xs tabular-nums text-slate-500">{chartTicks.map(tick => <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ top: `${(1 - tick / chartMax) * 100}%` }}>{formatNumber(tick)}</span>)}</div>
-                    <div className="relative h-56 min-w-0 flex-1 border-b border-l border-slate-300">
-                      {chartTicks.filter(tick => tick > 0).map(tick => <div key={tick} className="absolute inset-x-0 border-t border-dashed border-slate-200" style={{ top: `${(1 - tick / chartMax) * 100}%` }} />)}
-                      <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }}>{points.map(p => <div key={p.year} className="relative flex h-full items-end justify-center px-2">
-                        {p.score === null ? <span className="mb-2 text-sm text-slate-400">—</span> : <div className="relative w-full max-w-12 rounded-t bg-[#537ba6]" style={{ height: `${p.score / chartMax * 100}%` }}><span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold tabular-nums text-[#102449]">{formatNumber(p.score)}</span></div>}
-                      </div>)}</div>
-                    </div>
-                  </div>
-                  <div className="ml-12 mt-2 grid text-center text-xs tabular-nums text-slate-600" style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }}>{points.map(p => <span key={p.year}>{p.year}</span>)}</div>
+            return <li key={`${year}-${r.ma_chuong_trinh}`}>{year}, {r.ten_chuong_trinh}: {validScore(score) ? formatNumber(score) : "Chưa có điểm"}</li>;
+          }))}</ul>
+          <div aria-hidden="true">
+            <div className="flex gap-2 pt-6">
+              <div className="relative h-72 w-8 shrink-0 text-right text-xs tabular-nums text-slate-500">{chartTicks.map(tick => <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ top: `${(1 - tick / chartMax) * 100}%` }}>{formatNumber(tick)}</span>)}</div>
+              <div className="relative h-72 min-w-0 flex-1 border-b border-l border-slate-300">
+                {chartTicks.filter(tick => tick > 0).map(tick => <div key={tick} className="absolute inset-x-0 border-t border-dashed border-slate-200" style={{ top: `${(1 - tick / chartMax) * 100}%` }} />)}
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${chartYears.length}, minmax(0, 1fr))` }}>
+                  {chartYears.map(year => <div key={year} className="flex h-full min-w-0 items-end justify-center gap-px px-2 sm:px-5 lg:px-7">
+                    {rows.map((r, index) => {
+                      const score = r.lich_su_diem_chuan.find(h => h.nam === year)?.diem_trung_tuyen.find(d => d.ma_phuong_thuc === selectedMethod)?.diem;
+                      return <div key={r.ma_chuong_trinh} className="relative flex h-full min-w-0 max-w-12 flex-1 items-end justify-center">
+                        {validScore(score) ? <div className="relative w-full rounded-t-sm" style={{ height: `${score / chartMax * 100}%`, backgroundColor: ["#2563eb", "#eab308", "#dc2626"][index] }}>
+                          <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold tabular-nums text-slate-800 sm:text-xs [writing-mode:vertical-rl] lg:[writing-mode:horizontal-tb]">{formatNumber(score)}</span>
+                        </div> : <span className="mb-1 text-xs text-slate-400">—</span>}
+                      </div>;
+                    })}
+                  </div>)}
                 </div>
               </div>
-            </> : <p className="mt-3 text-sm text-slate-500">Chưa có dữ liệu cho phương thức này.</p>}
-          </section>;
-        })}</div>
+            </div>
+            <div className="ml-10 mt-3 grid text-center text-xs tabular-nums text-slate-600" style={{ gridTemplateColumns: `repeat(${chartYears.length}, minmax(0, 1fr))` }}>{chartYears.map(year => <span key={year}>{year}</span>)}</div>
+          </div>
+        </div>
       </details>
     </section>}
   </PageMotion>;

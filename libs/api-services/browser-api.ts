@@ -2,7 +2,9 @@
  * Cookie cùng website được gửi kèm; lỗi trả thông báo chung để giao diện dùng toast. */
 export class BrowserApiError extends Error {
     constructor(public readonly status: number) {
-        super("Thao tác thất bại. Vui lòng thử lại.");
+        super(status === 504 ? "Dịch vụ đang phản hồi chậm. Vui lòng thử lại sau."
+            : status === 502 || status === 503 ? "Dịch vụ tạm thời chưa kết nối được. Vui lòng thử lại sau."
+            : "Thao tác thất bại. Vui lòng thử lại.");
         this.name = "BrowserApiError";
     }
 }

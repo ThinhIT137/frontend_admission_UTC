@@ -23,8 +23,10 @@ interface Props {
     faculties: KhoiNganh[];
     combinations: { ma_to_hop: string }[];
     initialError?: string;
+    availableYears: number[];
+    methods: { ma_phuong_thuc: string; ten_phuong_thuc: string }[];
 }
-export default function MajorLookupClient({ initialFilters, initialResult, faculties, combinations, initialError = "" }: Props) {
+export default function MajorLookupClient({ initialFilters, initialResult, faculties, combinations, availableYears, methods, initialError = "" }: Props) {
     const { beginLoading } = useLoading();
     const [filters, setFilters] = useState(initialFilters);
     const [queryTerm, setQueryTerm] = useState(initialFilters.term);
@@ -35,6 +37,9 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     const [sortOption, setSortOption] = useState("score-desc");
     const sequence = useRef(0);
     const interacted = useRef(false);
+    const resultsStart = useRef<HTMLDivElement>(null);
+    const scrollAfterPagination = useRef(false);
+    const [completedPageRequest, setCompletedPageRequest] = useState(0);
     const { term: searchTerm, faculty: selectedFaculty, toHop: selectedToHop,
         diemChuan: selectedDiemChuan, year: selectedYear, phuongThuc: selectedMethod,
         page: currentPage, pageSize } = filters;
@@ -44,6 +49,7 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     // Bộ lọc và số trang đổi cùng một lần, không gửi truy vấn với trang cũ.
     function field<K extends keyof LookupFilters>(key: K): Dispatch<SetStateAction<LookupFilters[K]>> {
         return value => {
+            scrollAfterPagination.current = false;
             interacted.current = true;
             sequence.current += 1;
             setPending(true);
@@ -61,6 +67,7 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     const setSelectedYear = field("year");
     const setSelectedMethod = field("phuongThuc");
     const setCurrentPage: Dispatch<SetStateAction<number>> = value => {
+        scrollAfterPagination.current = true;
         interacted.current = true;
         sequence.current += 1;
         setPending(true);
@@ -87,6 +94,10 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
             if (!active || requestId !== sequence.current) return;
             setDataNganhHoc(result.data);
             setTotalPages(Math.max(1, Math.ceil(result.total / pageSize)));
+            if (scrollAfterPagination.current) {
+                scrollAfterPagination.current = false;
+                setCompletedPageRequest(requestId);
+            }
         }).catch(err => {
             if (!active || requestId !== sequence.current) return;
             console.error("Không tải được danh sách ngành học:", err);
@@ -100,6 +111,15 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
         });
         return () => { active = false; release(); };
     }, [filters, queryTerm, pageSize, beginLoading]);
+
+    // Đợi React cập nhật thẻ chương trình mới rồi mới cuộn, không cuộn lúc mount.
+    useEffect(() => {
+        if (!completedPageRequest) return;
+        resultsStart.current?.scrollIntoView({
+            block: "start",
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+    }, [completedPageRequest]);
 
     const sortedNganhHoc = [...dataNganhHoc].sort((a, b) => {
         if (sortOption === "name-asc") {
@@ -134,7 +154,8 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
             <Link className="underline font-bold" href="/so-sanh-chuong-trinh">So sánh chương trình và lịch sử điểm chuẩn</Link>
             <DisclaimerBanner />
             <label className="font-bold">Phương thức lọc điểm <select className="border rounded p-2 ml-3" aria-label="Phương thức lọc ngành" value={selectedMethod} onChange={e => setSelectedMethod(e.target.value)}>
-              <option value="PT1">THPT (thang 30)</option><option value="PT2">Học bạ</option><option value="PT3">ĐGNL</option><option value="PT4">ĐGTD</option><option value="PT5">Kết hợp</option>
+              {!methods.length && <option value={selectedMethod}>Chưa tải được phương thức</option>}
+              {methods.map(method => <option key={method.ma_phuong_thuc} value={method.ma_phuong_thuc}>{method.ten_phuong_thuc}</option>)}
             </select></label>
             <Link className="underline" href="/du-bao-tuyen-sinh">Dự báo điểm chuẩn và đánh giá theo điểm môn</Link>
             {/* Filter and Search Bar */}
@@ -153,11 +174,12 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
                 setSortOption={setSortOption}
                 data_khoa_vien={dataKhoaVien}
                 data_to_hop={dataToHop}
+                availableYears={availableYears}
             />
             <div role="status" aria-live="polite">{pending ? "Đang cập nhật danh sách..." : ""}</div>
             {error && <p role="alert" className="text-red-700">{error}</p>}
             {/* Giữ kết quả trước trong lúc tải để tránh nhấp nháy toàn trang. */}
-            <div aria-busy={pending}>
+            <div ref={resultsStart} className="scroll-mt-24" aria-busy={pending}>
             {(dataNganhHoc.length > 0 || !error) && <MajorList
                 dataNganhHoc={sortedNganhHoc}
                 selectedYear={selectedYear}

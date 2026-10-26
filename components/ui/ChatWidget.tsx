@@ -2,292 +2,83 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowUpRight, Bot, ChevronDown, Send, Sparkles, X } from "lucide-react";
+import ChatTyping from "./ChatTyping";
+import { api, BrowserApiError } from "@/libs/api-services/browser-api";
 
-interface Message {
-  id: string;
-  sender: "user" | "bot";
-  text: string;
-  time: string;
-  actionUrl?: string;
-  actionLabel?: string;
-}
-
-const initialMessages: Message[] = [
-  {
-    id: "1",
-    sender: "bot",
-    text: "Xin chào bạn! Mình là Trợ lý AI Tuyển sinh UTC 2026. Mình có thể giúp bạn giải đáp điều gì về ngành học, điểm chuẩn, phương thức xét tuyển hay quy đổi chứng chỉ hôm nay?",
-    time: "Vừa xong",
-  },
-];
-
-const suggestedQuestions = [
-  "Điểm chuẩn ngành CNTT năm 2025?",
-  "Ngành Robot và Trí tuệ nhân tạo?",
-  "Cách quy đổi điểm IELTS sang UTC?",
-  "Chỉ tiêu tuyển sinh K66 là bao nhiêu?",
-  "Các phương thức xét tuyển UTC?",
-];
+type Message = { id: string; sender: "user" | "bot"; text: string; failed?: boolean };
+const questions = ["Các phương thức xét tuyển GHA?", "Điểm chuẩn CNTT năm 2026?", "IELTS được cộng điểm thế nào?"];
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([{ id: "welcome", sender: "bot", text: "Chào bạn! Mình có thể hỗ trợ tìm hiểu chương trình đào tạo, điểm chuẩn và thông tin tuyển sinh UTC tại Hà Nội. Bạn muốn tìm hiểu điều gì?" }]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(true);
+  const pending = useRef(false);
+  const sessionId = useRef<string | undefined>(undefined);
+  const body = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const reduced = useReducedMotion();
+  const close = () => { setIsOpen(false); trigger.current?.focus(); };
 
   useEffect(() => {
-    if (isOpen) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen, isTyping]);
+    if (!isOpen) return;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 100);
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { setIsOpen(false); trigger.current?.focus(); } };
+    window.addEventListener("keydown", onKey);
+    return () => { window.clearTimeout(timer); window.removeEventListener("keydown", onKey); };
+  }, [isOpen]);
+  useEffect(() => {
+    // Chỉ cuộn vùng hội thoại, không kéo cả trang phía sau popup.
+    body.current?.scrollTo({ top: body.current.scrollHeight, behavior: reduced ? "auto" : "smooth" });
+  }, [messages, isTyping, isOpen, reduced]);
 
-  const handleSend = (textToSend?: string) => {
-    const query = (textToSend || input).trim();
-    if (!query) return;
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      sender: "user",
-      text: query,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInput("");
-    setIsTyping(true);
-
-    const qLower = query.toLowerCase();
-
-    setTimeout(() => {
-      let botResponse = "";
-      let actionUrl: string | undefined = undefined;
-      let actionLabel: string | undefined = undefined;
-
-      if (qLower.includes("cntt") || qLower.includes("công nghệ thông tin")) {
-        botResponse =
-          "Ngành Công nghệ Thông tin (mã 7480201) tại UTC năm 2025 có điểm chuẩn THPT là 25.85 điểm (A00, A01). Chỉ tiêu tuyển sinh khoảng 360 sinh viên.";
-        actionUrl = "/tra-cuu-nganh-hoc/7480201";
-        actionLabel = "Xem Khung Đào Tạo CNTT";
-      } else if (qLower.includes("robot") || qLower.includes("trí tuệ nhân tạo") || qLower.includes("ai")) {
-        botResponse =
-          "Chương trình Kỹ thuật Robot và Trí tuệ nhân tạo (Chương trình Tiên tiến - mã 7520216) xét tuyển theo các tổ hợp A00, A01, D07. Điểm chuẩn năm 2025 là 26.00 điểm.";
-        actionUrl = "/tra-cuu-nganh-hoc/7520216";
-        actionLabel = "Xem Ngành Robot & AI";
-      } else if (qLower.includes("logistics")) {
-        botResponse =
-          "Ngành Logistics và Quản lý chuỗi cung ứng (mã 7510605) thuộc Khoa Vận tải - Kinh tế, điểm chuẩn THPT 2025 là 26.10 điểm. Chỉ tiêu dự kiến 250 sinh viên.";
-        actionUrl = "/tra-cuu-nganh-hoc/7510605";
-        actionLabel = "Xem Ngành Logistics";
-      } else if (qLower.includes("quy đổi") || qLower.includes("ielts")) {
-        botResponse =
-          "UTC quy đổi chứng chỉ IELTS: từ 5.0 = 8.0đ; 5.5 = 8.5đ; 6.0 = 9.0đ; 6.5 trở lên = 10.0đ môn Tiếng Anh trong tổ hợp xét tuyển. Bạn có thể tự tính điểm bằng công cụ tính điểm quy đổi.";
-        actionUrl = "/tinh-diem-quy-doi";
-        actionLabel = "Mở Công Cụ Tính Điểm";
-      } else if (qLower.includes("chỉ tiêu") || qLower.includes("chi tieu")) {
-        botResponse =
-          "Tổng chỉ tiêu tuyển sinh K66 năm 2026 tại Cơ sở Hà Nội (GHA) dự kiến khoảng 6.000 sinh viên cho hơn 35 ngành và chương trình đào tạo.";
-        actionUrl = "/thong-tin-tuyen-sinh";
-        actionLabel = "Xem Đề Án Tuyển Sinh";
-      } else if (qLower.includes("phương thức") || qLower.includes("xét tuyển")) {
-        botResponse =
-          "UTC áp dụng 4 phương thức xét tuyển: PT1 (Điểm thi tốt nghiệp THPT), PT2 (Kết hợp IELTS & Học bạ), PT3 (Xét học bạ 5 học kỳ), PT4 (Đánh giá tư duy TSA - ĐHBK Hà Nội).";
-        actionUrl = "/thong-tin-tuyen-sinh";
-        actionLabel = "Xem Chi Tiết Phương Thức";
-      } else if (qLower.includes("học phí") || qLower.includes("hoc phi")) {
-        botResponse =
-          "Học phí hệ đại học chính quy khoảng 380.000đ - 460.000đ/tín chỉ tùy khối ngành kỹ thuật hay kinh tế (~14 - 18 triệu đồng/năm học).";
-      } else {
-        botResponse = `Hệ thống CSDL UTC cung cấp thông tin tra cứu tự động cho 35+ ngành học và các phương thức xét tuyển K66. Bạn có thể mở trang Hỏi Đáp AI Chuyên Sâu để trò chuyện chi tiết hơn!`;
-        actionUrl = "/hoi-dap-ai";
-        actionLabel = "Mở Trang Hỏi Đáp AI Đầy Đủ";
-      }
-
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: "bot",
-        text: botResponse,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        actionUrl,
-        actionLabel,
-      };
-
-      setMessages((prev) => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 700);
+  const handleSend = async (suggestion?: string) => {
+    const query = (suggestion ?? input).trim();
+    if (!query || pending.current) return;
+    pending.current = true; setInput(""); setIsTyping(true); setShowQuickQuestions(false);
+    setMessages(previous => [...previous, { id: crypto.randomUUID(), sender: "user", text: query }]);
+    try {
+      // Dùng cùng API với /hoi-dap-ai, không trả lời bằng dữ liệu viết cứng.
+      const response = await api<{ success: boolean; data: { answer: string; session_id: string } }>("ai", "/api/chat", { message: query, session_id: sessionId.current });
+      if (!response.data?.answer?.trim()) throw new Error("Empty answer");
+      sessionId.current = response.data.session_id;
+      setMessages(previous => [...previous, { id: crypto.randomUUID(), sender: "bot", text: response.data.answer }]);
+    } catch (error) {
+      setMessages(previous => [...previous, { id: crypto.randomUUID(), sender: "bot", failed: true, text: error instanceof BrowserApiError ? error.message : "Chưa nhận được phản hồi từ dịch vụ tư vấn. Bạn thử gửi lại sau hoặc mở trang hỏi đáp đầy đủ nhé." }]);
+    } finally { pending.current = false; setIsTyping(false); }
   };
 
-  return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Floating Modal Window */}
-      {isOpen && (
-        <div className="mb-4 w-[360px] sm:w-[420px] h-[540px] bg-[#fffdf7] border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-[16px] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
-          {/* Header */}
-          <div className="bg-[#0284c7] text-white p-3.5 border-b-[3px] border-[#111827] flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-[#fdb712] border-[2px] border-[#111827] flex items-center justify-center text-[#111827] font-bold shadow-[1.5px_1.5px_0px_#111827]">
-                <span className="material-symbols-outlined text-[20px]">smart_toy</span>
-              </div>
-              <div>
-                <h4 className="font-display font-bold text-[16px] leading-tight">
-                  Hỏi Đáp AI Tuyển Sinh UTC
-                </h4>
-                <p className="text-[11px] text-[#e0f2fe] flex items-center gap-1 font-mono">
-                  <span className="w-2 h-2 rounded-full bg-[#86efac] animate-pulse"></span>
-                  Kết nối CSDL K66
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Link
-                href="/hoi-dap-ai"
-                onClick={() => setIsOpen(false)}
-                title="Mở toàn màn hình tại trang Hỏi Đáp AI"
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center border border-white/20 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                title="Đóng cửa sổ chat"
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center border border-white/20 transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Disclaimer Banner Inside Chat */}
-          <div className="bg-[#fef08a] px-3 py-1.5 border-b-[2px] border-[#111827] text-[11px] font-bold text-[#111827] flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[#ba1a1a] text-[16px]">info</span>
-            <span>AI đồng bộ dữ liệu Tuyển sinh UTC (Hà Nội).</span>
-          </div>
-
-          {/* Messages Body */}
-          <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-[#faf3e6]">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${
-                  msg.sender === "user" ? "items-end" : "items-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[85%] p-3 text-[13px] leading-relaxed border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] ${
-                    msg.sender === "user"
-                      ? "bg-[#0284c7] text-white rounded-[12px] rounded-br-none"
-                      : "bg-white text-[#111827] rounded-[12px] rounded-bl-none"
-                  } space-y-2`}
-                >
-                  <p>{msg.text}</p>
-                  {msg.actionUrl && (
-                    <Link
-                      href={msg.actionUrl}
-                      onClick={() => setIsOpen(false)}
-                      className="inline-flex items-center gap-1 text-[11.5px] font-black text-[#0284c7] hover:underline bg-[#f0f9ff] px-2 py-1 rounded border border-[#bae6fd]"
-                    >
-                      <span>{msg.actionLabel || "Xem chi tiết"}</span>
-                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </Link>
-                  )}
-                </div>
-                <span className="text-[10px] text-[#6b7280] mt-1 px-1 font-mono">{msg.time}</span>
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="flex items-center gap-1 bg-white p-2.5 border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-[12px] w-fit">
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce"></span>
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce [animation-delay:0.2s]"></span>
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce [animation-delay:0.4s]"></span>
-              </div>
-            )}
-
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Suggested Prompts */}
-          <div className="px-3 py-2 bg-[#fffdf7] border-t-[2px] border-[#111827] flex gap-1.5 overflow-x-auto no-scrollbar">
-            {suggestedQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSend(q)}
-                className="shrink-0 text-[11px] font-bold bg-[#fff] hover:bg-[#ffdea8] text-[#111827] px-2.5 py-1 border-[1.5px] border-[#111827] shadow-[1px_1px_0px_#111827] rounded-[6px] transition-colors whitespace-nowrap cursor-pointer"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
-          {/* Input Footer */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="p-3 bg-white border-t-[3px] border-[#111827] flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Nhập câu hỏi cần tư vấn tuyển sinh..."
-              className="flex-1 text-[13px] px-3 py-2 bg-[#faf3e6] border-[2px] border-[#111827] rounded-[8px] outline-none focus:bg-white font-medium"
-            />
-            <button
-              type="submit"
-              disabled={isTyping || !input.trim()}
-              className="px-3 py-2 bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white font-bold text-[13px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] active:translate-x-[1px] active:translate-y-[1px] rounded-[8px] flex items-center justify-center transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">send</span>
-            </button>
-          </form>
+  return <div className="fixed bottom-6 right-5 z-50 sm:right-7">
+    <AnimatePresence>
+      {isOpen && <motion.section id="utc-chat-panel" role="dialog" aria-modal="false" aria-labelledby="utc-chat-title"
+        initial={{ opacity: 0, y: reduced ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : 8 }} transition={{ duration: reduced ? 0 : .18 }}
+        className="absolute bottom-16 right-0 flex h-[min(600px,calc(100dvh-112px))] w-[calc(100vw-40px)] max-w-[400px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_64px_rgba(15,35,75,0.2)]">
+        <header className="flex shrink-0 items-center justify-between gap-2 bg-gradient-to-br from-[#14244e] to-[#264680] p-4 text-white">
+          <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-blue-950"><Bot size={23} aria-hidden="true" /></div><div><h2 id="utc-chat-title" className="text-sm font-bold">Trợ lý tuyển sinh UTC</h2><p className="mt-0.5 text-xs text-blue-100">Hà Nội · Mã trường GHA</p></div></div>
+          <div className="flex shrink-0 gap-1"><Link href="/hoi-dap-ai" onClick={close} aria-label="Mở trang hỏi đáp đầy đủ" title="Mở trang hỏi đáp đầy đủ" className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white"><ArrowUpRight size={20} /></Link><button type="button" onClick={close} aria-label="Đóng trò chuyện" className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white"><X size={20} /></button></div>
+        </header>
+        <div className="flex shrink-0 items-center gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-xs leading-5 text-slate-600"><Sparkles size={14} className="shrink-0 text-blue-700" aria-hidden="true" />Thông tin AI để tham khảo. Đối chiếu thông báo của trường.</div>
+        <div ref={body} role="log" aria-label="Nội dung trò chuyện" aria-live="polite" aria-relevant="additions" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50/80 p-4">
+          {messages.map(message => <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[90%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 ${message.sender === "user" ? "rounded-br-md bg-[#1e3a70] text-white" : message.failed ? "border border-amber-200 bg-amber-50 text-amber-900" : "rounded-bl-md border border-slate-200 bg-white text-slate-700 shadow-sm"}`}>{message.text}</div></div>)}
+          {isTyping && <ChatTyping />}
         </div>
-      )}
-
-      {/* Floating Toggle Controls */}
-      {isMinimized ? (
-        <button
-          type="button"
-          onClick={() => {
-            setIsMinimized(false);
-            setIsOpen(true);
-          }}
-          title="Mở Trợ Lý AI Tuyển Sinh"
-          className="w-11 h-11 bg-[#0284c7] hover:bg-[#0369a1] text-white border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group relative"
-        >
-          <span className="material-symbols-outlined text-[22px]">smart_toy</span>
-          <span className="absolute right-full mr-2 px-2 py-1 bg-[#111827] text-white text-[11px] font-bold rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Mở AI Chat
-          </span>
-        </button>
-      ) : (
-        <div className="flex items-center gap-1.5 bg-transparent">
-          {/* Small minimize button to tuck away and avoid blocking content */}
-          <button
-            type="button"
-            onClick={() => setIsMinimized(true)}
-            title="Thu nhỏ nút AI Chat để không che nội dung"
-            className="w-7 h-7 bg-[#fffdf7] hover:bg-[#ffdea8] text-[#111827] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
-          >
-            <span className="material-symbols-outlined text-[16px]">visibility_off</span>
-          </button>
-
-          {/* Full AI Chat Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white font-extrabold text-[14px] border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all rounded-full cursor-pointer"
-          >
-            <span className="font-display tracking-wider">AI CHAT</span>
-            <span className="material-symbols-outlined text-[20px]">smart_toy</span>
-          </button>
+        <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-2">
+          <button type="button" aria-expanded={showQuickQuestions} aria-controls="widget-quick-questions" onClick={() => setShowQuickQuestions(value => !value)} className="flex min-h-9 items-center gap-2 text-xs font-semibold text-blue-800"><Sparkles size={14} aria-hidden="true" />{showQuickQuestions ? "Ẩn hỏi nhanh" : "Mở hỏi nhanh"}<ChevronDown size={14} aria-hidden="true" className={showQuickQuestions ? "rotate-180" : ""} /></button>
+          {showQuickQuestions && <div id="widget-quick-questions" className="flex flex-wrap gap-1.5 pb-1">{questions.map(question => <button key={question} type="button" disabled={isTyping} onClick={() => void handleSend(question)} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-xs leading-4 text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50">{question}</button>)}</div>}
         </div>
-      )}
-    </div>
-  );
+        <form onSubmit={event => { event.preventDefault(); void handleSend(); }} className="flex shrink-0 items-center gap-2 border-t border-slate-100 bg-white p-3">
+          <input ref={inputRef} value={input} onChange={event => setInput(event.target.value)} maxLength={2000} aria-label="Câu hỏi tuyển sinh" placeholder="Bạn muốn hỏi điều gì?" className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          <button type="submit" disabled={isTyping || !input.trim()} aria-label="Gửi câu hỏi" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-950 text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><Send size={18} aria-hidden="true" /></button>
+        </form>
+      </motion.section>}
+    </AnimatePresence>
+    <button ref={trigger} type="button" onClick={() => setIsOpen(value => !value)} aria-expanded={isOpen} aria-controls="utc-chat-panel" aria-label={isOpen ? "Thu gọn trò chuyện" : "Mở trợ lý tuyển sinh UTC"}
+      className="flex h-12 items-center gap-2 rounded-full border border-blue-800 bg-[#14244e] px-4 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">
+      {isOpen ? <ChevronDown size={21} aria-hidden="true" /> : <Bot size={21} className="text-amber-300" aria-hidden="true" />}<span>{isOpen ? "Thu gọn" : "Hỏi UTC"}</span>
+    </button>
+  </div>;
 }

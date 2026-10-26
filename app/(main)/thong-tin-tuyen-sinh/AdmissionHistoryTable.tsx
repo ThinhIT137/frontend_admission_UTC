@@ -2,7 +2,6 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
-import { admissionYear } from "@/libs/admission-year";
 
 export interface AdmissionHistory {
   id: string; year: number; majorCode: string; majorName: string;
@@ -32,26 +31,23 @@ function conditions(score: AdmissionHistory["scores"][number]): string[] {
   return result;
 }
 
-export default function AdmissionHistoryTable({ admissionHistory, programCatalog = [], loadFailed = false, referenceYear = new Date().getFullYear() }: {
-  admissionHistory: AdmissionHistory[]; programCatalog?: Pick<AdmissionHistory, "programCode" | "programName" | "majorCode" | "majorName">[]; loadFailed?: boolean; referenceYear?: number;
+export default function AdmissionHistoryTable({ admissionHistory, selectedYear, onYearChange, loadFailed = false }: {
+  admissionHistory: AdmissionHistory[]; selectedYear: number; onYearChange: (year: number) => void; loadFailed?: boolean;
 }) {
   const years = [...new Set(admissionHistory.map(row => row.year))].sort((a, b) => b - a);
-  const [year, setYear] = useState(() => String(admissionYear(years, referenceYear)));
+  const year = String(selectedYear);
   const [method, setMethod] = useState("ALL");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [view, setView] = useState<"quota" | "history">(() => admissionHistory.some(row => row.year === admissionYear(years, referenceYear) && row.scores.some(score => Number.isFinite(score.score) && score.score > 0)) ? "history" : "quota");
+  const [view, setView] = useState<"quota" | "history">(() => admissionHistory.some(row => row.year === selectedYear && row.scores.some(score => Number.isFinite(score.score) && score.score > 0)) ? "history" : "quota");
   const allMethods = [...new Map(admissionHistory.filter(row => String(row.year) === year).flatMap(row => row.scores.map(score => [score.methodCode, score.methodName] as const))).entries()]
     .sort(([a], [b]) => a.localeCompare(b, "vi"));
   const visibleMethods = allMethods.filter(([code]) => method === "ALL" || method === code);
   const query = search.trim().toLocaleLowerCase("vi");
-  // Danh mục không đồng nghĩa có chỉ tiêu: bản ghi thiếu giữ null, không sao chép năm khác.
-  const historicalRows = admissionHistory.filter(row => year === "ALL" || String(row.year) === year);
-  const missingRows: AdmissionHistory[] = programCatalog.filter(program => !historicalRows.some(row => row.programCode === program.programCode)).map(program => ({
-    ...program, id: `catalog-${program.programCode}`, year: year === "ALL" ? 0 : Number(year), quota: null, combinations: [], scores: [],
-  }));
-  const rows = [...historicalRows, ...missingRows].filter(row => (year === "ALL" || String(row.year) === year)
-    && (method === "ALL" || row.scores.some(score => score.methodCode === method))
+  // Lịch sử tuyển sinh là nguồn chính của từng năm; danh mục chương trình chỉ bổ sung tên/mã.
+  // Không thêm chương trình của năm khác hoặc chỉ có cấu hình tổ hợp vào đề án năm này.
+  const historicalRows = admissionHistory.filter(row => row.year === selectedYear);
+  const rows = historicalRows.filter(row => (method === "ALL" || row.scores.some(score => score.methodCode === method))
     && `${row.majorCode} ${row.majorName} ${row.programCode} ${row.programName}`.toLocaleLowerCase("vi").includes(query));
   const groups = [...new Set(rows.map(row => row.year))].sort((a, b) => b - a).map(value => ({ year: value, rows: rows.filter(row => row.year === value) })).filter(group => group.rows.length);
   const cell = "border-b border-slate-200 px-3 py-3 align-middle";
@@ -68,15 +64,15 @@ export default function AdmissionHistoryTable({ admissionHistory, programCatalog
       {([ ["quota", "Chỉ tiêu tuyển sinh"], ["history", "Lịch sử điểm chuẩn"] ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={view === value} onClick={() => setView(value)} className={`rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-4 ${view === value ? "bg-[#0d1b4e] text-white" : "bg-slate-50 hover:bg-amber-100"}`}>{label}</button>)}
     </div>
     <div className="my-5 grid gap-3 sm:grid-cols-3">
-      <label className="min-w-0 font-bold">Năm<select className={input} value={year} onChange={event => { const nextYear = event.target.value; setYear(nextYear); setMethod("ALL"); setView(admissionHistory.some(row => String(row.year) === nextYear && row.scores.some(score => Number.isFinite(score.score) && score.score > 0)) ? "history" : "quota"); }}>{(years.length ? years : [referenceYear]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+      <label className="min-w-0 font-bold">Năm<select className={input} value={year} onChange={event => onYearChange(Number(event.target.value))}>{(years.length ? years : [selectedYear]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       <label className="min-w-0 font-bold">Phương thức<select className={input} value={method} onChange={event => setMethod(event.target.value)}><option value="ALL">Tất cả phương thức</option>{allMethods.map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}</select></label>
       <label className="min-w-0 font-bold">Tìm ngành / chương trình<input className={input} value={search} onChange={event => setSearch(event.target.value)} placeholder="Mã hoặc tên ngành/chương trình" /></label>
     </div>
-    <p aria-live="polite" className="mb-3 text-sm text-slate-600">{rows.length} chương trình theo năm{year !== "ALL" ? ` · Năm ${year}` : ""}</p>
+    <p aria-live="polite" className="mb-3 text-sm text-slate-600">Năm {year} · {historicalRows.length} chương trình đã có bản ghi tuyển sinh{rows.length !== historicalRows.length ? ` · ${rows.length} kết quả phù hợp bộ lọc` : ""}</p>
     {loadFailed ? <p role="status">Chưa tải được dữ liệu. Vui lòng thử lại sau.</p> : !rows.length ? <p>{admissionHistory.length ? "Không có kết quả phù hợp với bộ lọc." : "Chưa công bố dữ liệu cho mục này."}</p> : <>
       <p className="mb-2 text-xs text-slate-600 sm:hidden">Vuốt ngang để xem đầy đủ các cột.</p>
       <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200" role="region" aria-label={view === "quota" ? "Bảng chỉ tiêu tuyển sinh, có thể cuộn ngang" : "Bảng lịch sử điểm chuẩn, có thể cuộn ngang"} tabIndex={0}>
-        <table className="w-full min-w-[960px] border-collapse text-left text-sm leading-relaxed">
+        <table className="w-full min-w-[960px] border-collapse text-left text-sm leading-relaxed border-2 border-slate-500 [&_th]:border [&_th]:!border-slate-500 [&_td]:border [&_td]:!border-slate-400">
           <caption className="sr-only">{view === "quota" ? "Chỉ tiêu tuyển sinh theo chương trình và năm" : "Lịch sử điểm chuẩn theo từng phương thức"}</caption>
           <thead className="bg-[#0d1b4e] text-white"><tr>
             <th scope="col" className={`${cell} w-12 text-center`}>STT</th>

@@ -14,71 +14,69 @@ export default async function ScoreCalculatorPage() {
   let toHops: ToHopItem[] = [];
 
   try {
-    // 1. Lấy danh sách chương trình đào tạo kèm ngành, tổ hợp và lịch sử điểm chuẩn
-    const rawPrograms = await prismaPublic.chuongTrinhDaoTao.findMany({
+    // Lịch sử theo năm là nguồn gốc; chương trình chỉ cung cấp thông tin mô tả.
+    // Giữ các năm cũ để tra cột Y-1, không biến chúng thành đề án của năm chọn.
+    const annualRecords = await prismaPublic.lichSuDiemChuan.findMany({
       select: {
         ma_chuong_trinh: true,
-        ten_chuong_trinh: true,
-        ma_nganh: true,
-        nganh: {
+        nam: true,
+        chi_tieu: true,
+        diem_trung_tuyen: {
           select: {
-            ma_nganh: true,
-            ten_nganh: true,
-            khoi_kien_thuc: true,
-            khoi_nganh: {
-              select: {
-                ma_khoi_nganh: true,
-                ten_khoi_nganh: true,
-              },
-            },
+            diem: true,
+            ma_phuong_thuc: true,
+            dieu_kien_mon: true,
+            diem_uu_tien_toi_thieu: true,
+            nguyen_vong_toi_da: true,
+            phuong_thuc: { select: { ma_phuong_thuc: true, ten_phuong_thuc: true } },
           },
         },
-        ctdt_to_hop: {
-          select: {
-            nam: true,
-            ma_to_hop: true,
-            to_hop: {
-              select: {
-                ma_to_hop: true,
-                mon_1: { select: { ten_mon: true } },
-                mon_2: { select: { ten_mon: true } },
-                mon_3: { select: { ten_mon: true } },
-              },
-            },
-          },
-        },
-        lich_su_diem_chuan: {
-          orderBy: { nam: "desc" },
-          select: {
-            nam: true,
-            chi_tieu: true,
-            diem_trung_tuyen: {
-              select: {
-                diem: true,
-                ma_phuong_thuc: true,
-                dieu_kien_mon: true,
-                diem_uu_tien_toi_thieu: true,
-                nguyen_vong_toi_da: true,
-                phuong_thuc: {
-                  select: {
-                    ma_phuong_thuc: true,
-                    ten_phuong_thuc: true,
-                  },
+        chuong_trinh: { select: {
+          ma_chuong_trinh: true,
+          ten_chuong_trinh: true,
+          ma_nganh: true,
+          nganh: {
+            select: {
+              ma_nganh: true,
+              ten_nganh: true,
+              khoi_kien_thuc: true,
+              khoi_nganh: {
+                select: {
+                  ma_khoi_nganh: true,
+                  ten_khoi_nganh: true,
                 },
               },
             },
           },
-        },
-        du_doan_diem_chuan: {
-          select: { ma_du_doan_dc: true, nam_du_doan: true, diem_du_doan: true, ngay_tinh_toan: true },
-          orderBy: [{ nam_du_doan: "desc" }, { ngay_tinh_toan: "desc" }, { ma_du_doan_dc: "asc" }],
-        },
+          ctdt_to_hop: {
+            select: {
+              nam: true,
+              ma_to_hop: true,
+              to_hop: {
+                select: {
+                  ma_to_hop: true,
+                  mon_1: { select: { ten_mon: true } },
+                  mon_2: { select: { ten_mon: true } },
+                  mon_3: { select: { ten_mon: true } },
+                },
+              },
+            },
+          },
+        } },
       },
-      orderBy: { ma_chuong_trinh: "asc" },
+      orderBy: [{ nam: "desc" }, { ma_chuong_trinh: "asc" }],
     });
 
-    // Chuyển đổi dữ liệu tương thích JSON (xử lý kiểu Decimal nếu có)
-    programs = JSON.parse(JSON.stringify(rawPrograms));
+    const byCode = new Map<string, ProgramScoreItem>();
+    for (const { chuong_trinh, ma_chuong_trinh, ...history } of annualRecords) {
+      let program = byCode.get(ma_chuong_trinh);
+      if (!program) {
+        program = { ...chuong_trinh, lich_su_diem_chuan: [] };
+        byCode.set(ma_chuong_trinh, program);
+      }
+      program.lich_su_diem_chuan!.push(history);
+    }
+    programs = JSON.parse(JSON.stringify([...byCode.values()]));
   } catch (error) {
     console.error("Lỗi truy vấn dữ liệu chương trình đào tạo cho công cụ quy đổi điểm:", error);
   }

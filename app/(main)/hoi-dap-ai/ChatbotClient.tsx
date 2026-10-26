@@ -1,8 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { api } from "@/libs/api-services/browser-api";
+import { Bot, ChevronDown, RotateCcw, Send, Sparkles } from "lucide-react";
+import ChatTyping from "@/components/ui/ChatTyping";
+import { api, BrowserApiError } from "@/libs/api-services/browser-api";
 
 export interface ProgramKnowledge {
   maChuongTrinh: string;
@@ -12,7 +13,7 @@ export interface ProgramKnowledge {
   khoiNganh?: string;
   moTaNgan?: string | null;
   toHopMon: string[];
-  chiTieu2026?: number | null;
+  chiTieuNamDangXet?: number | null;
   diemChuanGanNhat?: Array<{
     nam: number;
     phuongThuc: string;
@@ -40,6 +41,8 @@ export interface MilestoneKnowledge {
 }
 
 export interface ChatbotKnowledgeBase {
+  referenceYear: number;
+  dataUnavailable: boolean;
   programs: ProgramKnowledge[];
   faqs: FaqKnowledge[];
   methods: MethodKnowledge[];
@@ -71,7 +74,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     {
       id: "welcome",
       sender: "bot",
-      text: `Xin chào bạn! Mình là Trợ lý AI Tuyển sinh Trường Đại học Giao thông Vận tải (UTC Cơ sở Hà Nội). Mình đã kết nối trực tiếp với Cơ sở dữ liệu Tuyển sinh K66: thông tin ${knowledgeBase.totalMajors || "35+"} ngành đào tạo, chỉ tiêu ~${knowledgeBase.totalQuota.toLocaleString() || "6.000"} sinh viên, điểm chuẩn các năm và các phương thức xét tuyển mới nhất. Bạn muốn tìm hiểu thông tin gì hôm nay?`,
+      text: "Chào bạn! Bạn muốn tìm hiểu chương trình đào tạo, điểm chuẩn hay thủ tục tuyển sinh UTC Hà Nội? Thông tin tư vấn cần đối chiếu với thông báo chính thức của trường.",
       time: "Vừa xong",
       richData: {
         type: "general",
@@ -81,11 +84,14 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
   const sessionId = useRef<string | undefined>(undefined);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(true);
+  const pendingRequest = useRef(false);
+  const messagesBody = useRef<HTMLDivElement>(null);
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesBody.current?.scrollTo({ top: messagesBody.current.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [messages, isTyping]);
 
   // Bộ câu hỏi gợi ý nhanh dựa trên dữ liệu thật từ DB
@@ -122,7 +128,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       qNorm.includes("hinh thuc xet tuyen")
     ) {
       if (knowledgeBase.methods && knowledgeBase.methods.length > 0) {
-        let reply = `Năm 2026, Trường Đại học Giao thông Vận tải (Cơ sở Hà Nội - Mã trường: GHA) áp dụng các phương thức xét tuyển chính thức sau từ CSDL:\n\n`;
+        let reply = "Danh mục phương thức đang lưu trong database của app (cần đối chiếu đề án của năm đăng ký):\n\n";
         knowledgeBase.methods.forEach((m, idx) => {
           reply += `🔹 **${m.maPhuongThuc}**: ${m.tenPhuongThuc}\n`;
         });
@@ -209,8 +215,8 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       if (topProg.toHopMon && topProg.toHopMon.length > 0) {
         reply += `🎯 **Tổ hợp môn xét tuyển:** ${topProg.toHopMon.join(", ")}\n`;
       }
-      if (topProg.chiTieu2026) {
-        reply += `📊 **Chỉ tiêu tuyển sinh:** ~${topProg.chiTieu2026} sinh viên\n`;
+      if (topProg.chiTieuNamDangXet) {
+        reply += `📊 **Chỉ tiêu tuyển sinh:** ~${topProg.chiTieuNamDangXet} sinh viên\n`;
       }
 
       if (topProg.diemChuanGanNhat && topProg.diemChuanGanNhat.length > 0) {
@@ -256,7 +262,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
 
         if (isMatched) {
           return {
-            text: `Dựa trên dữ liệu giải đáp của Ban Tuyển sinh UTC về chủ đề **"${faq.chuDe}"**:\n\n${faq.noiDung}`,
+            text: `Nội dung tri thức trong database về chủ đề "${faq.chuDe}" (chưa có trường xác nhận nguồn và năm áp dụng; không coi là quy định tuyển sinh hiện hành):\n\n${faq.noiDung}`,
             richData: {
               type: "faq",
             },
@@ -268,21 +274,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     // 5. TRƯỜNG HỢP CÂU HỎI CHUNG VỀ CHỈ TIÊU HOẶC ĐIỂM CHUẨN TỔNG THỂ
     if (qNorm.includes("chi tieu") || qNorm.includes("tong chi tieu")) {
       return {
-        text: `Tổng chỉ tiêu tuyển sinh K66 năm 2026 của Trường Đại học Giao thông Vận tải (Cơ sở chính tại Hà Nội) trong CSDL là **~${knowledgeBase.totalQuota.toLocaleString() || "6.000"} sinh viên** cho ${knowledgeBase.totalMajors || "35+"} ngành và chương trình đào tạo. Thí sinh có thể tra cứu chỉ tiêu chi tiết theo từng ngành tại mục [Tra cứu ngành học](/tra-cuu-nganh-hoc).`,
-        richData: { type: "general" },
-      };
-    }
-
-    if (qNorm.includes("ielts") || qNorm.includes("quy doi")) {
-      return {
-        text: `Theo Đề án Tuyển sinh UTC 2026 trong CSDL, mức quy đổi chứng chỉ Ngoại ngữ quốc tế (IELTS Academic) sang thang điểm 10 môn Tiếng Anh áp dụng như sau:\n\n• **IELTS 5.0**: Quy đổi thành **8.0 điểm**\n• **IELTS 5.5**: Quy đổi thành **8.5 điểm**\n• **IELTS 6.0**: Quy đổi thành **9.0 điểm**\n• **IELTS 6.5 trở lên**: Quy đổi thành **10.0 điểm tuyệt đối**.\n\nChứng chỉ phải còn hiệu lực tính đến thời điểm nhận hồ sơ xét tuyển. Bạn có thể sử dụng công cụ [Tính điểm quy đổi](/tinh-diem-quy-doi) để tính toán điểm xét tuyển chính xác.`,
-        richData: { type: "general" },
-      };
-    }
-
-    if (qNorm.includes("hoc phi") || qNorm.includes("kinh phi")) {
-      return {
-        text: `Học phí tại Trường Đại học Giao thông Vận tải được thu theo tín chỉ theo Nghị định của Chính phủ dành cho các trường công lập:\n\n• **Khối ngành Kỹ thuật - Công nghệ**: Khoảng 420.000đ - 460.000đ/tín chỉ (~16.000.000đ - 18.500.000đ/năm học tùy số tín chỉ đăng ký).\n• **Khối ngành Kinh tế - Vận tải**: Khoảng 380.000đ - 420.000đ/tín chỉ (~14.500.000đ - 16.500.000đ/năm học).\n• **Chương trình Tiên tiến / Chất lượng cao**: Mức học phí theo định mức kinh tế kỹ thuật được phê duyệt riêng, tương đương 1.5 - 2.0 lần chương trình chuẩn.`,
+        text: knowledgeBase.dataUnavailable ? "Chưa tải được dữ liệu chỉ tiêu từ database." : `Dữ liệu năm ${knowledgeBase.referenceYear} đang có trong app: ${knowledgeBase.programs.length} chương trình thuộc ${knowledgeBase.totalMajors} ngành, tổng chỉ tiêu ${knowledgeBase.totalQuota.toLocaleString("vi-VN")}. Đây là phạm vi dữ liệu đã nhập, không phải kết quả trúng tuyển.`,
         richData: { type: "general" },
       };
     }
@@ -306,7 +298,9 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
 
   const handleSend = async (textToSend?: string) => {
     const q = (textToSend || input).trim();
-    if (!q) return;
+    if (!q || pendingRequest.current) return;
+    pendingRequest.current = true;
+    setShowQuickQuestions(false);
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -319,6 +313,7 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     if (!textToSend) setInput("");
     setIsTyping(true);
 
+    let aiFailureMessage = "Chưa nhận được phản hồi hợp lệ từ AI.";
     try {
       // 1. Thử gọi Microservice AI backend (backend_ai_ml /api/chat)
       const aiRes = await api<{ success: boolean; data: { answer: string; session_id: string } }>("ai", "/api/chat", { message: q, session_id: sessionId.current });
@@ -333,9 +328,11 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
         };
         setMessages((prev) => [...prev, botMsg]);
         setIsTyping(false);
+        pendingRequest.current = false;
         return;
       }
-    } catch {
+    } catch (error) {
+      aiFailureMessage = error instanceof BrowserApiError ? error.message : "Chưa kết nối được dịch vụ AI.";
       // Fallback sang CSDL tri thức tuyển sinh nội bộ
     }
 
@@ -345,17 +342,21 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: "bot",
-        text: "[Tra cứu nội bộ — AI hiện không kết nối được]\n" + response.text,
+        text: `[${aiFailureMessage} Tra cứu dữ liệu nội bộ]\n` + response.text,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         richData: response.richData,
       };
 
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
+      pendingRequest.current = false;
     }, 500);
   };
 
   const handleClearHistory = () => {
+    if (pendingRequest.current) return;
+    setShowQuickQuestions(true);
+    sessionId.current = undefined;
     setMessages([
       {
         id: "reset",
@@ -367,224 +368,32 @@ export default function ChatbotClient({ knowledgeBase }: ChatbotClientProps) {
     ]);
   };
 
-  return (
-    <div className="flex flex-col w-full space-y-6 pb-16">
-      {/* 1. Header Banner Phong Cách Neo-Brutalism */}
-      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#fdb712]/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="px-3 py-1 bg-[#0d1b4e] text-white font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            TRỢ LÝ TỰ ĐỘNG UTC 24/7
-          </span>
-          <span className="px-3 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            KẾT NỐI TRỰC TIẾP DATABASE
-          </span>
-          <span className="px-3 py-1 bg-[#dcfce7] text-[#15803d] font-bold text-[12px] border-[1.5px] border-[#111827] rounded-lg">
-            Đồng bộ {knowledgeBase.totalMajors || "35+"} ngành • ~{knowledgeBase.totalQuota.toLocaleString()} chỉ tiêu K66
-          </span>
-        </div>
-
-        <h1 className="font-display font-black text-[26px] sm:text-[34px] text-[#0d1b4e] uppercase leading-tight tracking-tight">
-          Hỏi Đáp & Tư Vấn Tuyển Sinh AI – Trường ĐH Giao Thông Vận Tải
-        </h1>
-
-        <p className="text-[14px] text-[#4b5563] mt-2 max-w-4xl leading-relaxed">
-          Trợ lý AI được tích hợp trực tiếp với Cơ sở dữ liệu tuyển sinh chính thức của Nhà trường (Hội đồng Tuyển sinh UTC Cơ sở Hà Nội). Tự động tra cứu điểm chuẩn, chỉ tiêu, tổ hợp môn, lộ trình nộp hồ sơ và phương thức xét tuyển theo thời gian thực.
-        </p>
+  return <div className="flex h-full min-h-0 flex-col gap-3 text-[#14244e]">
+    <header className="flex shrink-0 items-center justify-between gap-3">
+      <div><h1 className="text-lg font-bold sm:text-xl">Hỏi đáp tuyển sinh UTC</h1><p className="text-xs leading-5 text-slate-500">Hà Nội · GHA · Thông tin tham khảo, đối chiếu thông báo chính thức.</p></div>
+      <button type="button" disabled={isTyping} onClick={handleClearHistory} className="flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium disabled:opacity-40"><RotateCcw size={16} aria-hidden="true" /><span className="hidden sm:inline">Làm mới</span></button>
+    </header>
+    <section aria-label="Trò chuyện với trợ lý UTC" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex shrink-0 items-center gap-3 bg-gradient-to-r from-[#14244e] to-[#264680] px-4 py-3 text-white"><Bot size={24} className="text-amber-300" aria-hidden="true" /><div><h2 className="text-sm font-semibold">Trợ lý tuyển sinh</h2><p className="text-xs text-blue-100">Chương trình đào tạo · Điểm chuẩn · Hồ sơ</p></div></div>
+      <div ref={messagesBody} role="log" aria-label="Nội dung hội thoại" aria-live="polite" aria-relevant="additions" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50 p-4 sm:p-6">
+        {messages.map(message => <div key={message.id} className={`flex flex-col ${message.sender === "user" ? "items-end" : "items-start"}`}>
+          <div className={`max-w-[95%] whitespace-pre-wrap break-words rounded-2xl p-4 text-sm leading-7 sm:max-w-[80%] ${message.sender === "user" ? "rounded-br-md bg-[#1e3a70] text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-700 shadow-sm"}`}>
+            <p>{message.text}</p>
+            {message.richData?.program && <Link href={`/tra-cuu-nganh-hoc/${message.richData.program.maNganh}`} className="mt-3 block font-semibold text-blue-700 underline">{message.richData.program.tenChuongTrinh} →</Link>}
+            {!!message.richData?.programsList?.length && <div className="mt-3 flex flex-wrap gap-2">{message.richData.programsList.map(program => <Link key={program.maChuongTrinh} href={`/tra-cuu-nganh-hoc/${program.maNganh}`} className="rounded-lg border border-slate-200 bg-blue-50 px-3 py-1 text-xs text-blue-800">{program.tenChuongTrinh}</Link>)}</div>}
+          </div><span className="mt-1 text-[11px] text-slate-400">{message.time}</span>
+        </div>)}
+        {isTyping && <ChatTyping />}
+        <div ref={chatEndRef} />
       </div>
-
-      <DisclaimerBanner />
-
-      {/* 2. Khung Chatbot Toàn Diện */}
-      <div className="bg-white border-[3px] border-[#111827] shadow-[7px_7px_0px_#111827] rounded-2xl overflow-hidden flex flex-col h-[650px] lg:h-[720px]">
-        {/* Header Thanh Điều Khiển Khung Chat */}
-        <div className="bg-[#0284c7] text-white px-5 py-4 border-b-[3px] border-[#111827] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-[#fdb712] border-[2px] border-[#111827] text-[#0d1b4e] flex items-center justify-center font-bold shadow-[2px_2px_0px_#111827]">
-              <span className="material-symbols-outlined text-[26px]">smart_toy</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-display font-black text-[17px] sm:text-[19px] uppercase tracking-wide">
-                  UTC AI ADMISSION CONSULTANT
-                </h3>
-                <span className="w-2.5 h-2.5 rounded-full bg-[#86efac] animate-pulse" />
-              </div>
-              <p className="text-[12px] text-[#e0f2fe] font-mono">
-                Knowledge Base: CSDL Tuyển sinh K66 UTC • Hà Nội (GHA)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleClearHistory}
-              title="Làm mới cuộc trò chuyện"
-              className="px-3 py-1.5 bg-[#0369a1] hover:bg-[#075985] text-white text-[12px] font-bold rounded-lg border border-white/30 flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-              <span className="hidden sm:inline">Làm Mới</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Khu Vực Lịch Sử Tin Nhắn */}
-        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5 bg-[#faf3e6]">
-          {messages.map((m) => {
-            const isUser = m.sender === "user";
-
-            return (
-              <div
-                key={m.id}
-                className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
-              >
-                <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[85%]">
-                  {!isUser && (
-                    <div className="w-8 h-8 rounded-full bg-[#0d1b4e] text-[#fdb712] border-[1.5px] border-[#111827] flex items-center justify-center shrink-0 mb-1">
-                      <span className="material-symbols-outlined text-[18px]">smart_toy</span>
-                    </div>
-                  )}
-
-                  <div
-                    className={`p-4 sm:p-5 text-[14px] leading-relaxed border-[2.5px] border-[#111827] shadow-[3.5px_3.5px_0px_#111827] ${
-                      isUser
-                        ? "bg-[#0284c7] text-white rounded-2xl rounded-br-none"
-                        : "bg-white text-[#111827] rounded-2xl rounded-bl-none"
-                    } space-y-3`}
-                  >
-                    {/* Nội dung text */}
-                    <div className="whitespace-pre-wrap font-medium">
-                      {m.text}
-                    </div>
-
-                    {/* Rich Data Card: Ngành Học */}
-                    {!isUser && m.richData?.type === "program" && m.richData.program && (
-                      <div className="p-3.5 bg-[#fffdf7] border-[2px] border-[#111827] rounded-xl shadow-[2px_2px_0px_#111827] text-[13px] space-y-2 mt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="px-2 py-0.5 bg-[#0d1b4e] text-white font-mono font-bold text-[11px] rounded">
-                            MÃ: {m.richData.program.maChuongTrinh}
-                          </span>
-                          {m.richData.program.toHopMon && (
-                            <span className="text-[11px] font-bold text-[#0284c7]">
-                              Tổ hợp: {m.richData.program.toHopMon.join(", ")}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="font-display font-black text-[15px] text-[#0d1b4e]">
-                          {m.richData.program.tenChuongTrinh}
-                        </div>
-
-                        <Link
-                          href={`/tra-cuu-nganh-hoc/${m.richData.program.maChuongTrinh}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fdb712] hover:bg-[#e0a20f] text-[#0d1b4e] font-display font-black text-[12px] uppercase rounded-lg border-[1.5px] border-[#111827] shadow-[1.5px_1.5px_0px_#111827] transition-all"
-                        >
-                          <span>Xem Khung Đào Tạo Chi Tiết</span>
-                          <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
-                        </Link>
-                      </div>
-                    )}
-
-                    {/* Rich Data Card: Danh Sách Ngành Khác Gợi Ý */}
-                    {!isUser && m.richData?.programsList && m.richData.programsList.length > 1 && (
-                      <div className="pt-2 border-t border-[#e2e8f0]">
-                        <span className="text-[11.5px] font-bold text-[#64748b] block mb-1.5">
-                          Các ngành liên quan trong CSDL:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {m.richData.programsList.map((p) => (
-                            <Link
-                              key={p.maChuongTrinh}
-                              href={`/tra-cuu-nganh-hoc/${p.maChuongTrinh}`}
-                              className="px-2.5 py-1 bg-white hover:bg-[#ffdea8] border border-[#111827] rounded-md text-[11.5px] font-bold text-[#0d1b4e] transition-colors"
-                            >
-                              {p.tenChuongTrinh}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <span className="text-[11px] text-[#6b7280] mt-1 px-11 font-mono">
-                  {m.time}
-                </span>
-              </div>
-            );
-          })}
-
-          {/* Typing Animation */}
-          {isTyping && (
-            <div className="flex items-end gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#0d1b4e] text-[#fdb712] border-[1.5px] border-[#111827] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[18px]">smart_toy</span>
-              </div>
-              <div className="p-3.5 bg-white border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] rounded-2xl rounded-bl-none flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-bounce [animation-delay:0.4s]" />
-                <span className="text-[12px] font-bold text-[#64748b] ml-1 font-mono">
-                  Đang truy vấn CSDL Tuyển sinh UTC...
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Thanh Gợi Ý Câu Hỏi Nhanh (Prompts từ DB) */}
-        <div className="px-4 py-2.5 bg-[#fffdf7] border-t-[2px] border-[#111827] flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="material-symbols-outlined text-[18px] text-[#f59e0b] shrink-0">
-            tips_and_updates
-          </span>
-          <span className="text-[11.5px] font-bold text-[#64748b] shrink-0">Gợi ý câu hỏi:</span>
-          {defaultSuggestedPrompts.map((prompt, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleSend(prompt)}
-              className="shrink-0 text-[12px] font-bold bg-white hover:bg-[#fde68a] text-[#0d1b4e] px-3 py-1.5 border-[1.5px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-lg transition-all active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-
-        {/* Khung Nhập Liệu Câu Hỏi */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="p-4 bg-white border-t-[3px] border-[#111827] flex items-center gap-3"
-        >
-          <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748b] text-[20px]">
-              chat
-            </span>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Đặt câu hỏi về điểm chuẩn, ngành học, chỉ tiêu, quy đổi IELTS hoặc thủ tục nhập học UTC..."
-              className="w-full pl-11 pr-4 py-3 bg-[#faf3e6] border-[2px] border-[#111827] rounded-xl text-[14px] font-bold text-[#0d1b4e] outline-none placeholder:text-[#9ca3af] focus:ring-2 focus:ring-[#fdb712]"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isTyping || !input.trim()}
-            className="px-6 py-3 bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2.5px] border-[#111827] shadow-[3px_3px_0px_#111827] active:translate-x-[1px] active:translate-y-[1px] flex items-center gap-2 transition-all cursor-pointer shrink-0"
-          >
-            <span>Gửi</span>
-            <span className="material-symbols-outlined text-[18px]">send</span>
-          </button>
-        </form>
+      <div className="shrink-0 border-t border-slate-100 px-4 py-2">
+        <button type="button" aria-expanded={showQuickQuestions} aria-controls="page-quick-questions" onClick={() => setShowQuickQuestions(value => !value)} className="flex min-h-9 items-center gap-2 text-xs font-semibold text-blue-800"><Sparkles size={14} aria-hidden="true" />{showQuickQuestions ? "Ẩn hỏi nhanh" : "Mở hỏi nhanh"}<ChevronDown size={14} aria-hidden="true" className={showQuickQuestions ? "rotate-180" : ""} /></button>
+        {showQuickQuestions && <div id="page-quick-questions" className="flex max-h-28 flex-wrap gap-2 overflow-y-auto pb-2">{defaultSuggestedPrompts.map(prompt => <button key={prompt} type="button" disabled={isTyping} onClick={() => void handleSend(prompt)} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs leading-5 text-slate-600 hover:bg-blue-50 disabled:opacity-40">{prompt}</button>)}</div>}
       </div>
-    </div>
-  );
+      <form onSubmit={event => { event.preventDefault(); void handleSend(); }} className="flex shrink-0 items-center gap-2 border-t border-slate-100 p-3 sm:p-4">
+        <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} aria-label="Câu hỏi tuyển sinh" placeholder="Bạn muốn tìm hiểu điều gì?" className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+        <button type="submit" disabled={isTyping || !input.trim()} aria-label="Gửi câu hỏi" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-950 text-white hover:bg-blue-800 disabled:opacity-40"><Send size={18} aria-hidden="true" /></button>
+      </form>
+    </section>
+  </div>;
 }

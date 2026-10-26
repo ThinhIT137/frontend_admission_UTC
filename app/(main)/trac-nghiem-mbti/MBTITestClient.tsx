@@ -6,7 +6,7 @@ import { useReducedMotion } from "motion/react";
 import PageMotion from "@/components/ui/PageMotion";
 import { useLoading } from "@/contexts/loadingContext";
 import { useRouter } from "next/navigation";
-import { MbtiQuestion } from "./mbtiData";
+import type { MbtiQuestion } from "./mbtiData";
 import { api } from "@/libs/api-services/browser-api";
 
 interface MBTITestClientProps {

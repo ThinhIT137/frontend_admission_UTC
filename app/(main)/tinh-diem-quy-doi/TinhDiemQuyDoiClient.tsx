@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { Fragment, useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { api, BrowserApiError } from "@/libs/api-services/browser-api";
+import { comparePrograms, yearReferenceAvailability, type CalculationSnapshot, type AiBenchmark } from "./comparison";
+import { loadAiBenchmarks } from "./ai-benchmarks";
 import { useLoading } from "@/contexts/loadingContext";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import AdmissionLikelihood from "./AdmissionLikelihood";
 
 
 export interface ProgramScoreItem {
-  du_doan_diem_chuan?: Array<{ ma_du_doan_dc: string; nam_du_doan: number; diem_du_doan: number; ngay_tinh_toan: string }>;
   ma_chuong_trinh: string;
   ten_chuong_trinh: string;
   ma_nganh: string;
@@ -65,15 +67,6 @@ interface Props {
   referenceYear?: number;
 }
 
-const DEFAULT_COMBINATIONS: ToHopItem[] = [
-  { ma_to_hop: "A00", ma_mon_1: "Toán", ma_mon_2: "Vật lý", ma_mon_3: "Hóa học" },
-  { ma_to_hop: "A01", ma_mon_1: "Toán", ma_mon_2: "Vật lý", ma_mon_3: "Tiếng Anh" },
-  { ma_to_hop: "D01", ma_mon_1: "Toán", ma_mon_2: "Ngữ văn", ma_mon_3: "Tiếng Anh" },
-  { ma_to_hop: "D07", ma_mon_1: "Toán", ma_mon_2: "Hóa học", ma_mon_3: "Tiếng Anh" },
-  { ma_to_hop: "B00", ma_mon_1: "Toán", ma_mon_2: "Hóa học", ma_mon_3: "Sinh học" },
-  { ma_to_hop: "V00", ma_mon_1: "Toán", ma_mon_2: "Vật lý", ma_mon_3: "Vẽ mỹ thuật" },
-];
-
 export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, referenceYear = new Date().getFullYear() }: Props) {
   // Phương thức xét tuyển đang chọn
   // 1: Điểm thi tốt nghiệp THPT (Mã 100)
@@ -83,69 +76,82 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const [methodTab, setMethodTab] = useState<"THPT" | "HOC_BA" | "CHUNG_CHI" | "DGNL">("THPT");
 
   // Danh sách tổ hợp
-  const combinations = initialToHops.length > 0 ? initialToHops : DEFAULT_COMBINATIONS;
-  const [selectedToHop, setSelectedToHop] = useState<string>("A00");
+  const combinations = initialToHops;
+  const [selectedToHop, setSelectedToHop] = useState<string>(initialToHops[0]?.ma_to_hop ?? "");
 
   const currentCombination = useMemo(() => {
     return combinations.find((c) => c.ma_to_hop === selectedToHop) || combinations[0];
   }, [combinations, selectedToHop]);
 
   // Tên 3 môn của tổ hợp hiện tại
-  const m1Name = currentCombination?.mon_1?.ten_mon || currentCombination?.ma_mon_1 || "Môn 1 (Toán)";
+  const m1Name = currentCombination?.mon_1?.ten_mon || currentCombination?.ma_mon_1 || "Môn 1";
   const m2Name = currentCombination?.mon_2?.ten_mon || currentCombination?.ma_mon_2 || "Môn 2";
   const m3Name = currentCombination?.mon_3?.ten_mon || currentCombination?.ma_mon_3 || "Môn 3";
 
   // Điểm thành phần các môn thi
-  const [m1Score, setM1Score] = useState<number | "">(8.5);
-  const [m2Score, setM2Score] = useState<number | "">(8.0);
-  const [m3Score, setM3Score] = useState<number | "">(8.5);
+  const [m1Score, setM1Score] = useState<number | "">("");
+  const [m2Score, setM2Score] = useState<number | "">("");
+  const [m3Score, setM3Score] = useState<number | "">("");
 
   // Điểm Chứng chỉ Quốc tế (PT 402)
   const [certType, setCertType] = useState<"IELTS" | "TOEFL" | "SAT">("IELTS");
-  const [certScore, setCertScore] = useState<number | "">(6.5);
-  const [certM2Score, setCertM2Score] = useState<number | "">(8.5); // Môn thứ 2 (Lý/Hóa/Văn...)
+  const [certScore, setCertScore] = useState<number | "">("");
+  const [certM2Score, setCertM2Score] = useState<number | "">(""); // Môn thứ 2 (Lý/Hóa/Văn...)
 
   // Điểm Kỳ thi ĐGNL / ĐGTD (PT 405)
   const [dgnlType, setDgnlType] = useState<"HSA" | "TSA">("HSA");
-  const [dgnlScore, setDgnlScore] = useState<number | "">(95);
+  const [dgnlScore, setDgnlScore] = useState<number | "">("");
 
   // Điểm ưu tiên
   const [region, setRegion] = useState<"KV3" | "KV2" | "KV2-NT" | "KV1">("KV2");
   const [priorityObj, setPriorityObj] = useState<"NONE" | "UT1" | "UT2">("NONE");
 
   // Kết quả tính toán
-  const [calculationResult, setCalculationResult] = useState<{
-    method: "THPT" | "HOC_BA" | "CHUNG_CHI" | "DGNL";
-    rawScore: number; // Tổng điểm trước ưu tiên
-    priorityBonus: number; // Điểm ưu tiên đã điều chỉnh giảm dần
-    maxPriority: number; // Mức ưu tiên trần
-    finalScore: number | null; // Tổng điểm xét tuyển thang 30
-    subDetails: { label: string; score: string }[];
-    passPreliminary: boolean;
-    preliminaryNotes: string[];
-    combinationCode: string;
-  } | null>(null);
+  const [calculationResult, setCalculationResult] = useState<CalculationSnapshot | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
 
   // Bộ lọc bảng so sánh ngành
   const [searchMajorText, setSearchMajorText] = useState("");
   const [filterChance, setFilterChance] = useState<"all" | "high" | "medium" | "low">("all");
+  const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+  const toggleProgram = (key: string) => setExpandedProgram(current => current === key ? null : key);
   const availableYears = [...new Set([referenceYear, ...initialPrograms.flatMap(program => [
     ...(program.lich_su_diem_chuan ?? []).map(history => history.nam),
-    ...(program.du_doan_diem_chuan ?? []).filter(item => Number.isFinite(item.diem_du_doan) && item.diem_du_doan > 0 && Number.isFinite(Date.parse(item.ngay_tinh_toan))).map(item => item.nam_du_doan),
   ])].filter(year => Number.isInteger(year) && year > 0))].sort((a, b) => b - a);
   // A future catalog entry must not silently move the calculator away from this year.
   const [compareYear, setCompareYear] = useState<number>(referenceYear);
 
-  type ComparisonRow = {
-    ma_chuong_trinh: string; ten_chuong_trinh: string; ma_nganh: string; ten_nganh: string;
-    faculty: string; benchmarkYear: number; benchmarkScore: number | null; predictionScore: number | null;
-    previousScore: number | null; matchedMethodName: string; diff: number | null;
-    chance: "high" | "medium" | "low" | "unknown" | "ineligible"; reason: string;
-    pointBand?: "high" | "medium" | "low" | null;
-  };
-  const [matchedPrograms, setMatchedPrograms] = useState<ComparisonRow[]>([]);
+  const calculationYear = referenceYear;
+  const referenceAvailability = useMemo(
+    () => yearReferenceAvailability(initialPrograms, compareYear),
+    [initialPrograms, compareYear],
+  );
+  const referenceHeading = referenceAvailability.official === referenceAvailability.total && referenceAvailability.official > 0
+    ? "Điểm chuẩn" : referenceAvailability.official > 0 ? "Điểm tham chiếu" : "Dự đoán";
+  // API hiện cung cấp bộ dự đoán 2026. Không gọi khi đã đủ điểm chính thức,
+  // không lấy dự đoán 2026 để thay cho một năm khác.
+  const needsAiPrediction = compareYear === 2026 && referenceAvailability.missing > 0;
+  const [aiBenchmarks, setAiBenchmarks] = useState<AiBenchmark[]>([]);
+  const [aiError, setAiError] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAttempt, setAiAttempt] = useState(0);
+  useEffect(() => {
+    if (!needsAiPrediction) {
+      setAiError(false); setAiLoading(false);
+      return;
+    }
+    let active = true;
+    setAiError(false); setAiLoading(true);
+    loadAiBenchmarks().then(data => { if (active) setAiBenchmarks(data); })
+      .catch(() => { if (active) setAiError(true); })
+      .finally(() => { if (active) setAiLoading(false); });
+    return () => { active = false; };
+  }, [needsAiPrediction, aiAttempt]);
+  const matchedPrograms = useMemo(
+    () => calculationResult ? comparePrograms(initialPrograms, calculationResult, compareYear, aiBenchmarks) : [],
+    [initialPrograms, calculationResult, compareYear, aiBenchmarks],
+  );
   const [busy, setBusy] = useState(false);
   const { beginLoading } = useLoading();
   const requestId = useRef(0);
@@ -154,13 +160,17 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   useEffect(() => {
     requestId.current += 1;
     releaseLoading.current?.(); releaseLoading.current = null;
-    setBusy(false); setCalculationResult(null); setMatchedPrograms([]); setErrorMessage("");
+    setBusy(false); setCalculationResult(null); setErrorMessage("");
     return () => { requestId.current += 1; releaseLoading.current?.(); };
-  }, [methodTab, selectedToHop, m1Score, m2Score, m3Score, certType, certScore, certM2Score, dgnlType, dgnlScore, region, priorityObj, compareYear]);
+  }, [methodTab, selectedToHop, m1Score, m2Score, m3Score, certType, certScore, certM2Score, dgnlType, dgnlScore, region, priorityObj, calculationYear]);
 
   const handleCalculate = async () => {
     if (busy) return;
-    const subjectInputs = methodTab === "CHUNG_CHI" ? [m1Score, certM2Score, 0] : [m1Score, m2Score, m3Score];
+    if (!currentCombination) {
+      setErrorMessage("Chưa tải được tổ hợp môn từ database. Vui lòng tải lại trang.");
+      return;
+    }
+    const subjectInputs = methodTab === "DGNL" ? [0, 0, 0] : methodTab === "CHUNG_CHI" ? [m1Score, certM2Score, 0] : [m1Score, m2Score, m3Score];
     if (subjectInputs.some(value => value === "" || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 10)
         || (methodTab === "DGNL" && (dgnlScore === "" || !Number.isFinite(Number(dgnlScore))))
         || (methodTab === "CHUNG_CHI" && (certScore === "" || !Number.isFinite(Number(certScore))))) {
@@ -168,15 +178,22 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
     }
     const id = ++requestId.current;
     const release = beginLoading(); releaseLoading.current = release;
-    setBusy(true); setErrorMessage(""); setCalculationResult(null); setMatchedPrograms([]); setFilterChance("all");
+    setBusy(true); setErrorMessage(""); setCalculationResult(null); setFilterChance("all");
     try {
-      const result = await api<{ calculation: NonNullable<typeof calculationResult>; programs: ComparisonRow[] }>("score", "/diem/tinh-diem-doi-soat", {
-        method: methodTab, year: compareYear, combination: selectedToHop, scores: subjectInputs.map(Number),
+      const result = await api<{ calculation: Omit<CalculationSnapshot, "subjects" | "calculationYear"> }>("score", "/diem/tinh-diem-doi-soat", {
+        method: methodTab, year: calculationYear, combination: selectedToHop, scores: subjectInputs.map(Number),
         region, priority: priorityObj, exam: dgnlType, exam_score: Number(dgnlScore || 0),
         certificate: certType, certificate_score: Number(certScore || 0),
       });
       if (id !== requestId.current) return;
-      setCalculationResult(result.calculation); setMatchedPrograms(result.programs);
+      if (!result?.calculation) throw new Error("Missing calculation");
+      // Ignore legacy backend program rows: comparison is derived locally from SSR data.
+      setCalculationResult({ ...result.calculation, calculationYear,
+        subjects: methodTab === "DGNL" || methodTab === "CHUNG_CHI" ? [] : subjectInputs.map((score, index) => ({
+          code: [currentCombination?.ma_mon_1, currentCombination?.ma_mon_2, currentCombination?.ma_mon_3][index] ?? "",
+          name: [m1Name, m2Name, m3Name][index], score: Number(score),
+        })),
+      });
     } catch (error) {
       if (id === requestId.current) setErrorMessage(error instanceof BrowserApiError && error.status === 404
         ? "Backend điểm đang chạy phiên bản chưa có API tính điểm và đối soát. Cần triển khai phiên bản mới có /diem/tinh-diem-doi-soat rồi thử lại."
@@ -197,7 +214,8 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
         p.ten_nganh.toLowerCase().includes(searchMajorText.toLowerCase()) ||
         p.ten_chuong_trinh.toLowerCase().includes(searchMajorText.toLowerCase()) ||
         p.ma_chuong_trinh.toLowerCase().includes(searchMajorText.toLowerCase()) ||
-        p.ma_nganh.toLowerCase().includes(searchMajorText.toLowerCase());
+        p.ma_nganh.toLowerCase().includes(searchMajorText.toLowerCase()) ||
+        p.sourceCodes.some(code => code.toLowerCase().includes(searchMajorText.toLowerCase()));
 
       const matchChance = filterChance === "all" || p.pointBand === filterChance;
       return matchSearch && matchChance;
@@ -208,13 +226,13 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const highChanceCount = matchedPrograms.filter((p) => p.pointBand === "high").length;
   const mediumChanceCount = matchedPrograms.filter((p) => p.pointBand === "medium").length;
   const lowChanceCount = matchedPrograms.filter((p) => p.pointBand === "low").length;
-  const unclassifiedCount = matchedPrograms.filter((p) => !p.pointBand && p.chance !== "ineligible").length;
+  const unclassifiedCount = matchedPrograms.filter((p) => !p.pointBand).length;
   const ineligibleCount = matchedPrograms.filter((p) => p.chance === "ineligible").length;
   const unverifiedCount = matchedPrograms.filter((p) => p.chance === "unknown").length;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full space-y-7 pb-16 text-[#14264d]">
-      {/* Một form chung; dịch vụ điểm chịu trách nhiệm tính và đối soát. */}
+      {/* Backend chỉ tính điểm; bảng đối soát và thống kê được tính ngay ở Next.js. */}
       <div className="bg-gradient-to-br from-[#14264d] to-[#253e78] p-6 lg:p-8 border border-slate-200 shadow-sm rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
 
@@ -235,8 +253,9 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
         </h1>
 
         <p className="text-[13.5px] text-blue-100 mt-2 max-w-4xl leading-relaxed">
-          Nhập điểm một lần để dịch vụ điểm kiểm tra cấu hình theo năm, quy đổi và đối chiếu tương đương THPT trên thang 30. Điểm chính thức, điểm năm trước và dự đoán được trình bày riêng; dữ liệu chưa đủ sẽ không được dùng để đánh giá cơ hội.
+          Nhập điểm để quy đổi sang thang THPT. Bảng bên dưới so sánh ngay với điểm chuẩn đã công bố hoặc ước tính AI cùng năm; đổi năm, tìm kiếm và lọc nhóm không cần tính lại điểm.
         </p>
+        <p className="mt-3 text-xs text-blue-100">Năm tính và quy đổi điểm: {calculationYear}. Năm đối soát trong bảng được chọn riêng.</p>
       </div>
 
       {/* 2. DISCLAIMER LỚN – BẮT BUỘC & RÕ RÀNG */}
@@ -690,9 +709,10 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                     </div>
                   </div>
                   <p className="text-xs leading-relaxed text-slate-600">
-                    Chưa phân nhóm điểm: {unclassifiedCount} · Chưa đủ điều kiện: {ineligibleCount}.
-                    {" "}Chưa xác minh đủ điều kiện: {unverifiedCount} (có thể gồm các chương trình đã đối chiếu điểm).
-                    {" "}Chênh lệch điểm không phải kết luận trúng tuyển.
+                    Ba nhóm chỉ đếm theo chênh lệch điểm, bao gồm cả chương trình chưa đạt điều kiện.
+                    {" "}Chưa có điểm để đối chiếu: {unclassifiedCount}.
+                    {" "}Không đủ điều kiện: {ineligibleCount} · Cần xác minh thêm: {unverifiedCount}.
+                    {" "}Đây không phải kết luận trúng tuyển.
                   </p>
                 </div>
               </div>
@@ -713,30 +733,33 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
 
       {/* 4. BẢNG ĐỐI SOÁT & DỰ BÁO CƠ HỘI TRÚNG TUYỂN TOÀN BỘ NGÀNH UTC (FULL WIDTH) */}
       <div className="bg-white p-6 lg:p-8 border border-slate-200 shadow-sm rounded-2xl space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b-[2px] border-[#111827] pb-4">
-          <div>
-            <h2 className="font-display font-black text-[20px] sm:text-[23px] text-[#0d1b4e] uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#0284c7] text-[24px]">leaderboard</span>
-              Bảng Đối Soát Cơ Hội Trúng Tuyển Các Ngành UTC
+        <div className="grid gap-5 border-b border-slate-200 pb-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="min-w-0 space-y-2">
+            <h2 className="flex items-start gap-2 font-display text-lg font-bold leading-snug text-[#0d1b4e] sm:text-[22px]">
+              <span aria-hidden="true" className="material-symbols-outlined mt-0.5 shrink-0 text-[24px] text-[#0284c7]">leaderboard</span>
+              <span>Đối chiếu điểm chương trình tuyển sinh</span>
             </h2>
-            <p className="text-[12.5px] text-[#6b7280]">
-              Ưu tiên điểm chính thức của năm chọn; nếu chưa công bố thì hiển thị dự đoán đã lưu. Điểm năm trước được giữ riêng để tham khảo.
+            <p className="max-w-3xl text-sm leading-6 text-slate-500">
+              So sánh với điểm chính thức hoặc ước tính AI của năm đang chọn. Điểm năm trước chỉ để tham khảo; kết quả không thay thế thông báo trúng tuyển.
             </p>
           </div>
 
           {/* Chọn năm điểm chuẩn so sánh */}
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <span className="text-[12px] font-bold text-[#64748b]">Năm đối soát:</span>
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:justify-start">
+            <label htmlFor="score-comparison-year" className="whitespace-nowrap text-sm font-medium text-slate-600">Năm đối soát</label>
             <select
+              id="score-comparison-year"
               value={compareYear}
               onChange={(e) => setCompareYear(Number(e.target.value))}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-[12.5px] text-[#0d1b4e] outline-none cursor-pointer shadow-xs"
+              className="h-10 min-w-32 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-[#0d1b4e] shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               {availableYears.map(year => <option key={year} value={year}>Năm {year}</option>)}
             </select>
           </div>
         </div>
 
+        {aiLoading && <p role="status" className="text-sm text-slate-500">Đang tải ước tính AI; điểm chuẩn chính thức có thể đối chiếu ngay.</p>}
+        {aiError && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Chưa tải được ước tính AI; bảng điểm chính thức vẫn sử dụng bình thường. <button type="button" className="font-semibold underline" onClick={() => setAiAttempt(value => value + 1)}>Thử tải lại dự đoán</button></p>}
         {/* Thanh công cụ tìm kiếm và lọc cơ hội */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Ô tìm kiếm ngành */}
@@ -799,26 +822,31 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
         </div>
 
         {/* Bảng Dữ Liệu Đối Soát Ngành */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[12.5px]">
+        <div className="border-2 border-slate-500 rounded-xl overflow-hidden shadow-xs">
+          <div className="w-full min-w-0">
+            <table className="w-full table-fixed text-left border-collapse text-xs leading-5 lg:text-sm lg:leading-6 [&_th]:align-middle [&_td]:align-middle [&_th]:!w-auto [&_th]:!whitespace-normal [&_th]:!px-1 [&_td]:!px-1 sm:[&_th]:!px-2 sm:[&_td]:!px-2 [&_th]:[overflow-wrap:anywhere] [&_td]:[overflow-wrap:anywhere] [&_th_span]:!whitespace-normal [&_th]:border [&_th]:!border-slate-500 [&_td]:border [&_td]:!border-slate-400">
+              <colgroup>
+                <col style={{ width: "4%" }} /><col style={{ width: "8%" }} />
+                <col style={{ width: "27%" }} /><col style={{ width: "11%" }} />
+                <col style={{ width: "11%" }} /><col style={{ width: "10%" }} />
+                <col style={{ width: "9%" }} /><col style={{ width: "20%" }} />
+              </colgroup>
               <thead>
-                <tr className="bg-[#0d1b4e] text-white font-black text-[12px] uppercase">
+                <tr className="bg-[#0d1b4e] text-white font-semibold text-sm uppercase">
                   <th className="py-3 px-3 text-center w-[50px] border-r border-[#1e293b]">STT</th>
-                  <th className="py-3 px-3 text-center w-[90px] border-r border-[#1e293b]">Mã CTDT</th>
-                  <th className="py-3 px-4 border-r border-[#1e293b]">Tên ngành & Chương trình đào tạo</th>
-                  <th className="py-3 px-3 text-center w-[140px] border-r border-[#1e293b]">Điểm THPT chính thức / dự đoán ({compareYear})</th>
-                  <th className="py-3 px-3 text-center w-[110px] border-r border-[#1e293b]">Điểm chuẩn ({compareYear - 1})</th>
-                  <th className="py-3 px-3 text-center w-[95px] border-r border-[#1e293b]">Điểm của bạn</th>
-                  <th className="py-3 px-3 text-center w-[95px] border-r border-[#1e293b]">Chênh lệch</th>
-                  <th className="py-3 px-3 text-center w-[130px] border-r border-[#1e293b]">Dự báo cơ hội</th>
-                  <th className="py-3 px-3 text-center w-[90px]">Chi tiết</th>
+                  <th className="py-4 px-2 text-center whitespace-nowrap border-r border-[#1e293b]">Mã CTĐT</th>
+                  <th className="py-3 px-4 border-r border-[#1e293b]">Chương trình đào tạo</th>
+                  <th className="py-4 px-2 text-center border-r border-[#1e293b]"><span className="block whitespace-nowrap">{referenceHeading}</span><span className="block">({compareYear})</span></th>
+                  <th className="py-4 px-2 text-center border-r border-[#1e293b]"><span className="block whitespace-nowrap">Điểm chuẩn</span><span className="block">({compareYear - 1})</span></th>
+                  <th className="py-4 px-2 text-center whitespace-nowrap border-r border-[#1e293b]">Điểm của bạn</th>
+                  <th className="py-4 px-2 text-center whitespace-nowrap border-r border-[#1e293b]">Chênh lệch</th>
+                  <th className="py-3 px-3 text-center border-r border-[#1e293b]">Khả năng trúng tuyển<span className="mt-1 block text-xs font-medium normal-case text-blue-200">Mức tham khảo theo điểm</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] bg-white font-medium text-[#374151]">
                 {filteredMatchedPrograms.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-10 text-center text-[#6b7280] italic">
+                    <td colSpan={8} className="py-10 text-center text-[#6b7280] italic">
                       {calculationResult
                         ? "Không tìm thấy ngành học nào phù hợp với bộ lọc hiện tại."
                         : "Vui lòng nhập điểm ở form phía trên và nhấn 'Tính Điểm Quy Đổi' để hệ thống tự động so sánh cơ hội với tất cả các ngành!"}
@@ -826,33 +854,44 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                   </tr>
                 ) : (
                   filteredMatchedPrograms.map((p, idx) => (
-                    <tr key={p.ma_chuong_trinh} className="hover:bg-slate-50/60 transition-colors">
+                    <Fragment key={p.ma_chuong_trinh}>
+                    <tr
+                      className={`cursor-pointer transition-colors hover:bg-blue-50/60 ${expandedProgram === `${compareYear}:${p.ma_chuong_trinh}` ? "bg-blue-50/60" : ""}`}
+                      onClick={event => {
+                        // Các nút/link và phần giải thích trong hàng vẫn hoạt động độc lập.
+                        if ((event.target as HTMLElement).closest("button,a,summary,details")) return;
+                        toggleProgram(`${compareYear}:${p.ma_chuong_trinh}`);
+                      }}
+                    >
                       <td className="py-3 px-3 text-center font-bold text-[#64748b] border-r border-[#e5e7eb]">
                         {idx + 1}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono font-bold text-[#0d1b4e] border-r border-[#e5e7eb]">
+                      <td className="py-3 px-3 text-center font-semibold tabular-nums text-[#0d1b4e] border-r border-[#e5e7eb]">
                         {p.ma_chuong_trinh}
                       </td>
-                      <td className="py-3 px-4 border-r border-[#e5e7eb]">
-                        <div className="font-bold text-[#111827]">{p.ten_chuong_trinh}</div>
-                        <div className="text-[11px] text-[#6b7280]">
-                          Ngành: {p.ten_nganh} • {p.faculty}
-                        </div>
+                      <td className="break-words py-3 px-4 border-r border-[#e5e7eb]">
+                        <button
+                          type="button"
+                          aria-expanded={expandedProgram === `${compareYear}:${p.ma_chuong_trinh}`}
+                          aria-controls={`program-details-${compareYear}-${idx}`}
+                          onClick={() => toggleProgram(`${compareYear}:${p.ma_chuong_trinh}`)}
+                          className="w-full rounded text-left font-semibold leading-6 text-[#111827] hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                        >{p.ten_chuong_trinh}</button>
                       </td>
                       <td className="py-3 px-3 text-center font-bold text-[#0d1b4e] border-r border-[#e5e7eb]">
                         {p.benchmarkScore !== null ? (
-                            <span className="font-display font-black text-[14px]">{p.benchmarkScore.toFixed(2)} đ<span className="block text-xs font-normal">Chính thức · {p.matchedMethodName}</span></span>
+                            <span className="font-semibold tabular-nums">{p.benchmarkScore.toFixed(2)}</span>
                           ) : p.predictionScore !== null ? (
-                            <span className="font-bold text-amber-800">{p.predictionScore.toFixed(2)}<span className="block text-xs font-normal">Dự đoán · Chưa xác định phương thức/thang điểm</span></span>
+                            <span className="font-semibold tabular-nums text-amber-800" title="Điểm dự đoán AI tham khảo">{p.predictionScore.toFixed(2)}</span>
                         ) : (
-                          <span className="text-[#9ca3af] italic text-[11px]">Đang cập nhật</span>
+                          <span className="font-normal text-slate-400" aria-label={`Chưa có điểm năm ${compareYear}`}>—</span>
                         )}
                       </td>
-                        <td className="py-3 px-3 text-center border-r border-[#e5e7eb]">{p.previousScore !== null ? `${p.previousScore.toFixed(2)} đ` : <span className="text-xs text-slate-500">Chưa công bố</span>}</td>
+                      <td className="py-3 px-3 text-center font-semibold tabular-nums border-r border-[#e5e7eb]">{p.previousScore !== null ? p.previousScore.toFixed(2) : <span className="font-normal text-slate-400" aria-label={p.previousConflict ? "Mã lịch sử chưa thống nhất" : "Chưa công bố"}>—</span>}</td>
                       <td className="py-3 px-3 text-center font-bold text-[#0284c7] border-r border-[#e5e7eb]">
                         {calculationResult ? (
-                          <span className="font-display font-black text-[14px]">
-                            {(calculationResult.finalScore == null ? "Chưa có cấu hình" : calculationResult.finalScore.toFixed(2))} đ
+                          <span className="font-semibold tabular-nums">
+                            {calculationResult.finalScore == null ? "Chưa có cấu hình quy đổi" : `${calculationResult.finalScore.toFixed(2)} đ`}
                           </span>
                         ) : (
                           <span className="text-[#9ca3af]">—</span>
@@ -861,7 +900,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                       <td className="py-3 px-3 text-center font-bold border-r border-[#e5e7eb]">
                         {calculationResult && p.diff !== null ? (
                           <span
-                            className={`font-black ${
+                            className={`font-semibold tabular-nums ${
                               p.chance === "ineligible" || p.chance === "unknown" ? "text-slate-600" : (p.diff ?? 0) >= 0 ? "text-[#15803d]" : "text-[#dc2626]"
                             }`}
                           >
@@ -872,36 +911,24 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                         )}
                       </td>
                       <td className="py-3 px-3 text-center border-r border-[#e5e7eb]">
-                        {p.chance === "ineligible" || p.chance === "unknown" ? (
-                          <span className={`inline-block text-[11px] font-bold ${p.chance === "ineligible" ? "text-red-700" : "text-slate-600"}`}>{p.chance === "ineligible" ? "Chưa đủ điều kiện" : "Chưa đủ dữ liệu"}<span className="mt-1 block font-normal">{p.reason}</span></span>
-                        ) : calculationResult && p.benchmarkScore !== null ? (
-                          p.chance === "high" ? (
-                            <span className="px-2.5 py-0.5 bg-[#dcfce7] text-[#15803d] border border-[#86efac] rounded-full text-[11px] font-black inline-block">
-                              🟢 Trên điểm cũ
-                            </span>
-                          ) : p.chance === "medium" ? (
-                            <span className="px-2.5 py-0.5 bg-[#fef3c7] text-[#92400e] border border-[#fde68a] rounded-full text-[11px] font-black inline-block">
-                              🟡 Cạnh tranh
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 bg-[#fee2e2] text-[#b91c1c] border border-[#fca5a5] rounded-full text-[11px] font-black inline-block">
-                              🔴 Thử thách
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-[#9ca3af] text-[11px] italic">Chờ tính điểm</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <Link
-                          href={`/tra-cuu-nganh-hoc/${p.ma_nganh}`}
-                          className="inline-flex items-center gap-1 text-[11.5px] font-black text-[#0284c7] hover:underline"
-                        >
-                          <span>Xem</span>
-                          <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
-                        </Link>
+                        <AdmissionLikelihood row={p} hasConvertedScore={calculationResult?.finalScore != null} />
                       </td>
                     </tr>
+                    <tr id={`program-details-${compareYear}-${idx}`} hidden={expandedProgram !== `${compareYear}:${p.ma_chuong_trinh}`}>
+                      <td colSpan={8} className="bg-slate-50 px-5 py-4">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <p className="font-medium text-[#14264d]">{p.ma_chuong_trinh} · {p.ten_chuong_trinh}</p>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <Link href={`/tra-cuu-nganh-hoc/${p.ma_nganh}`} className="rounded-lg bg-[#0d1b4e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Xem chi tiết →</Link>
+                            <button type="button" onClick={() => {
+                              setExpandedProgram(null);
+                              document.getElementById(`program-details-${compareYear}-${idx}`)?.previousElementSibling?.querySelector("button")?.focus();
+                            }} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Đóng</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    </Fragment>
                   ))
                 )}
               </tbody>

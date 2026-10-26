@@ -10,38 +10,7 @@ export interface TimelineStep {
   rotateClass: string;
 }
 
-const defaultSteps: TimelineStep[] = [
-  {
-    title: "Đăng ký hồ sơ",
-    subtitle: "Xét tuyển sớm & ĐGNL",
-    bg: "bg-[#fde047]",
-    icon: "edit_document",
-    rotateClass: "rotate-[-4deg]",
-  },
-  {
-    title: "Thi tốt nghiệp",
-    subtitle: "Kỳ thi THPT Quốc gia",
-    bg: "bg-[#0284c7]",
-    icon: "assignment",
-    rotateClass: "rotate-2",
-  },
-  {
-    title: "Xét tuyển",
-    subtitle: "Đăng ký NV trên cổng Bộ",
-    bg: "bg-[#f87171]",
-    icon: "filter_alt",
-    rotateClass: "rotate-[-2deg]",
-  },
-  {
-    title: "Nhập học",
-    subtitle: "Chào đón Tân sinh viên K66",
-    bg: "bg-[#818cf8]",
-    icon: "school",
-    rotateClass: "rotate-3",
-  },
-];
-
-export function Timeline({ steps = defaultSteps }: { steps?: TimelineStep[] }) {
+export function Timeline({ steps }: { steps: TimelineStep[] }) {
   return (
     <section className="relative bg-[#fffdf5] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-[18px] overflow-hidden my-6">
       <div className="flex items-center justify-between mb-4">

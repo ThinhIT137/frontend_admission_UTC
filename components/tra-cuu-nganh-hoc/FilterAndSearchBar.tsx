@@ -17,6 +17,7 @@ const FilterAndSearchBar = ({
     setSortOption,
     data_khoa_vien,
     data_to_hop,
+    availableYears,
 }: {
     // Tìm tên/ ngành
     searchTerm: string;
@@ -38,35 +39,15 @@ const FilterAndSearchBar = ({
     setSortOption?: Dispatch<SetStateAction<string>>;
     data_khoa_vien: KhoiNganh[];
     data_to_hop: any[];
+    availableYears: number[];
 }) => {
     const locNhanh = {
-        toHopA00: () => {
-            setSearchTerm("");
-            setSelectedFaculty("");
-            setSelectedToHop("A00");
-            setSelectedDiemChuan(0);
-            setSelectedYear(2026);
-        },
-        toHopA01: () => {
-            setSearchTerm("");
-            setSelectedFaculty("");
-            setSelectedToHop("A01");
-            setSelectedDiemChuan(0);
-            setSelectedYear(2026);
-        },
-        toHopD01: () => {
-            setSearchTerm("");
-            setSelectedFaculty("");
-            setSelectedToHop("D01");
-            setSelectedDiemChuan(0);
-            setSelectedYear(2026);
-        },
         datlai: () => {
             setSearchTerm("");
             setSelectedFaculty("");
             setSelectedToHop("");
             setSelectedDiemChuan(0);
-            setSelectedYear(2026);
+
         },
     };
 
@@ -165,10 +146,8 @@ const FilterAndSearchBar = ({
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-[8px] font-bold text-[13px] text-[#14244e] outline-none focus:shadow-sm transition-all appearance-none cursor-pointer"
                     >
-                        <option value={2026}>Năm 2026</option>
-                        <option value={2025}>Năm 2025</option>
-                        <option value={2024}>Năm 2024</option>
-                        <option value={2023}>Năm 2023</option>
+                        {![...availableYears].includes(selectedYear) && <option value={selectedYear}>Năm {selectedYear} (chưa có dữ liệu)</option>}
+                        {availableYears.map(year => <option key={year} value={year}>Năm {year}</option>)}
                     </select>
                 </div>
             </div>
@@ -183,36 +162,13 @@ const FilterAndSearchBar = ({
                         <GraduationCap size={16} aria-hidden="true" />
                         Lọc Nhanh Tổ Hợp:
                     </span>
-                    <button
-                        onClick={() => locNhanh.toHopA00()}
-                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
-                            selectedToHop === "A00"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
-                                : "bg-[#bae6fd] text-[#14244e] hover:shadow-md"
-                        }`}
-                    >
-                        Tổ hợp A00 (Toán, Lý, Hóa)
-                    </button>
-                    <button
-                        onClick={() => locNhanh.toHopA01()}
-                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
-                            selectedToHop === "A01"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
-                                : "bg-[#38bdf8] text-[#14244e] hover:shadow-md"
-                        }`}
-                    >
-                        Tổ hợp A01 (Toán, Lý, Anh)
-                    </button>
-                    <button
-                        onClick={() => locNhanh.toHopD01()}
-                        className={`px-3 py-1 border border-slate-200 rounded-full text-[11px] font-bold transition-all ${
-                            selectedToHop === "D01"
-                                ? "bg-[#0d1b4e] text-[#fdb712] shadow-sm"
-                                : "bg-[#fed7aa] text-[#14244e] hover:shadow-md"
-                        }`}
-                    >
-                        Tổ hợp D01 (Toán, Văn, Anh)
-                    </button>
+                    {data_to_hop.slice(0, 3).map((combination: any) => (
+                        <button key={combination.ma_to_hop} type="button"
+                            onClick={() => { setSearchTerm(""); setSelectedFaculty(""); setSelectedToHop(combination.ma_to_hop); setSelectedDiemChuan(0); }}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${selectedToHop === combination.ma_to_hop ? "border-blue-950 bg-blue-950 text-white" : "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100"}`}>
+                            {combination.ma_to_hop} ({combination.mon_1?.ten_mon ?? combination.ma_mon_1}, {combination.mon_2?.ten_mon ?? combination.ma_mon_2}, {combination.mon_3?.ten_mon ?? combination.ma_mon_3})
+                        </button>
+                    ))}
                     <button
                         onClick={() => {
                             locNhanh.datlai();

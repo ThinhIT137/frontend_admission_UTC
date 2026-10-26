@@ -3,11 +3,14 @@ import { publicError } from "@/libs/client-error";
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import AcademicEvidenceFields, { AcademicDraft, emptyTranscript } from "./AcademicEvidenceFields";
+import AcademicEvidenceFields, { AcademicDraft, AcademicFileBindings, emptyTranscript } from "./AcademicEvidenceFields";
 import { academicPayload } from "./academic-payload";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import CandidateSession from "@/components/CandidateSession";
+import { ArrowRight, FileUp } from "lucide-react";
+import { AdmissionIcon, CandidatePage, CandidatePageHeader } from "@/components/admission/CandidatePage";
+import styles from "@/components/admission/candidate.module.css";
 
 export interface MethodOption {
   ma_phuong_thuc: string;
@@ -37,7 +40,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Form State
-  const [selectedMethod, setSelectedMethod] = useState<string>(methods[0]?.ma_phuong_thuc || "PT1");
+  const [selectedMethod, setSelectedMethod] = useState<string>(methods[0]?.ma_phuong_thuc ?? "");
   const [selectedProgram, setSelectedProgram] = useState<string>(programs[0]?.ma_chuong_trinh || "");
   const [selectedToHop, setSelectedToHop] = useState<string>("");
   const [rawScore, setRawScore] = useState<string>("");
@@ -67,6 +70,16 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   } | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Chuyển bước luôn đưa thí sinh về đầu phần biểu mẫu đang thao tác.
+  const formPanel = useRef<HTMLDivElement>(null);
+  function showStep(step: number) {
+    setCurrentStep(step);
+    requestAnimationFrame(() => {
+      const panel = formPanel.current;
+      panel?.focus({ preventScroll: true });
+      panel?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    });
+  }
   const pendingSubmission = useRef<FormData | null>(null);
   const submitting = useRef(false);
   const accountGeneration = useRef(0);
@@ -94,7 +107,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
   // Lấy danh sách tổ hợp của chương trình đào tạo đang chọn
   const currentProgramData = programs.find((p) => p.ma_chuong_trinh === selectedProgram);
-  const availableToHops = currentProgramData?.to_hop || ["A00", "A01", "D01", "D07"];
+  const availableToHops = currentProgramData?.to_hop ?? [];
 
   // Checklist giấy tờ yêu cầu tương ứng với từng phương thức xét tuyển
   const getRequiredDocuments = (methodCode: string) => {
@@ -176,6 +189,10 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
       setSubmitError("Vui lòng chọn Nguyện vọng Chương trình đào tạo và Phương thức xét tuyển.");
       return;
     }
+    if (!availableToHops.length || (selectedToHop && !availableToHops.includes(selectedToHop))) {
+      setSubmitError("Chương trình chưa có tổ hợp hợp lệ trong dữ liệu năm hiện tại. Vui lòng tải lại hoặc liên hệ tuyển sinh.");
+      return;
+    }
 
     setIsSubmitting(true);
     submitting.current = true;
@@ -231,7 +248,11 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   };
 
   return (
-    <div className="flex flex-col w-full space-y-7 pb-16">
+    <CandidatePage className={styles.formSurface}>
+      <CandidatePageHeader icon={FileUp} eyebrow="Hồ sơ trực tuyến · UTC GHA" title="Nộp hồ sơ xét tuyển" description="Chuẩn bị thông tin, chọn chương trình phù hợp và gửi hồ sơ của bạn qua bốn bước. Bạn có thể theo dõi tiến độ sau khi nộp thành công.">
+        <Link href="/nguyen-vong-cua-toi">Nguyện vọng của tôi<ArrowRight size={15} aria-hidden="true" /></Link>
+        <Link href="/lo-trinh-tuyen-sinh">Xem mốc thời gian<ArrowRight size={15} aria-hidden="true" /></Link>
+      </CandidatePageHeader>
       <CandidateSession onAuthenticated={user => {
         if (activeOwner.current !== user.cccd) { resetAccountForm(); activeOwner.current = user.cccd; }
         setHoTen(user.ho_ten); setCccd(user.cccd); setSoDienThoai(user.so_dien_thoai);
@@ -244,41 +265,8 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
           setUploadedFiles(files.map(f=>({id:f.key,storageKey:f.key,fileName:f.name,loaiGiayTo:f.key,uploadedAt:"Đã lưu"})));
         }).catch(error=>{if(error?.name!=="AbortError")console.error("[Danh sách minh chứng]", error);});
       }} onLogout={() => { activeOwner.current = ""; resetAccountForm(); }} />
-      <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Mùa tuyển sinh và nguyện vọng</h2>
-        <label>Năm <input aria-label="Năm nộp hồ sơ" className="border p-2 w-24" type="number" min={2000} max={2100} value={year} onChange={e => setYear(Number(e.target.value))} /></label>
-        <label className="ml-4">Nguyện vọng <input aria-label="Thứ tự nguyện vọng" className="border p-2 w-20" type="number" min={1} value={preference} onChange={e => setPreference(Number(e.target.value))} /></label>
-      </section>
-      <AcademicEvidenceFields value={academic} onChange={setAcademic} subjects={subjects} year={year} files={uploadedFiles} />
-      <section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Kho minh chứng của tôi</h2>
-        <p className="text-sm">Chọn file cùng hồ sơ; hệ thống lưu dữ liệu thành công rồi mới lưu file vào thư mục CCCD. Lưu file lỗi sẽ hoàn tác dữ liệu lần nộp. Tối đa 10 file mới và tổng 3,8 MB/lần để phù hợp giới hạn Vercel.</p>
-        <label className="underline cursor-pointer">Tải thêm minh chứng chứng chỉ / giải thưởng<input type="file" className="block" disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload("Tài liệu bổ sung " + Date.now(),e)} /></label>
-        {uploading && <p role="status">Đang tải minh chứng…</p>}
-        {uploadedFiles.map(f=><div key={f.storageKey} className="flex flex-wrap items-center gap-3">{f.file?<span>{f.fileName} — chờ nộp</span>:<a target="_blank" rel="noreferrer" className="underline" href={`/api/evidence?key=${encodeURIComponent(f.storageKey)}`}>{f.fileName}</a>}<label className="underline cursor-pointer">Thay file<input type="file" aria-label={"Thay file " + f.fileName} disabled={uploading || isSubmitting} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload(f.loaiGiayTo,e)} /></label></div>)}
-      </section>
-      {/* 1. Header Banner Phong Cách Neo-Brutalism */}
-      <div className="bg-[#fffdf7] p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-52 h-52 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="px-3 py-1 bg-[#0d1b4e] text-white font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            CỔNG TUYỂN SINH K66
-          </span>
-          <span className="px-3 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[12px] font-black border-[2px] border-[#111827] rounded-lg shadow-[2px_2px_0px_#111827]">
-            NỘP HỒ SƠ TRỰC TUYẾN
-          </span>
-          <span className="px-3 py-1 bg-[#dcfce7] text-[#166534] font-bold text-[12px] border-[1.5px] border-[#111827] rounded-lg">
-            Bảo mật & Đồng bộ trực tiếp CSDL UTC
-          </span>
-        </div>
 
-        <h1 className="font-display font-black text-[26px] sm:text-[34px] text-[#0d1b4e] uppercase leading-tight tracking-tight">
-          Hệ Thống Tiếp Nhận Hồ Sơ Xét Tuyển Trực Tuyến UTC
-        </h1>
-
-        <p className="text-[14px] text-[#4b5563] mt-2 max-w-4xl leading-relaxed">
-          Thí sinh hoàn tất quy trình 4 bước: <strong>Chọn phương thức $\rightarrow$ Điền thông tin $\rightarrow$ Tải lên minh chứng checklist $\rightarrow$ Nhận Mã hồ sơ chính thức</strong> để theo dõi đối soát và công nhận trúng tuyển.
-        </p>
-      </div>
 
       <DisclaimerBanner />
 
@@ -286,17 +274,17 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
       <div className="bg-white p-4 sm:p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { step: 1, title: "1. Chọn Phương Thức", icon: "tune" },
-            { step: 2, title: "2. Thông Tin Thí Sinh", icon: "person" },
-            { step: 3, title: "3. Checklist & Upload", icon: "fact_check" },
-            { step: 4, title: "4. Xác Nhận Nộp", icon: "task_alt" },
+            { step: 1, title: "1. Chọn phương thức", icon: "tune" },
+            { step: 2, title: "2. Thông tin thí sinh", icon: "person" },
+            { step: 3, title: "3. Minh chứng hồ sơ", icon: "fact_check" },
+            { step: 4, title: "4. Xác nhận nộp", icon: "task_alt" },
           ].map((s) => {
             const isPassed = currentStep > s.step;
             const isCurrent = currentStep === s.step;
 
             return (
               <div
-                key={s.step}
+                key={s.step} aria-current={isCurrent ? "step" : undefined}
                 className={`p-3 rounded-xl border-[2px] transition-all flex items-center gap-2.5 ${
                   isCurrent
                     ? "bg-[#0d1b4e] text-white border-[#111827] shadow-[3px_3px_0px_#111827]"
@@ -316,7 +304,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                 >
                   {isPassed ? "✓" : s.step}
                 </span>
-                <span className="font-display font-bold text-[13px] sm:text-[13.5px] truncate">
+                <span className="font-display font-bold text-[12px] sm:text-[13px] leading-relaxed">
                   {s.title}
                 </span>
               </div>
@@ -326,17 +314,24 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
       </div>
 
       {/* 3. Nội Dung Từng Bước Nộp Hồ Sơ */}
-      <div className="bg-white p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-6">
+      <div ref={formPanel} tabIndex={-1} className="scroll-mt-24 bg-white p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-6">
         {/* ===================== BƯỚC 1 ===================== */}
         {currentStep === 1 && (
           <div className="space-y-6 animate-in fade-in duration-200">
+<section className={`${styles.panel} space-y-4`}><h2 className="font-bold">Mùa tuyển sinh và nguyện vọng</h2>
+        <div className={styles.fields}>
+          <label className={styles.field}>Năm tuyển sinh<input aria-label="Năm nộp hồ sơ" className={styles.control} type="number" min={2000} max={2100} value={year} onChange={e => setYear(Number(e.target.value))} /></label>
+          <label className={styles.field}>Thứ tự nguyện vọng<input aria-label="Thứ tự nguyện vọng" className={styles.control} type="number" min={1} value={preference} onChange={e => setPreference(Number(e.target.value))} /></label>
+        </div>
+      </section>
+
             <div className="border-b-[2px] border-dashed border-[#e5e7eb] pb-3">
               <h3 className="font-display font-black text-[20px] text-[#0d1b4e] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#0284c7]">tune</span>
-                Bước 1: Chọn Phương Thức Tuyển Sinh & Nguyện Vọng Ngành
+                <AdmissionIcon className="text-[#0284c7]" name="tune" />
+                Chọn phương thức và chương trình đào tạo
               </h3>
               <p className="text-[13px] text-[#6b7280]">
-                Lựa chọn phương thức bạn dự định nộp và ngành đào tạo tại Cơ sở Hà Nội (GHA)
+                Lựa chọn phương thức và chương trình đào tạo tại Cơ sở Hà Nội (GHA).
               </p>
             </div>
 
@@ -348,7 +343,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {methods.map((m) => (
                   <button
-                    key={m.ma_phuong_thuc}
+                    key={m.ma_phuong_thuc} aria-pressed={selectedMethod === m.ma_phuong_thuc}
                     type="button"
                     onClick={() => setSelectedMethod(m.ma_phuong_thuc)}
                     className={`p-4 rounded-xl border-[2.5px] text-left transition-all flex flex-col justify-between ${
@@ -426,11 +421,11 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
             <div className="flex justify-end pt-4 border-t border-[#e5e7eb]">
               <button
                 type="button"
-                onClick={() => setCurrentStep(2)}
+                onClick={() => showStep(2)}
                 className="px-6 py-3 bg-[#0d1b4e] hover:bg-[#1e293b] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
               >
                 <span>Tiếp tục: Điền thông tin cá nhân</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <AdmissionIcon className="text-[18px]" name="arrow_forward" />
               </button>
             </div>
           </div>
@@ -439,9 +434,11 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
         {/* ===================== BƯỚC 2 ===================== */}
         {currentStep === 2 && (
           <div className="space-y-6 animate-in fade-in duration-200">
+
+
             <div className="border-b-[2px] border-dashed border-[#e5e7eb] pb-3">
               <h3 className="font-display font-black text-[20px] text-[#0d1b4e] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#16a34a]">person</span>
+                <AdmissionIcon className="text-[#16a34a]" name="person" />
                 Bước 2: Thông Tin Cá Nhân & Đối Tượng Ưu Tiên
               </h3>
               <p className="text-[13px] text-[#6b7280]">
@@ -538,10 +535,11 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
               </div>
             </div>
 
+            <AcademicEvidenceFields value={academic} onChange={setAcademic} subjects={subjects} year={year} files={uploadedFiles} />
             <div className="flex items-center justify-between pt-4 border-t border-[#e5e7eb]">
               <button
                 type="button"
-                onClick={() => setCurrentStep(1)}
+                onClick={() => showStep(1)}
                 className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
               >
                 ← Quay lại bước 1
@@ -550,7 +548,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
               <button
                 type="button"
                 disabled={!hoTen.trim() || !cccd.trim() || !soDienThoai.trim()}
-                onClick={() => setCurrentStep(3)}
+                onClick={() => showStep(3)}
                 className={`px-6 py-3 font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2 ${
                   hoTen.trim() && cccd.trim() && soDienThoai.trim()
                     ? "bg-[#0d1b4e] hover:bg-[#1e293b] text-white cursor-pointer"
@@ -558,7 +556,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                 }`}
               >
                 <span>Tiếp tục: Checklist hồ sơ & Upload</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <AdmissionIcon className="text-[18px]" name="arrow_forward" />
               </button>
             </div>
           </div>
@@ -567,9 +565,18 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
         {/* ===================== BƯỚC 3 ===================== */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-in fade-in duration-200">
+
+<section className="border rounded-xl bg-white p-4 space-y-3"><h2 className="font-bold">Kho minh chứng của tôi</h2>
+        <p className="text-sm">Chọn tệp PDF, JPG hoặc PNG để bổ sung cho hồ sơ. File mới được lưu khi bạn xác nhận nộp. Tối đa 10 file mới, tổng dung lượng 3,8 MB mỗi lần.</p>
+        <label className="underline cursor-pointer">Tải thêm minh chứng chứng chỉ / giải thưởng<input type="file" className="block" disabled={uploading} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload("Tài liệu bổ sung " + Date.now(),e)} /></label>
+        {uploading && <p role="status">Đang tải minh chứng…</p>}
+        {uploadedFiles.map(f=><div key={f.storageKey} className="flex flex-wrap items-center gap-3">{f.file?<span>{f.fileName} — chờ nộp</span>:<a target="_blank" rel="noreferrer" className="underline" href={`/api/evidence?key=${encodeURIComponent(f.storageKey)}`}>{f.fileName}</a>}<label className="underline cursor-pointer">Thay file<input type="file" aria-label={"Thay file " + f.fileName} disabled={uploading || isSubmitting} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>handleSimulateUpload(f.loaiGiayTo,e)} /></label></div>)}
+      </section>
+            <AcademicFileBindings value={academic} onChange={setAcademic} files={uploadedFiles} />
+
             <div className="border-b-[2px] border-dashed border-[#e5e7eb] pb-3">
               <h3 className="font-display font-black text-[20px] text-[#0d1b4e] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#ea580c]">fact_check</span>
+                <AdmissionIcon className="text-[#ea580c]" name="fact_check" />
                 Bước 3: Checklist Giấy Tờ & Tải Lên Minh Chứng
               </h3>
               <p className="text-[13px] text-[#6b7280]">
@@ -615,7 +622,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
                         {uploaded ? (
                           <p className="text-[12px] text-[#166534] font-medium mt-0.5 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[15px]">attach_file</span>
+                            <AdmissionIcon className="text-[15px]" name="attach_file" />
                             Đã tải: <a className="underline" target="_blank" rel="noreferrer" href={`/api/evidence?key=${encodeURIComponent(uploaded.storageKey)}`}>{uploaded.fileName}</a> ({uploaded.fileSize}) lúc {uploaded.uploadedAt}
                           </p>
                         ) : (
@@ -641,7 +648,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
             {/* Cảnh báo tính pháp lý của giấy tờ */}
             <div className="p-4 bg-[#fef3c7] border-[2px] border-[#f59e0b] rounded-xl text-[12.5px] text-[#92400e] space-y-1">
               <p className="font-bold flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px]">verified_user</span>
+                <AdmissionIcon className="text-[18px]" name="verified_user" />
                 Cam kết của thí sinh về tính chính xác:
               </p>
               <p className="leading-relaxed">
@@ -652,7 +659,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
             <div className="flex items-center justify-between pt-4 border-t border-[#e5e7eb]">
               <button
                 type="button"
-                onClick={() => setCurrentStep(2)}
+                onClick={() => showStep(2)}
                 className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
               >
                 ← Quay lại bước 2
@@ -660,11 +667,11 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
               <button
                 type="button"
-                onClick={() => setCurrentStep(4)}
+                onClick={() => showStep(4)}
                 className="px-6 py-3 bg-[#0d1b4e] hover:bg-[#1e293b] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
               >
                 <span>Tiếp tục: Rà soát & Xác nhận nộp</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <AdmissionIcon className="text-[18px]" name="arrow_forward" />
               </button>
             </div>
           </div>
@@ -678,7 +685,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
               <div className="p-6 bg-[#f0fdf4] border-[3px] border-[#16a34a] rounded-2xl shadow-[6px_6px_0px_#16a34a] space-y-5 text-center sm:text-left print:border-none print:shadow-none print:p-0">
                 <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-[#bbf7d0] pb-4">
                   <div className="w-16 h-16 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0 border-[3px] border-[#111827] shadow-[2px_2px_0px_#111827] print:hidden">
-                    <span className="material-symbols-outlined text-[36px]">check</span>
+                    <AdmissionIcon className="text-[36px]" name="check" />
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2 mb-1 justify-center sm:justify-start">
@@ -705,7 +712,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                       MÃ HỒ SƠ XÉT TUYỂN (DÙNG ĐỂ TRA CỨU ĐỐI SOÁT):
                     </span>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="font-mono font-black text-[28px] sm:text-[32px] text-[#0284c7] tracking-wider select-all">
+                      <span className="break-all font-mono font-bold text-sm sm:text-base text-blue-700 select-all">
                         {submitSuccess.maHoSo}
                       </span>
                       <button
@@ -714,9 +721,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                         className="px-3 py-1.5 bg-white hover:bg-[#f1f5f9] text-[#0f172a] text-[12px] font-bold rounded-lg border-[1.5px] border-[#111827] shadow-[1.5px_1.5px_0px_#111827] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 print:hidden"
                         title="Sao chép mã hồ sơ"
                       >
-                        <span className="material-symbols-outlined text-[16px]">
-                          {hasCopied ? "check" : "content_copy"}
-                        </span>
+                        <AdmissionIcon className="text-[16px]" name={hasCopied ? "check" : "content_copy"} />
                         <span>{hasCopied ? "Đã chép!" : "Sao chép"}</span>
                       </button>
                     </div>
@@ -754,7 +759,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                   <div>
                     <span className="text-[#64748b] block text-[12px] font-bold">PHƯƠNG THỨC & TỔ HỢP:</span>
                     <span className="font-bold text-[#0d1b4e]">
-                      {methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc} ({selectedToHop || availableToHops[0] || "A00"})
+                      {methods.find((m) => m.ma_phuong_thuc === selectedMethod)?.ten_phuong_thuc} ({selectedToHop || availableToHops[0] || "Chưa có tổ hợp"})
                     </span>
                   </div>
                   <div className="sm:col-span-2 pt-2 border-t border-[#e2e8f0]">
@@ -771,7 +776,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                     href={`/tra-cuu-ho-so?q=${encodeURIComponent(submitSuccess.maHoSo)}`}
                     className="px-6 py-3.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[20px]">search_check</span>
+                    <AdmissionIcon className="text-[20px]" name="search_check" />
                     <span>Tra Cứu Tiến Độ Hồ Sơ Này Ngay →</span>
                   </Link>
 
@@ -782,7 +787,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                     }}
                     className="px-5 py-3.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#0f172a] font-bold text-[13.5px] border-[2px] border-[#111827] shadow-[2px_2px_0px_#111827] rounded-xl flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[18px]">print</span>
+                    <AdmissionIcon className="text-[18px]" name="print" />
                     <span>In Phiếu Biên Nhận</span>
                   </button>
 
@@ -804,7 +809,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
               <div className="space-y-6">
                 <div className="border-b-[2px] border-dashed border-[#e5e7eb] pb-3">
                   <h3 className="font-display font-black text-[20px] text-[#0d1b4e] uppercase flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#16a34a]">task_alt</span>
+                    <AdmissionIcon className="text-[#16a34a]" name="task_alt" />
                     Bước 4: Rà Soát Lại Toàn Bộ Thông Tin & Xác Nhận Nộp
                   </h3>
                   <p className="text-[13px] text-[#6b7280]">
@@ -859,7 +864,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {uploadedFiles.map((f, i) => (
                         <div key={i} className="p-2.5 bg-white border border-[#111827] rounded-lg text-[12.5px] flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px] text-[#16a34a]">check_circle</span>
+                          <AdmissionIcon className="text-[18px] text-[#16a34a]" name="check_circle" />
                           <span className="font-bold truncate">{f.loaiGiayTo}:</span>
                           <span className="text-[#64748b] truncate">{f.fileName}</span>
                         </div>
@@ -874,7 +879,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
                 {submitError && (
                   <div className="p-3 bg-[#fee2e2] border-[1.5px] border-[#ef4444] rounded-xl text-[#b91c1c] font-bold text-[13px] flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">error</span>
+                    <AdmissionIcon className="text-[18px]" name="error" />
                     <span>{submitError}</span>
                   </div>
                 )}
@@ -882,7 +887,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                 <div className="flex items-center justify-between pt-4 border-t border-[#e5e7eb]">
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => showStep(3)}
                     className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
                   >
                     ← Quay lại bước 3
@@ -902,7 +907,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
                     ) : (
                       <>
                         <span>Xác Nhận Nộp Hồ Sơ Chính Thức</span>
-                        <span className="material-symbols-outlined text-[20px]">send</span>
+                        <AdmissionIcon className="text-[20px]" name="send" />
                       </>
                     )}
                   </button>
@@ -912,6 +917,6 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
           </div>
         )}
       </div>
-    </div>
+    </CandidatePage>
   );
 }

@@ -3,6 +3,9 @@ import { backendRequest } from "@/libs/api-services/backend.server";
 import { adminService } from "@/services/user.service";
 import { NextRequest } from "next/server";
 
+// Chừa ngân sách lớn hơn thời gian chờ 90s của chat; giới hạn host vẫn được áp dụng.
+export const maxDuration = 120;
+
 // Explicit endpoint allowlist; never proxy arbitrary hosts or attach privileged credentials to unknown paths.
 /** Bảng quyền theo đúng cặp đường dẫn/phương thức; ngoài danh sách trả null để từ chối. */
 function policy(

@@ -57,7 +57,7 @@ export default function MajorCard({ major, idx, selectedYear, selectedMethod = "
 
             {/* Description */}
             <p className="text-[12px] text-[#4b5563] leading-relaxed line-clamp-3 mb-5 flex-1">
-                {major.de_cuong || "Đào tạo kỹ sư và chuyên gia chuyên môn cao, nắm vững kiến thức thực tiễn và sẵn sàng đáp ứng nhu cầu phát triển công nghệ hiện đại."}
+                {major.de_cuong || "Chưa có mô tả chương trình trong hệ thống."}
             </p>
 
             {/* Stats Box */}

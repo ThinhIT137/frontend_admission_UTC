@@ -5,6 +5,9 @@ import { publicError } from "@/libs/client-error";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ArrowRight, FileStack, Info, RefreshCw } from "lucide-react";
+import { ApplicationStatus, CandidateLoading, CandidatePage, CandidatePageHeader } from "@/components/admission/CandidatePage";
+import styles from "@/components/admission/candidate.module.css";
 
 type Row = {
     ma_ho_so: string;
@@ -20,15 +23,6 @@ type Row = {
     ket_qua?: string;
     co_the_chinh_sua?: boolean;
 };
-const labels: Record<string, string> = {
-    cho: "Chờ kiểm tra",
-    hop_le: "Hợp lệ",
-    tu_choi: "Từ chối hồ sơ",
-    dang_xu_ly: "Đang xét tuyển — chưa công bố kết quả",
-    do: "Đỗ",
-    truot: "Trượt",
-};
-
 export default function MyPreferences() {
     const [rows, setRows] = useState<Row[] | null>(null);
     const [signedIn, setSignedIn] = useState(false);
@@ -146,19 +140,22 @@ export default function MyPreferences() {
     }
 
     return (
-        <div className="space-y-5">
-            <h1 className="text-2xl font-bold">Nguyện vọng của tôi</h1>
+        <CandidatePage className={styles.formSurface}>
+            <CandidatePageHeader icon={FileStack} eyebrow="Hồ sơ & xét tuyển · UTC" title="Nguyện vọng của tôi" description="Quản lý các nguyện vọng đã gửi, theo dõi tiến độ xét duyệt và sắp xếp lựa chọn cho hành trình đến với UTC.">
+                <Link href="/nop-ho-so">Nộp hồ sơ mới<ArrowRight size={15} aria-hidden="true" /></Link>
+                <Link href="/tra-cuu-ho-so">Tra cứu hồ sơ<ArrowRight size={15} aria-hidden="true" /></Link>
+            </CandidatePageHeader>
             <CandidateSession
                 onAuthenticated={authenticated}
                 onLogout={logout}
             />
             {!signedIn && (
-                <p>Đăng nhập để xem tất cả nguyện vọng đã nộp của bạn.</p>
+                <p className={styles.notice}><Info size={18} aria-hidden="true" />Đăng nhập để xem tất cả nguyện vọng đã nộp của bạn. Hồ sơ được lưu theo tài khoản thí sinh và năm tuyển sinh.</p>
             )}
             {signedIn && (
                 <>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <label className="font-bold">
+                    <div className={`${styles.panel} flex flex-wrap items-end gap-4`}>
+                        <label className={styles.field}>
                             Năm tuyển sinh{" "}
                             <select
                                 aria-label="Năm nguyện vọng"
@@ -181,14 +178,14 @@ export default function MyPreferences() {
                             </select>
                         </label>
                         <button
-                            className="rounded border px-3 py-2 disabled:opacity-50"
+                            className={styles.secondary}
                             disabled={disabled}
                             onClick={() => void load()}
                         >
-                            Tải lại danh sách
+                            <RefreshCw size={15} aria-hidden="true" />Tải lại danh sách
                         </button>
-                        <Link className="underline" href="/nop-ho-so">
-                            Nộp hồ sơ mới
+                        <Link className={`${styles.primary} sm:ml-auto`} href="/nop-ho-so">
+                            Nộp hồ sơ mới<ArrowRight size={15} aria-hidden="true" />
                         </Link>
                     </div>
                     {error && (
@@ -199,24 +196,21 @@ export default function MyPreferences() {
                             {error}
                         </p>
                     )}
-                    {busy && <p role="status">Đang tải nguyện vọng…</p>}
-                    {mutating && <p role="status">Đang lưu thay đổi…</p>}
+                    {busy && <CandidateLoading>Đang tải nguyện vọng…</CandidateLoading>}
+                    {mutating && <CandidateLoading>Đang lưu thay đổi…</CandidateLoading>}
                     {rows && (
-                        <p aria-live="polite">
+                        <p aria-live="polite" className={styles.summary}>
                             Đã nộp {selectedRows.length} nguyện vọng
                             {year ? ` trong năm ${year}` : ""}.
                         </p>
                     )}
                     {rows && !selectedRows.length && (
-                        <p className="rounded-xl border bg-white p-5">
-                            Chưa có nguyện vọng cho lựa chọn này. Bạn có thể nộp
-                            hồ sơ mới.
-                        </p>
+                        <div className={styles.empty}><FileStack size={32} aria-hidden="true" /><h2>Chưa có nguyện vọng</h2><p>Chưa có nguyện vọng cho lựa chọn này. Bạn có thể bắt đầu bằng cách nộp hồ sơ mới.</p><Link className={styles.primary} href="/nop-ho-so">Nộp hồ sơ<ArrowRight size={15} aria-hidden="true" /></Link></div>
                     )}
 
                     {rows && selectedRows.length > 0 && (
                         <section
-                            className="space-y-3 rounded-xl border bg-blue-50 p-4"
+                            className={`${styles.reorder} space-y-3`}
                             aria-label="Điều chỉnh thứ tự nguyện vọng"
                         >
                             <p className="text-sm">
@@ -282,28 +276,12 @@ export default function MyPreferences() {
                     {displayedRows.map((r, index) => (
                         <article
                             key={r.ma_ho_so}
-                            className="space-y-2 rounded-xl border bg-white p-5"
+                            className={`${styles.preferenceCard} space-y-4 bg-white`}
                         >
-                            <h2 className="font-bold">
-                                Nguyện vọng{" "}
-                                {draft ? ranks[index] : r.nguyen_vong} ·{" "}
-                                {r.ten_chuong_trinh || r.ma_chuong_trinh}
-                            </h2>
-                            <p className="break-all">Mã hồ sơ: {r.ma_ho_so}</p>
-                            <p>
-                                Ngành: {r.ten_nganh || r.ma_chuong_trinh} · Năm{" "}
-                                {r.nam_tuyen_sinh}
-                            </p>
-                            <p>
-                                Phương thức:{" "}
-                                {r.ten_phuong_thuc || r.ma_phuong_thuc} · Tổ
-                                hợp: {r.ma_to_hop || "Chưa chọn"}
-                            </p>
-                            <p>
-                                Trạng thái:{" "}
-                                {labels[r.trang_thai] || "Đang cập nhật"}
-                            </p>
-                            {r.ket_qua && <p>Thông báo: {r.ket_qua}</p>}
+                            <div className={styles.resultHeader}><div className="flex min-w-0 items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-lg font-bold text-blue-900">{draft ? ranks[index] : r.nguyen_vong}</span><div><span className="text-xs font-medium text-slate-500">Nguyện vọng {draft ? ranks[index] : r.nguyen_vong}</span><h2>{r.ten_chuong_trinh || r.ma_chuong_trinh}</h2></div></div><ApplicationStatus status={r.trang_thai} /></div>
+                            <dl className={styles.resultMeta}><div><dt>Năm tuyển sinh</dt><dd>{r.nam_tuyen_sinh}</dd></div><div><dt>Phương thức</dt><dd>{r.ten_phuong_thuc || r.ma_phuong_thuc}</dd></div><div><dt>Tổ hợp</dt><dd>{r.ma_to_hop || "Chưa chọn"}</dd></div></dl>
+                            <p className="break-all">Mã hồ sơ: <span className="font-mono">{r.ma_ho_so}</span></p>
+                            {r.ket_qua && <div className={styles.resultMessage}>Thông báo: {r.ket_qua}</div>}
                             {draft ? (
                                 <div className="flex gap-3">
                                     <button
@@ -396,12 +374,13 @@ export default function MyPreferences() {
                             )}
                         </article>
                     ))}
-                    <p className="text-sm text-gray-600">
+                    <p className={styles.notice}>
+                        <Info size={18} aria-hidden="true" />
                         Hồ sơ hợp lệ chưa đồng nghĩa trúng tuyển. Quyết định
                         đỗ/trượt chỉ hiển thị sau công bố.
                     </p>
                 </>
             )}
-        </div>
+        </CandidatePage>
     );
 }

@@ -25,14 +25,6 @@ export default async function NopHoSoPage() {
     methods = dbMethods;
   } catch (e) {
     console.error("Lỗi lấy phương thức tuyển sinh:", e);
-    // Fallback nếu DB rỗng
-    methods = [
-      { ma_phuong_thuc: "PT1", ten_phuong_thuc: "Xét tuyển theo kết quả thi tốt nghiệp THPT năm 2026" },
-      { ma_phuong_thuc: "PT2", ten_phuong_thuc: "Xét tuyển dựa trên kết quả học bạ THPT" },
-      { ma_phuong_thuc: "PT3", ten_phuong_thuc: "Xét tuyển theo bài thi ĐGNL ĐHQG Hà Nội (HSA)" },
-      { ma_phuong_thuc: "PT4", ten_phuong_thuc: "Xét tuyển theo bài thi ĐGTD ĐH Bách Khoa (TSA)" },
-      { ma_phuong_thuc: "PT5", ten_phuong_thuc: "Xét tuyển kết hợp Chứng chỉ Quốc tế & THPT" },
-    ];
   }
 
   try {
@@ -48,6 +40,7 @@ export default async function NopHoSoPage() {
           },
         },
         ctdt_to_hop: {
+          where: { nam: new Date().getFullYear() },
           select: {
             ma_to_hop: true,
           },
@@ -63,7 +56,7 @@ export default async function NopHoSoPage() {
         ten_chuong_trinh: p.ten_chuong_trinh,
         ma_nganh: p.ma_nganh,
         ten_nganh: p.nganh?.ten_nganh,
-        to_hop: combos.length > 0 ? combos : ["A00", "A01", "D01", "D07"],
+        to_hop: combos,
       };
     });
   } catch (e) {
