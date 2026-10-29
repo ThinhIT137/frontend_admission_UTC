@@ -4,6 +4,11 @@ import { programFamilies } from "./program-history";
 export type PointBand = "high" | "medium" | "low";
 export type SubjectSnapshot = { code: string; name: string; score: number };
 export type CalculationSnapshot = {
+    contractVersion?: string;
+    actualMethod?: string;
+    certificateBonus?: number;
+    variants?: Record<string, { rawScore: number; finalScore: number | null; priorityBonus: number; passPreliminary: boolean; eligibilityStatus?: "pending" | "met" | "not_met"; preliminaryNotes: string[] }>;
+    eligibilityStatus?: "pending" | "met" | "not_met";
     method: "THPT" | "HOC_BA" | "CHUNG_CHI" | "DGNL";
     rawScore: number;
     priorityBonus: number;
@@ -22,6 +27,7 @@ export type AiBenchmark = {
     phuong_thuc_quy_doi?: { pt1_thpt?: number };
 };
 export type ComparisonRow = {
+    personalScore?: number | null;
     ma_chuong_trinh: string;
     ten_chuong_trinh: string;
     ma_nganh: string;
@@ -170,7 +176,14 @@ export function comparePrograms(
                           : null))
                     : null;
             const reference = benchmark?.diem ?? predictionScore;
-            const final = calculation.finalScore;
+            const industry = normalized(program.nganh?.ten_nganh ?? program.ten_chuong_trinh);
+            const variantKey = industry.startsWith("ngonnguanh") ? "english" : industry.startsWith("toanungdung") ? "applied_math" : "standard";
+            const variant = calculation.variants?.[variantKey];
+            const eligibilityStatus = variant?.eligibilityStatus ?? calculation.eligibilityStatus;
+            const pendingReason = eligibilityStatus === "pending"
+                ? (variant?.preliminaryNotes ?? calculation.preliminaryNotes).join(" ") || "Chưa có điểm thi để kiểm tra điều kiện."
+                : null;
+            const final = variant ? variant.finalScore : calculation.finalScore;
             const diff =
                 reference !== null && final !== null && Number.isFinite(final)
                     ? Number((final - reference).toFixed(2))
@@ -178,11 +191,12 @@ export function comparePrograms(
             let chance: ComparisonRow["chance"] = "unknown";
             let reason =
                 "Chưa có điểm chính thức hoặc ước tính AI cùng năm để đối chiếu.";
-            let hardFailure = !calculation.passPreliminary;
-            let incomplete = false;
+            let hardFailure = eligibilityStatus === "not_met" || !(variant ? variant.passPreliminary : calculation.passPreliminary);
+            // Điểm THPT tham chiếu không chứng minh PT2/HSA/TSA được mở và đã đủ điều kiện riêng.
+            let incomplete = eligibilityStatus === "pending" || calculation.method === "HOC_BA" || calculation.method === "DGNL";
             if (hardFailure)
                 reason =
-                    calculation.preliminaryNotes[0] ??
+                    (variant?.preliminaryNotes ?? calculation.preliminaryNotes)[0] ??
                     "Chưa đạt điều kiện sơ bộ.";
             else if (final === null)
                 reason = "Chưa có cấu hình quy đổi cho điểm đã nhập.";
@@ -191,8 +205,8 @@ export function comparePrograms(
                     (current.program ?? program).ctdt_to_hop?.filter(
                         (item) => item.nam === year,
                     ) ?? [];
-                if (!combinations.length) incomplete = true;
-                else if (
+                if (calculation.method !== "DGNL" && !combinations.length) incomplete = true;
+                else if (calculation.method !== "DGNL" &&
                     !combinations.some(
                         (item) =>
                             item.ma_to_hop === calculation.combinationCode,
@@ -239,11 +253,11 @@ export function comparePrograms(
                             benchmark.diem_uu_tien_toi_thieu !== 0)
                     )
                         incomplete = true;
-                    reason = incomplete
+                    reason = pendingReason ?? (incomplete
                         ? "Chỉ so sánh điểm; chưa xác minh đủ tổ hợp hoặc tiêu chí phụ."
                         : predictionScore !== null && !benchmark
                           ? "Đối chiếu ước tính AI tham khảo, không phải kết luận trúng tuyển."
-                          : "Đối chiếu điểm THPT tham khảo, không phải kết luận trúng tuyển.";
+                          : "Đối chiếu điểm THPT tham khảo, không phải kết luận trúng tuyển.");
                 }
             }
             if (!hardFailure && current.conflict) {
@@ -251,6 +265,7 @@ export function comparePrograms(
                 reason =
                     "Các mã lịch sử có điểm cùng năm chưa thống nhất; cần đối chiếu nguồn trước khi so điểm.";
             }
+            if (!hardFailure && pendingReason) reason = pendingReason;
             // Ba nhóm thể hiện vị trí điểm; điều kiện nhập học được trình bày riêng.
             const pointBand: PointBand | null =
                 diff !== null
@@ -266,6 +281,7 @@ export function comparePrograms(
                   ? "unknown"
                   : pointBand;
             return {
+                personalScore: final,
                 ma_chuong_trinh: program.ma_chuong_trinh,
                 ten_chuong_trinh: program.ten_chuong_trinh,
                 ma_nganh: program.ma_nganh,

@@ -38,6 +38,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   // Bước 3: Checklist giấy tờ & Upload minh chứng
   // Bước 4: Kiểm tra & Xác nhận nộp hồ sơ
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [signedIn, setSignedIn] = useState(false);
 
   // Form State
   const [selectedMethod, setSelectedMethod] = useState<string>(methods[0]?.ma_phuong_thuc ?? "");
@@ -147,6 +148,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
   const currentChecklist = getRequiredDocuments(selectedMethod);
 
   const handleSimulateUpload = async (docTitle: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!signedIn || !activeOwner.current) { toast.error("Vui lòng đăng nhập tài khoản thí sinh trước."); return; }
     const file = e.target.files?.[0]; if (!file) return;
     if (isSubmitting || pendingSubmission.current) { toast.error("Vui lòng hoàn tất lần nộp đang chờ trước."); return; }
     if (!file.size || file.size > 5 * 1024 * 1024 || !/\.(pdf|jpe?g|png)$/i.test(file.name)) { toast.error("Chọn PDF/JPEG/PNG tối đa 5 MB."); return; }
@@ -165,6 +167,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
 
   // Xác nhận nộp hồ sơ qua server action và API backend điểm.
   const handleFinalSubmit = async () => {
+    if (!signedIn || !activeOwner.current || activeOwner.current !== cccd.trim()) { setSubmitError("Vui lòng đăng nhập đúng tài khoản thí sinh trước khi nộp hồ sơ."); return; }
     if (submitting.current) return;
     if (uploading) { toast.error("Vui lòng chờ tải minh chứng hoàn tất."); return; }
     setSubmitError("");
@@ -253,9 +256,23 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
         <Link href="/nguyen-vong-cua-toi">Nguyện vọng của tôi<ArrowRight size={15} aria-hidden="true" /></Link>
         <Link href="/lo-trinh-tuyen-sinh">Xem mốc thời gian<ArrowRight size={15} aria-hidden="true" /></Link>
       </CandidatePageHeader>
+      <section aria-labelledby="submission-guide-title" className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+        <h2 id="submission-guide-title" className="text-lg font-bold text-[#192b59]">Hướng dẫn nộp hồ sơ</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Chuẩn bị thông tin cá nhân và ảnh minh chứng rõ nét trước khi bắt đầu. Không tự chỉnh sửa nội dung giấy tờ.</p>
+        <ol className="mt-4 grid list-none gap-3 sm:grid-cols-2">
+          {[
+            ["Đăng nhập tài khoản thí sinh", "Sử dụng CCCD và mật khẩu. Nếu chưa có tài khoản, chọn đăng ký; nếu CCCD đã có hồ sơ cũ, sử dụng chức năng kích hoạt."],
+            ["Chọn phương thức và chương trình", "Kiểm tra năm tuyển sinh, chọn chương trình và tổ hợp phù hợp. Đối chiếu điều kiện trong thông báo tuyển sinh trước khi tiếp tục."],
+            ["Điền thông tin và chuẩn bị minh chứng", "Kiểm tra họ tên, CCCD và thông tin liên hệ; nhập dữ liệu học tập, chứng chỉ hoặc giải thưởng theo hồ sơ. Chọn ảnh/tệp đúng loại giấy tờ được yêu cầu."],
+            ["Kiểm tra và xác nhận nộp", "Rà lại toàn bộ thông tin ở bước cuối rồi xác nhận. Chờ thông báo thành công, lưu mã hồ sơ và theo dõi tại Nguyện vọng của tôi."],
+          ].map(([title, text], index) => <li key={title} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-blue-100 text-xs font-bold text-blue-900">{index + 1}</span><div><h3 className="text-sm font-semibold text-[#192b59]">{title}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{text}</p></div></li>)}
+        </ol>
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">Thao tác trên website này không thay thế đăng ký nguyện vọng hoặc xác nhận nhập học trên hệ thống chính thức. Theo dõi hướng dẫn và thời hạn tại <a href="https://tuyensinh.utc.edu.vn" target="_blank" rel="noopener noreferrer" className="font-semibold underline">cổng tuyển sinh UTC</a>; xem lịch đang lưu tại <Link href="/lo-trinh-tuyen-sinh" className="font-semibold underline">lộ trình tuyển sinh</Link>.</p>
+      </section>
       <CandidateSession onAuthenticated={user => {
         if (activeOwner.current !== user.cccd) { resetAccountForm(); activeOwner.current = user.cccd; }
         setHoTen(user.ho_ten); setCccd(user.cccd); setSoDienThoai(user.so_dien_thoai);
+        setSignedIn(true);
         listRequest.current?.abort(); listRequest.current = new AbortController();
         const generation = accountGeneration.current, version = ++listVersion.current;
         fetch("/api/evidence?list=1",{signal:listRequest.current.signal}).then(async response => {
@@ -264,10 +281,12 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
           if (generation !== accountGeneration.current || version !== listVersion.current || activeOwner.current !== user.cccd) return;
           setUploadedFiles(files.map(f=>({id:f.key,storageKey:f.key,fileName:f.name,loaiGiayTo:f.key,uploadedAt:"Đã lưu"})));
         }).catch(error=>{if(error?.name!=="AbortError")console.error("[Danh sách minh chứng]", error);});
-      }} onLogout={() => { activeOwner.current = ""; resetAccountForm(); }} />
+      }} onLogout={() => { setSignedIn(false); activeOwner.current = ""; resetAccountForm(); }} />
 
 
 
+      {!signedIn && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">Đăng nhập hoặc đăng ký tài khoản thí sinh để bắt đầu điền và nộp hồ sơ.</p>}
+      {signedIn && <>
       <DisclaimerBanner />
 
       {/* 2. Thanh Tiến Trình 4 Bước Neo-Brutalism */}
@@ -917,6 +936,7 @@ export default function NopHoSoClient({ methods, programs, subjects = [] }: Prop
           </div>
         )}
       </div>
+      </>}
     </CandidatePage>
   );
 }

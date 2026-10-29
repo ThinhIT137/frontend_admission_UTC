@@ -16,6 +16,8 @@ export default async function NopHoSoPage() {
   try {
     // 1. Lấy danh sách phương thức xét tuyển thực tế từ DB
     const dbMethods = await prismaPublic.phuongThucXetTuyen.findMany({
+      // Không cho tự nộp điểm thi THPT; dữ liệu này cần nguồn chính thức.
+      where: { ma_phuong_thuc: { not: "PT1" } },
       select: {
         ma_phuong_thuc: true,
         ten_phuong_thuc: true,

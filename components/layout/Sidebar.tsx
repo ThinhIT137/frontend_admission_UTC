@@ -133,9 +133,9 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
             aria-hidden={!isOpen}
             inert={!isOpen}
             initial={false}
-            animate={{ x: isOpen ? 0 : -244 }}
+            animate={{ x: isOpen ? 0 : -288 }}
             transition={{ duration: reduced ? 0 : 0.24, ease: "easeOut" }}
-            className="fixed left-0 top-0 z-50 flex h-dvh w-[244px] flex-col overflow-y-auto bg-[#172653] text-white"
+            className="fixed left-0 top-0 z-50 flex h-dvh w-[288px] flex-col overflow-y-auto bg-[#172653] text-white"
         >
             <div className="border-b border-white/10 px-5 pb-5 pt-6">
                 <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
                     />
                     <div className="min-w-0">
                         <p className="text-[14px] font-bold leading-6 text-amber-400">
-                            Cổng tuyển sinh
+                            Cổng tư vấn tuyển sinh
                         </p>
                         <p className="mt-1 text-[12px] font-semibold leading-5 text-white">
                             <span className="block">Trường đại học</span>{" "}

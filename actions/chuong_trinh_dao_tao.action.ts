@@ -26,6 +26,7 @@ export const getFilterCTDTAction = async ({
     phuongThuc,
     faculty,
     year,
+    sort,
 }: paginationRequest & {
     term: string;
     toHop: string;
@@ -33,6 +34,7 @@ export const getFilterCTDTAction = async ({
     phuongThuc?: string;
     faculty: string;
     year: number;
+    sort?: string;
 }) => {
     try {
         return await chuongTrinhDaoTaoService.getFilter({
@@ -44,6 +46,7 @@ export const getFilterCTDTAction = async ({
             phuongThuc,
             faculty,
             year,
+            sort,
         });
     } catch (err: any) {
         throw new Error(err.message || "Lấy chương trình đào tạo thất bại");

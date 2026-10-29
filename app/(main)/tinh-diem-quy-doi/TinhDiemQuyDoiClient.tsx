@@ -69,11 +69,10 @@ interface Props {
 
 export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, referenceYear = new Date().getFullYear() }: Props) {
   // Phương thức xét tuyển đang chọn
-  // 1: Điểm thi tốt nghiệp THPT (Mã 100)
-  // 2: Điểm học bạ THPT (Mã 200)
-  // 3: Kết hợp Chứng chỉ Quốc tế + THPT (Mã 402)
-  // 4: Đánh giá Năng lực HSA / Tư duy TSA (Mã 405)
-  const [methodTab, setMethodTab] = useState<"THPT" | "HOC_BA" | "CHUNG_CHI" | "DGNL">("THPT");
+  // THPT: PT1; học bạ kết hợp điều kiện thi THPT: PT2.
+  // IELTS là điểm cộng vào phương thức nền, không phải phương thức thay môn riêng.
+  // HSA: PT3 tại Hà Nội; TSA: PT4. Quy tắc hiện được cấu hình cho năm 2026.
+  const [methodTab, setMethodTab] = useState<"THPT" | "HOC_BA" | "DGNL">("THPT");
 
   // Danh sách tổ hợp
   const combinations = initialToHops;
@@ -93,10 +92,38 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const [m2Score, setM2Score] = useState<number | "">("");
   const [m3Score, setM3Score] = useState<number | "">("");
 
-  // Điểm Chứng chỉ Quốc tế (PT 402)
-  const [certType, setCertType] = useState<"IELTS" | "TOEFL" | "SAT">("IELTS");
+  const handoffApplied = useRef(false);
+  const pendingHandoff = useRef<{ combination: string; scores: number[] } | null>(null);
+  useEffect(() => {
+    if (handoffApplied.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const combination = initialToHops.find(item => item.ma_to_hop === params.get("combination"));
+    if (!combination) return;
+    const subjectCodes = [combination.ma_mon_1, combination.ma_mon_2, combination.ma_mon_3];
+    if (subjectCodes.some(code => !code) || new Set(subjectCodes).size !== 3) return;
+    const rawScores = [params.get("score1"), params.get("score2"), params.get("score3")];
+    if (rawScores.some(value => value === null || value.trim() === "")) return;
+    const scores = rawScores.map(Number);
+    if (scores.some(score => !Number.isFinite(score) || score < 0 || score > 10)) return;
+
+    // Chỉ nhận dữ liệu hợp lệ một lần; không ghi đè điểm người dùng sửa sau đó.
+    handoffApplied.current = true;
+    pendingHandoff.current = { combination: combination.ma_to_hop, scores };
+    setMethodTab("THPT");
+    setSelectedToHop(combination.ma_to_hop);
+    setM1Score(scores[0]);
+    setM2Score(scores[1]);
+    setM3Score(scores[2]);
+  }, [initialToHops]);
+
+  // IELTS được kiểm tra band và ngày cấp trước khi cộng điểm.
   const [certScore, setCertScore] = useState<number | "">("");
-  const [certM2Score, setCertM2Score] = useState<number | "">(""); // Môn thứ 2 (Lý/Hóa/Văn...)
+  const [certDate, setCertDate] = useState("");
+  const [annualScores, setAnnualScores] = useState<Record<string, Array<number | "">>>({});
+  const [thptMath, setThptMath] = useState<number | "">("");
+  const [thptEnglish, setThptEnglish] = useState<number | "">("");
+  const subjectCodes = [currentCombination?.ma_mon_1 ?? "", currentCombination?.ma_mon_2 ?? "", currentCombination?.ma_mon_3 ?? ""];
+  const annualMatrix = subjectCodes.map(code => annualScores[code] ?? ["", "", ""]);
 
   // Điểm Kỳ thi ĐGNL / ĐGTD (PT 405)
   const [dgnlType, setDgnlType] = useState<"HSA" | "TSA">("HSA");
@@ -162,18 +189,20 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
     releaseLoading.current?.(); releaseLoading.current = null;
     setBusy(false); setCalculationResult(null); setErrorMessage("");
     return () => { requestId.current += 1; releaseLoading.current?.(); };
-  }, [methodTab, selectedToHop, m1Score, m2Score, m3Score, certType, certScore, certM2Score, dgnlType, dgnlScore, region, priorityObj, calculationYear]);
+  }, [methodTab, selectedToHop, m1Score, m2Score, m3Score, certScore, certDate, annualScores, thptMath, thptEnglish, dgnlType, dgnlScore, region, priorityObj, calculationYear]);
 
   const handleCalculate = async () => {
     if (busy) return;
-    if (!currentCombination) {
+    if (calculationYear !== 2026) { setErrorMessage("Công cụ hiện áp dụng quy tắc UTC GHA 2026; chưa có cấu hình năm khác."); return; }
+    if (methodTab !== "DGNL" && !currentCombination) {
       setErrorMessage("Chưa tải được tổ hợp môn từ database. Vui lòng tải lại trang.");
       return;
     }
-    const subjectInputs = methodTab === "DGNL" ? [0, 0, 0] : methodTab === "CHUNG_CHI" ? [m1Score, certM2Score, 0] : [m1Score, m2Score, m3Score];
+    const subjectInputs = methodTab === "DGNL" ? [] : methodTab === "HOC_BA" ? annualMatrix.map(row => row.some(value => value === "") ? "" : row.reduce<number>((sum,value) => sum + Number(value),0) / 3) : [m1Score, m2Score, m3Score];
     if (subjectInputs.some(value => value === "" || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 10)
-        || (methodTab === "DGNL" && (dgnlScore === "" || !Number.isFinite(Number(dgnlScore))))
-        || (methodTab === "CHUNG_CHI" && (certScore === "" || !Number.isFinite(Number(certScore))))) {
+        || (methodTab === "HOC_BA" && (annualMatrix.flat().some(value => value === "" || !Number.isFinite(Number(value)) || Number(value)<0 || Number(value)>10) || (thptMath !== "" && (!Number.isFinite(thptMath) || thptMath<0 || thptMath>10)) || (thptEnglish !== "" && (!Number.isFinite(thptEnglish) || thptEnglish<0 || thptEnglish>10))))
+        || (methodTab === "DGNL" && (dgnlScore === "" || !Number.isFinite(Number(dgnlScore)) || dgnlScore < 0 || dgnlScore > (dgnlType === "HSA" ? 150 : 100)))
+        || (certScore !== "" && (!Number.isFinite(certScore) || certScore<0 || certScore>9 || certScore*2!==Math.trunc(certScore*2) || !certDate || certDate <= "2024-06-30" || certDate > new Date().toISOString().slice(0,10)))) {
       setErrorMessage("Vui lòng nhập đủ điểm hợp lệ trước khi đối soát."); return;
     }
     const id = ++requestId.current;
@@ -181,15 +210,16 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
     setBusy(true); setErrorMessage(""); setCalculationResult(null); setFilterChance("all");
     try {
       const result = await api<{ calculation: Omit<CalculationSnapshot, "subjects" | "calculationYear"> }>("score", "/diem/tinh-diem-doi-soat", {
-        method: methodTab, year: calculationYear, combination: selectedToHop, scores: subjectInputs.map(Number),
-        region, priority: priorityObj, exam: dgnlType, exam_score: Number(dgnlScore || 0),
-        certificate: certType, certificate_score: Number(certScore || 0),
+        method: methodTab, year: calculationYear, combination: methodTab === "DGNL" ? "DGNL" : selectedToHop, scores: subjectInputs.map(Number),
+        ...(methodTab === "HOC_BA" ? { annual_scores: annualMatrix, ...(thptMath !== "" ? {thpt_math_score: thptMath} : {}), ...(thptEnglish !== "" ? {thpt_english_score: thptEnglish} : {}) } : {}),
+        region, priority: priorityObj, exam: dgnlType, ...(methodTab === "DGNL" ? {exam_score: dgnlScore} : {}),
+        ...(certScore !== "" ? { certificate: "IELTS", certificate_score: certScore, certificate_date: certDate } : {}),
       });
       if (id !== requestId.current) return;
-      if (!result?.calculation) throw new Error("Missing calculation");
+      if (result?.calculation?.contractVersion !== "utc-gha-2026-v2") throw new Error("Legacy score contract");
       // Ignore legacy backend program rows: comparison is derived locally from SSR data.
       setCalculationResult({ ...result.calculation, calculationYear,
-        subjects: methodTab === "DGNL" || methodTab === "CHUNG_CHI" ? [] : subjectInputs.map((score, index) => ({
+        subjects: methodTab === "DGNL" ? [] : subjectInputs.map((score, index) => ({
           code: [currentCombination?.ma_mon_1, currentCombination?.ma_mon_2, currentCombination?.ma_mon_3][index] ?? "",
           name: [m1Name, m2Name, m3Name][index], score: Number(score),
         })),
@@ -198,13 +228,23 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
       if (id === requestId.current) setErrorMessage(error instanceof BrowserApiError && error.status === 404
         ? "Backend điểm đang chạy phiên bản chưa có API tính điểm và đối soát. Cần triển khai phiên bản mới có /diem/tinh-diem-doi-soat rồi thử lại."
         : error instanceof BrowserApiError && [400, 422].includes(error.status)
-          ? "Dữ liệu điểm hoặc tổ hợp chưa hợp lệ. Kiểm tra điểm môn, năm và phương thức rồi thử lại."
-          : "Dịch vụ điểm đang không khả dụng hoặc phản hồi quá lâu. Vui lòng thử lại sau.");
+          ? "API từ chối dữ liệu (400/422). Backend trên Render có thể vẫn là bản cũ chưa hỗ trợ học bạ 3 năm hoặc ngày cấp IELTS. Cần triển khai backend điểm có hợp đồng utc-gha-2026-v2, đồng thời kiểm tra điểm môn, tổ hợp và năm 2026."
+          : error instanceof Error && error.message === "Legacy score contract" ? "Backend điểm cần triển khai bản UTC GHA 2026 mới trước khi dùng công thức này." : "Dịch vụ điểm đang không khả dụng hoặc phản hồi quá lâu. Vui lòng thử lại sau.");
     } finally {
       release();
       if (id === requestId.current) { setBusy(false); releaseLoading.current = null; }
     }
   };
+
+  // Chờ tổ hợp và ba điểm từ trang chủ được cập nhật đủ rồi dùng đúng luồng tính tay.
+  // Tiêu thụ yêu cầu trước khi gửi để StrictMode/rerender không gọi API lặp lại.
+  useEffect(() => {
+    const handoff = pendingHandoff.current;
+    if (!handoff || busy || methodTab !== "THPT" || selectedToHop !== handoff.combination) return;
+    if (![m1Score, m2Score, m3Score].every((score, index) => score === handoff.scores[index])) return;
+    pendingHandoff.current = null;
+    void handleCalculate();
+  }, [busy, methodTab, selectedToHop, m1Score, m2Score, m3Score, handleCalculate]);
 
   // Lọc ngành theo tìm kiếm và trạng thái cơ hội
   const filteredMatchedPrograms = useMemo(() => {
@@ -283,12 +323,12 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
         {/* CỘT TRÁI (7 CỘT): FORM NHẬP ĐIỂM CHUYÊN SÂU */}
         <div className="lg:col-span-7 bg-white p-6 sm:p-7 border border-slate-200 shadow-sm rounded-2xl space-y-6">
-          {/* Thanh chọn 4 Phương thức tuyển sinh */}
+          {/* Thanh chọn phương thức tính điểm */}
           <div>
             <span className="text-[12px] font-black uppercase text-[#6b7280] block mb-2 font-stamp">
               Bước 1: Chọn Phương Thức Xét Tuyển Muốn Tính
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setMethodTab("THPT")}
@@ -299,7 +339,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">school</span>
-                <span>Thi THPT (100)</span>
+                <span>Thi THPT (PT1)</span>
               </button>
 
               <button
@@ -312,21 +352,10 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">menu_book</span>
-                <span>Học Bạ (200)</span>
+                <span>Học bạ + THPT (PT2)</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setMethodTab("CHUNG_CHI")}
-                className={`py-2.5 px-3 rounded-xl border border-slate-200 text-[12px] font-black uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                  methodTab === "CHUNG_CHI"
-                    ? "bg-[#0284c7] text-white shadow-[3px_3px_0px_#111827] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-[#1f2937] hover:bg-slate-50"
-                }`}
-              >
-                <span className="material-symbols-outlined text-[18px]">verified</span>
-                <span>Chứng Chỉ (402)</span>
-              </button>
+
 
               <button
                 type="button"
@@ -338,229 +367,28 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">psychology</span>
-                <span>ĐGNL/ĐGTD (405)</span>
+                <span>HSA / TSA</span>
               </button>
             </div>
           </div>
 
           <div className="border-t-[2px] border-dashed border-[#d1d5db] pt-5 space-y-5">
-            {/* Form trường hợp 1: Thi THPT hoặc Học bạ */}
-            {(methodTab === "THPT" || methodTab === "HOC_BA") && (
-              <>
-                <div>
-                  <label className="block text-[13px] font-black text-[#0d1b4e] mb-1.5 uppercase">
-                    Chọn Tổ Hợp Môn Xét Tuyển:
-                  </label>
-                  <select
-                    value={selectedToHop}
-                    onChange={(e) => setSelectedToHop(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13.5px] text-[#0d1b4e] outline-none shadow-xs cursor-pointer"
-                  >
-                    {combinations.map((c) => (
-                      <option key={c.ma_to_hop} value={c.ma_to_hop}>
-                        Tổ hợp {c.ma_to_hop}: {c.mon_1?.ten_mon || c.ma_mon_1} - {c.mon_2?.ten_mon || c.ma_mon_2} - {c.mon_3?.ten_mon || c.ma_mon_3}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <span className="block text-[13px] font-black text-[#0d1b4e] mb-2 uppercase">
-                    Nhập Điểm {methodTab === "THPT" ? "Thi Tốt Nghiệp THPT" : "Học Bạ THPT (Thang 10)"}:
-                  </span>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
-                      <label className="block text-[11.5px] font-bold text-[#64748b] truncate mb-1" title={m1Name}>
-                        {m1Name}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0"
-                        max="10"
-                        value={m1Score}
-                        onChange={(e) => setM1Score(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full text-center font-display font-black text-[20px] text-[#0d1b4e] bg-slate-50 rounded-lg py-1 border border-[#cbd5e1] outline-none"
-                      />
-                    </div>
-
-                    <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
-                      <label className="block text-[11.5px] font-bold text-[#64748b] truncate mb-1" title={m2Name}>
-                        {m2Name}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0"
-                        max="10"
-                        value={m2Score}
-                        onChange={(e) => setM2Score(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full text-center font-display font-black text-[20px] text-[#0d1b4e] bg-slate-50 rounded-lg py-1 border border-[#cbd5e1] outline-none"
-                      />
-                    </div>
-
-                    <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
-                      <label className="block text-[11.5px] font-bold text-[#64748b] truncate mb-1" title={m3Name}>
-                        {m3Name}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0"
-                        max="10"
-                        value={m3Score}
-                        onChange={(e) => setM3Score(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full text-center font-display font-black text-[20px] text-[#0d1b4e] bg-slate-50 rounded-lg py-1 border border-[#cbd5e1] outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <p className="text-[11.5px] text-[#6b7280] italic mt-1.5">
-                    * Lưu ý sơ bộ UTC: Điểm thi môn Toán kỳ thi tốt nghiệp THPT phải đạt từ <strong>5.0 điểm</strong> trở lên.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* Form trường hợp 2: Chứng chỉ Quốc tế (PT 402) */}
-            {methodTab === "CHUNG_CHI" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[12.5px] font-black text-[#0d1b4e] mb-1 uppercase">
-                      Loại Chứng Chỉ Quốc Tế:
-                    </label>
-                    <select
-                      value={certType}
-                      onChange={(e) => setCertType(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-[#0d1b4e] outline-none cursor-pointer"
-                    >
-                      <option value="IELTS">IELTS Academic (Thang 9.0)</option>
-                      <option value="TOEFL">TOEFL iBT (Thang 120)</option>
-                      <option value="SAT">SAT General Test (Thang 1600)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12.5px] font-black text-[#0d1b4e] mb-1 uppercase">
-                      Điểm Chứng Chỉ Đạt Được:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step={certType === "SAT" ? "10" : "0.5"}
-                        placeholder={certType === "SAT" ? "Ví dụ: 1250" : "Ví dụ: 6.5"}
-                        value={certScore}
-                        onChange={(e) => setCertScore(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-display font-black text-[16px] text-[#0d1b4e] outline-none"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#0284c7]">
-                        Dịch vụ điểm kiểm tra cấu hình quy đổi theo năm
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-[#e0f2fe] border-[1.5px] border-[#0284c7] rounded-xl text-[12px] text-[#0369a1] space-y-1">
-                  <p className="font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">info</span>
-                    Bảng quy đổi điểm IELTS của UTC sang môn Tiếng Anh:
-                  </p>
-                  <p className="text-[11.5px] leading-snug">
-                    IELTS 5.0 → 8.0 đ | IELTS 5.5 → 8.5 đ | IELTS 6.0 → 9.0 đ | IELTS 6.5 → 9.5 đ | IELTS ≥ 7.0 → 10.0 đ
-                  </p>
-                </div>
-
-                <div>
-                  <span className="block text-[12.5px] font-black text-[#0d1b4e] mb-2 uppercase">
-                    Điểm 2 Môn Thi Tốt Nghiệp THPT Còn Lại Trong Tổ Hợp:
-                  </span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-3 border border-slate-200 rounded-xl">
-                      <label className="block text-[11.5px] font-bold text-[#64748b] mb-1">
-                        Môn Toán (Bắt buộc)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0"
-                        max="10"
-                        value={m1Score}
-                        onChange={(e) => setM1Score(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full text-center font-display font-black text-[18px] text-[#0d1b4e] bg-slate-50 rounded-lg py-1 border border-[#cbd5e1] outline-none"
-                      />
-                    </div>
-
-                    <div className="bg-white p-3 border border-slate-200 rounded-xl">
-                      <label className="block text-[11.5px] font-bold text-[#64748b] mb-1">
-                        Môn Thứ 2 (Vật lý / Hóa học / Văn)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0"
-                        max="10"
-                        value={certM2Score}
-                        onChange={(e) => setCertM2Score(e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full text-center font-display font-black text-[18px] text-[#0d1b4e] bg-slate-50 rounded-lg py-1 border border-[#cbd5e1] outline-none"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11.5px] text-[#6b7280] italic mt-1.5">
-                    * Điều kiện: Tổng 2 môn thi THPT ≥ 12.0 điểm và môn Toán ≥ 5.0 điểm.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Form trường hợp 3: Đánh giá Năng lực HSA / TSA (PT 405) */}
-            {methodTab === "DGNL" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[12.5px] font-black text-[#0d1b4e] mb-1 uppercase">
-                      Kỳ Thi Đánh Giá:
-                    </label>
-                    <select
-                      value={dgnlType}
-                      onChange={(e) => setDgnlType(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-[#0d1b4e] outline-none cursor-pointer"
-                    >
-                      <option value="HSA">ĐGNL ĐHQG Hà Nội (HSA - Thang 150)</option>
-                      <option value="TSA">ĐGTD ĐH Bách Khoa (TSA - Thang 100)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12.5px] font-black text-[#0d1b4e] mb-1 uppercase">
-                      Điểm Đạt Được:
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      placeholder={dgnlType === "HSA" ? "Ví dụ: 95" : "Ví dụ: 68"}
-                      value={dgnlScore}
-                      onChange={(e) => setDgnlScore(e.target.value === "" ? "" : Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-display font-black text-[18px] text-[#0d1b4e] outline-none text-center"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-[#fef3c7] border-[1.5px] border-[#f59e0b] rounded-xl text-[12px] text-[#92400e] space-y-1 leading-snug">
-                  <p className="font-bold">Công thức quy đổi chuẩn thang 30 tại UTC:</p>
-                  {dgnlType === "HSA" ? (
-                    <p>
-                      Điểm xét tuyển = (Điểm HSA ÷ 150) × 30 + Điểm ưu tiên. Ngưỡng nhận hồ sơ tối thiểu: <strong>75/150 điểm</strong>.
-                    </p>
-                  ) : (
-                    <p>
-                      Điểm xét tuyển = (Điểm TSA ÷ 100) × 30 + Điểm ưu tiên. Ngưỡng nhận hồ sơ tối thiểu: <strong>50/100 điểm</strong>.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
+            {methodTab !== "DGNL" && <div className="space-y-5">
+              <label className="block text-sm font-semibold text-slate-700">Tổ hợp xét tuyển
+                <select aria-label="Tổ hợp xét tuyển" value={selectedToHop} onChange={e=>setSelectedToHop(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm">
+                  {combinations.map(c=><option key={c.ma_to_hop} value={c.ma_to_hop}>{c.ma_to_hop} · {[c.mon_1?.ten_mon || c.ma_mon_1,c.mon_2?.ten_mon || c.ma_mon_2,c.mon_3?.ten_mon || c.ma_mon_3].join(" – ")}</option>)}
+                </select>
+              </label>
+              {methodTab === "HOC_BA" ? <>
+                <p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">Nhập điểm trung bình cả năm của từng môn ở lớp 10, 11, 12. Mỗi ô phải từ 5,5 để đạt điều kiện PT2; hệ thống lấy trung bình ba năm, nhân hệ số Toán rồi quy đổi theo bảng.</p>
+                <div className="space-y-4">{[m1Name,m2Name,m3Name].map((name,index)=><fieldset key={subjectCodes[index]} className="rounded-xl border border-slate-200 p-3"><legend className="px-1 text-sm font-bold text-slate-800">{name}</legend><div className="grid grid-cols-3 gap-3">{[10,11,12].map((grade,yearIndex)=><label key={grade} className="text-xs font-medium text-slate-600">Lớp {grade}<input aria-label={`${name} lớp ${grade}`} type="number" min="0" max="10" step="0.01" value={annualMatrix[index][yearIndex]} onChange={e=>{const value=e.target.value===""?"":Number(e.target.value);setAnnualScores(old=>({...old,[subjectCodes[index]]:(old[subjectCodes[index]]??["","",""]).map((v,j)=>j===yearIndex?value:v)}));}} className="mt-2 w-full rounded-lg border border-slate-300 p-2 text-center text-base font-semibold"/></label>)}</div></fieldset>)}</div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><h3 className="text-sm font-bold text-amber-900">Điều kiện điểm thi THPT 2026 (khác điểm học bạ)</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Toán THPT (chưa có điểm có thể để trống)<input aria-label="Toán THPT điều kiện PT2" type="number" min="0" max="10" step="0.01" value={thptMath} onChange={e=>setThptMath(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label><label className="text-sm">Tiếng Anh THPT (nếu xét Ngôn ngữ Anh)<input aria-label="Tiếng Anh THPT điều kiện PT2" type="number" min="0" max="10" step="0.01" value={thptEnglish} onChange={e=>setThptEnglish(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label></div><p className="mt-3 text-xs leading-5 text-amber-900">Có thể tính học bạ khi chưa có điểm thi; trạng thái điều kiện sẽ là chưa kiểm tra được. Toán từ 5; Toán ứng dụng từ 6. Ngôn ngữ Anh: tiếng Anh THPT từ 6 hoặc IELTS từ 4,5.</p></div>
+              </> : <div className="grid grid-cols-3 gap-3">{[m1Name,m2Name,m3Name].map((name,index)=><label key={subjectCodes[index]} className="min-w-0 text-sm font-semibold text-slate-700">{name}<input aria-label={`Điểm thi ${name}`} type="number" min="0" max="10" step="0.01" value={[m1Score,m2Score,m3Score][index]} onChange={e=>[setM1Score,setM2Score,setM3Score][index](e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-center text-lg"/></label>)}</div>}
+              <p className="text-xs leading-6 text-slate-500">Điểm cơ sở: (Toán × 2 + hai môn còn lại) × 3/4. Ngành Ngôn ngữ Anh dùng tổng ba môn không nhân hệ số; bảng đối chiếu tính riêng theo ngành.</p>
+            </div>}
+            {methodTab === "DGNL" && <div className="space-y-4"><label className="block text-sm font-semibold">Kỳ thi tại Hà Nội<select aria-label="Kỳ thi đánh giá" value={dgnlType} onChange={e=>setDgnlType(e.target.value as "HSA"|"TSA")} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3"><option value="HSA">HSA · ĐHQG Hà Nội · thang 150</option><option value="TSA">TSA · ĐH Bách khoa Hà Nội · thang 100</option></select></label><label className="block text-sm font-semibold">Điểm {dgnlType}<input aria-label={`Điểm ${dgnlType}`} type="number" min="0" max={dgnlType==="HSA"?150:100} step="0.01" value={dgnlScore} onChange={e=>setDgnlScore(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-xl border border-slate-300 p-3"/></label><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">Quy đổi theo từng khoảng trong bảng năm 2026 bằng nội suy, không chia tuyến tính toàn thang. Ngoài khoảng bảng sẽ báo chưa quy đổi được. Cần kiểm tra phương thức và điều kiện bổ sung từng chương trình GHA.</p></div>}
+            <fieldset className="rounded-xl border border-slate-200 p-4"><legend className="px-1 text-sm font-bold text-slate-800">IELTS (không bắt buộc)</legend><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Điểm IELTS<input aria-label="Điểm IELTS" type="number" min="0" max="9" step="0.5" value={certScore} onChange={e=>{setCertScore(e.target.value===""?"":Number(e.target.value));if(e.target.value==="")setCertDate("");}} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label><label className="text-sm">Ngày cấp chứng chỉ<input aria-label="Ngày cấp IELTS" type="date" min="2024-07-01" max={new Date().toISOString().slice(0,10)} value={certDate} onChange={e=>setCertDate(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label></div><p className="mt-3 text-xs leading-6 text-slate-600">IELTS chỉ cộng điểm, không thay môn tiếng Anh: 5,0 +0,50; 5,5 +0,75; 6,0 +1,00; 6,5 +1,25; từ 7,0 +1,50. Chứng chỉ cấp sau 30/06/2024. IELTS 4,5 có thể đáp ứng điều kiện PT2 Ngôn ngữ Anh nhưng không có điểm cộng.</p></fieldset>
+            <a href="https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/th%C3%B4ng-tin-tuy%E1%BB%83n-sinh-%C4%91%E1%BA%A1i-h%E1%BB%8Dc-h%E1%BB%87-ch%C3%ADnh-quy-2026" target="_blank" rel="noreferrer" className="block text-sm font-medium text-blue-700 underline">Nguồn: Thông tin tuyển sinh UTC 2026 · mục 2 và 5.3</a>
             {/* Bước 2: Khu vực & Đối tượng ưu tiên */}
             <div className="border-t-[2px] border-dashed border-[#d1d5db] pt-4">
               <span className="text-[12px] font-black uppercase text-[#6b7280] block mb-2 font-stamp">
@@ -650,14 +478,16 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                     {(calculationResult.finalScore == null ? "Chưa có cấu hình" : calculationResult.finalScore.toFixed(2))}
                   </div>
                   <span className="text-[11.5px] text-[#93c5fd] block pt-1">
-                    (Đã cộng {calculationResult.priorityBonus.toFixed(2)} đ ưu tiên sau giảm dần)
+                    (Đã cộng {calculationResult.priorityBonus.toFixed(3)} đ ưu tiên sau giảm dần)
                   </span>
                 </div>
+
+                <p className="text-sm leading-6 text-slate-600">Kết quả trên áp dụng nhóm nhân hệ số Toán. Ngành Ngôn ngữ Anh dùng tổng ba môn không nhân hệ số; điểm riêng được hiển thị tại từng dòng đối chiếu. Các điều kiện hồ sơ và phương thức mở tuyển vẫn cần kiểm tra theo đề án.</p>
 
                 {/* Bảng phân rã điểm thành phần */}
                 <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 text-[12.5px] shadow-xs">
                   <div className="flex items-center justify-between font-bold text-[#0d1b4e] border-b border-dashed border-[#e2e8f0] pb-1.5">
-                    <span>Tổng điểm gốc chưa ưu tiên:</span>
+                    <span>Điểm cơ sở trước quy đổi, ưu tiên:</span>
                     <span className="font-display font-black text-[15px]">{calculationResult.rawScore.toFixed(2)} đ</span>
                   </div>
 
@@ -670,7 +500,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
 
                   <div className="flex items-center justify-between text-[#b45309] font-bold pt-1 border-t border-dashed border-[#e2e8f0]">
                     <span>Điểm ưu tiên thực nhận:</span>
-                    <span>+{calculationResult.priorityBonus.toFixed(2)} đ (Trần: {calculationResult.maxPriority} đ)</span>
+                    <span>+{calculationResult.priorityBonus.toFixed(3)} đ (Trần: {calculationResult.maxPriority} đ)</span>
                   </div>
                 </div>
 
@@ -891,7 +721,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                       <td className="py-3 px-3 text-center font-bold text-[#0284c7] border-r border-[#e5e7eb]">
                         {calculationResult ? (
                           <span className="font-semibold tabular-nums">
-                            {calculationResult.finalScore == null ? "Chưa có cấu hình quy đổi" : `${calculationResult.finalScore.toFixed(2)} đ`}
+                            {p.personalScore == null ? "Chưa có cấu hình quy đổi" : `${p.personalScore.toFixed(2)} đ`}
                           </span>
                         ) : (
                           <span className="text-[#9ca3af]">—</span>
@@ -911,7 +741,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                         )}
                       </td>
                       <td className="py-3 px-3 text-center border-r border-[#e5e7eb]">
-                        <AdmissionLikelihood row={p} hasConvertedScore={calculationResult?.finalScore != null} />
+                        <AdmissionLikelihood row={p} hasConvertedScore={p.personalScore != null} />
                       </td>
                     </tr>
                     <tr id={`program-details-${compareYear}-${idx}`} hidden={expandedProgram !== `${compareYear}:${p.ma_chuong_trinh}`}>

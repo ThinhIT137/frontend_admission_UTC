@@ -58,6 +58,7 @@ export const chuongTrinhDaoTaoService = {
         phuongThuc = "PT1",
         faculty,
         year,
+        sort = "score-desc",
     }: paginationRequest & {
         term: string;
         toHop: string;
@@ -65,7 +66,9 @@ export const chuongTrinhDaoTaoService = {
         phuongThuc?: string;
         faculty: string;
         year: number;
+        sort?: string;
     }) => {
+        const sortOption = ["default", "score-desc", "score-asc", "quota-desc", "name-asc", "name-desc"].includes(sort) ? sort : "score-desc";
         if (diemChuan > 0 && !Number.isFinite(diemChuan)) throw new Error("Điểm không hợp lệ");
         // Lọc điểm tại DB, chỉ đối chiếu đúng năm và phương thức.
         const where = {
@@ -99,7 +102,7 @@ export const chuongTrinhDaoTaoService = {
         } satisfies Prisma.ChuongTrinhDaoTaoSelect;
         // Không tìm chữ: phân trang ngay trong DB. Có tìm chữ: giữ tìm không dấu
         // và xếp độ khớp bằng JS để bảo toàn kết quả tìm kiếm hiện có.
-        if (!term?.trim()) {
+        if (!term?.trim() && sortOption === "default") {
             const [data, total] = await Promise.all([
                 prismaPublic.chuongTrinhDaoTao.findMany({ where, select,
                     orderBy: { ma_chuong_trinh: "asc" }, skip: (page - 1) * pageSize, take: pageSize }),
@@ -120,7 +123,7 @@ export const chuongTrinhDaoTaoService = {
                     const name = normalize(
                         `${r.ten_chuong_trinh} ${r.nganh.ten_nganh}`,
                     );
-                    const code = r.ma_chuong_trinh.toLowerCase();
+                    const code = normalize(`${r.ma_chuong_trinh} ${r.ma_nganh}`);
                     const hit = tokens.every(
                         (t) => name.includes(t) || code.includes(t),
                     );
@@ -134,6 +137,35 @@ export const chuongTrinhDaoTaoService = {
                 .sort((a, b) => b.score - a.score)
                 .map((x) => x.r);
         }
+
+        // Sắp xếp toàn bộ kết quả trước khi phân trang, không chỉ 9 thẻ đang hiển thị.
+        const codeCollator = new Intl.Collator("vi", { numeric: true });
+        const nameCollator = new Intl.Collator("vi");
+        const compareNullable = (a: number | null, b: number | null, descending: boolean) => {
+            if (a === null) return b === null ? 0 : 1;
+            if (b === null) return -1;
+            return descending ? b - a : a - b;
+        };
+        const officialScore = (row: typeof data[number]) => {
+            const score = row.lich_su_diem_chuan.find(history => history.nam === year)?.diem_trung_tuyen
+                .find(item => item.ma_phuong_thuc === phuongThuc && Number.isFinite(item.diem) && item.diem > 0)?.diem;
+            return score ?? null;
+        };
+        const quota = (row: typeof data[number]) => {
+            const value = row.lich_su_diem_chuan.find(history => history.nam === year)?.chi_tieu;
+            return value != null && Number.isFinite(value) && value >= 0 ? value : null;
+        };
+        rows.sort((a, b) => {
+            let result = 0;
+            if (sortOption === "score-desc" || sortOption === "score-asc") {
+                result = compareNullable(officialScore(a), officialScore(b), sortOption === "score-desc");
+            } else if (sortOption === "quota-desc") {
+                result = compareNullable(quota(a), quota(b), true);
+            } else if (sortOption === "name-asc" || sortOption === "name-desc") {
+                result = nameCollator.compare(a.ten_chuong_trinh, b.ten_chuong_trinh) * (sortOption === "name-desc" ? -1 : 1);
+            }
+            return result || codeCollator.compare(a.ma_chuong_trinh, b.ma_chuong_trinh);
+        });
 
         // 4. phân trang + pivot điểm theo phương thức
         const total = rows.length;

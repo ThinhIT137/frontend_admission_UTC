@@ -107,7 +107,7 @@ export default function ClientLayout({
                     aria-label={
                         isMobileSidebarOpen ? "Menu tuyển sinh" : undefined
                     }
-                    className={`${viewportReady ? "" : "hidden md:block"} ${isMobileSidebarOpen ? "fixed inset-y-0 left-0 z-50 w-[244px]" : ""} print:hidden`}
+                    className={`${viewportReady ? "" : "hidden md:block"} ${isMobileSidebarOpen ? "fixed inset-y-0 left-0 z-50 w-[288px]" : ""} print:hidden`}
                 >
                     <Sidebar
                         key={viewportReady ? "ready" : "ssr"}
@@ -119,13 +119,13 @@ export default function ClientLayout({
                 {/* Main Content Wrapper (shifted when sidebar is open) */}
                 <div
                     className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out print:pl-0 print:m-0 print:bg-white ${
-                        isSidebarOpen ? "pl-0 md:pl-[244px]" : "pl-0"
+                        isSidebarOpen ? "pl-0 md:pl-[288px]" : "pl-0"
                     }`}
                 >
                     {/* Fixed Header with transition */}
                     <div
                         className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out print:hidden ${
-                            isSidebarOpen ? "left-0 md:left-[244px]" : "left-0"
+                            isSidebarOpen ? "left-0 md:left-[288px]" : "left-0"
                         }`}
                     >
                         <Header

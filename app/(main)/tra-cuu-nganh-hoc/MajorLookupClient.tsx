@@ -15,7 +15,7 @@ export type MajorFromApi = Awaited<ReturnType<typeof getFilterCTDTAction>>["data
 type Result = Awaited<ReturnType<typeof getFilterCTDTAction>>;
 export interface LookupFilters {
     page: number; pageSize: number; term: string; faculty: string; toHop: string;
-    diemChuan: number; year: number; phuongThuc: string;
+    diemChuan: number; year: number; phuongThuc: string; sort: string;
 }
 interface Props {
     initialFilters: LookupFilters;
@@ -34,7 +34,6 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     const [totalPages, setTotalPages] = useState(initialResult ? Math.max(1, Math.ceil(initialResult.total / initialFilters.pageSize)) : 0);
     const [error, setError] = useState(initialError);
     const [pending, setPending] = useState(false);
-    const [sortOption, setSortOption] = useState("score-desc");
     const sequence = useRef(0);
     const interacted = useRef(false);
     const resultsStart = useRef<HTMLDivElement>(null);
@@ -66,6 +65,7 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     const setSelectedDiemChuan = field("diemChuan");
     const setSelectedYear = field("year");
     const setSelectedMethod = field("phuongThuc");
+    const setSortOption = field("sort");
     const setCurrentPage: Dispatch<SetStateAction<number>> = value => {
         scrollAfterPagination.current = true;
         interacted.current = true;
@@ -121,32 +121,6 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
         });
     }, [completedPageRequest]);
 
-    const sortedNganhHoc = [...dataNganhHoc].sort((a, b) => {
-        if (sortOption === "name-asc") {
-            return a.ten_chuong_trinh.localeCompare(b.ten_chuong_trinh, "vi");
-        }
-        if (sortOption === "name-desc") {
-            return b.ten_chuong_trinh.localeCompare(a.ten_chuong_trinh, "vi");
-        }
-        if (sortOption === "score-desc" || sortOption === "score-asc") {
-            const scoreA =
-                a.lich_su_diem_chuan?.find(h => h.nam === selectedYear)?.diem_trung_tuyen?.find(s => s.ma_phuong_thuc === selectedMethod && Number.isFinite(s.diem) && s.diem > 0)?.diem;
-            const scoreB =
-                b.lich_su_diem_chuan?.find(h => h.nam === selectedYear)?.diem_trung_tuyen?.find(s => s.ma_phuong_thuc === selectedMethod && Number.isFinite(s.diem) && s.diem > 0)?.diem;
-            if (scoreA == null) return scoreB == null ? 0 : 1;
-            if (scoreB == null) return -1;
-            return sortOption === "score-desc" ? scoreB - scoreA : scoreA - scoreB;
-        }
-        if (sortOption === "quota-desc") {
-            const quotaA =
-                a.lich_su_diem_chuan?.find(h => h.nam === selectedYear)?.chi_tieu ?? -1;
-            const quotaB =
-                b.lich_su_diem_chuan?.find(h => h.nam === selectedYear)?.chi_tieu ?? -1;
-            return quotaB - quotaA;
-        }
-        return 0;
-    });
-
     return (
         <PageMotion className="flex flex-col w-full space-y-6 pb-12">
             {/* Title Header Card */}
@@ -170,7 +144,7 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
                 setSelectedDiemChuan={setSelectedDiemChuan}
                 selectedYear={selectedYear}
                 setSelectedYear={setSelectedYear}
-                sortOption={sortOption}
+                sortOption={filters.sort}
                 setSortOption={setSortOption}
                 data_khoa_vien={dataKhoaVien}
                 data_to_hop={dataToHop}
@@ -181,7 +155,7 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
             {/* Giữ kết quả trước trong lúc tải để tránh nhấp nháy toàn trang. */}
             <div ref={resultsStart} className="scroll-mt-24" aria-busy={pending}>
             {(dataNganhHoc.length > 0 || !error) && <MajorList
-                dataNganhHoc={sortedNganhHoc}
+                dataNganhHoc={dataNganhHoc}
                 selectedYear={selectedYear}
                 currentPage={currentPage}
                 selectedMethod={selectedMethod}

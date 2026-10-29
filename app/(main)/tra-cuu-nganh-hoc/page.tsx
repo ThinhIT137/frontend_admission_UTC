@@ -16,6 +16,7 @@ export default async function MajorLookupPage({ searchParams }: { searchParams: 
     const requestedMethod = single(params.phuongThuc) || single(params.method);
     const filters = {
         page: 1, pageSize: 9, term: single(params.term),
+        sort: ["default", "score-desc", "score-asc", "quota-desc", "name-asc", "name-desc"].includes(single(params.sort)) ? single(params.sort) : "score-desc",
         faculty: single(params.faculty) || single(params.khoi) || single(params.khoi_nganh),
         toHop: "", diemChuan: 0, year, phuongThuc: /^PT[1-5]$/.test(requestedMethod) ? requestedMethod : "PT1",
     };
