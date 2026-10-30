@@ -1,6 +1,25 @@
 import prisma, { prismaPublic } from "@/libs/prisma";
 import { adminService } from "./user.service";
 
+async function saveCombination(code: string, raw: string[], editing: boolean) {
+    await adminService.getAdminId();
+    validateCombination(code, raw);
+    const subjects = raw.map(s => s.trim());
+    const permutations = subjects.flatMap((a, i) => subjects.flatMap((b, j) => i === j ? [] :
+        [{ ma_mon_1: a, ma_mon_2: b, ma_mon_3: subjects.find((_, k) => k !== i && k !== j)! }]));
+    return prisma.$transaction(async tx => {
+        // Serialize all catalog writers so simultaneous reordered duplicates cannot slip through.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(71026301)`;
+        const duplicate = await tx.toHopXetTuyen.findFirst({ where: {
+            ...(editing ? { ma_to_hop: { not: code.trim() } } : {}), OR: permutations,
+        } });
+        if (duplicate) throw new Error("Bộ ba môn này đã có trong một tổ hợp khác");
+        const data = { ma_mon_1: subjects[0], ma_mon_2: subjects[1], ma_mon_3: subjects[2] };
+        return editing ? tx.toHopXetTuyen.update({ where: { ma_to_hop: code.trim() }, data })
+            : tx.toHopXetTuyen.create({ data: { ma_to_hop: code.trim(), ...data } });
+    });
+}
+
 const validateCombination = (code: string, subjects: string[]) => {
     if (typeof code !== "string" || !code.trim()) throw new Error("Thiếu mã tổ hợp");
     if (subjects.some(subject => typeof subject !== "string" || !subject.trim())) {
@@ -29,29 +48,11 @@ export const toHopXetTuyenService = {
     },
 
     create: async (ma_to_hop: string, ma_mon_1: string, ma_mon_2: string, ma_mon_3: string) => {
-        await adminService.getAdminId();
-        validateCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3]);
-        return await prisma.toHopXetTuyen.create({
-            data: {
-                ma_to_hop,
-                ma_mon_1,
-                ma_mon_2,
-                ma_mon_3
-            }
-        });
+        return saveCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3], false);
     },
 
     update: async (ma_to_hop: string, ma_mon_1: string, ma_mon_2: string, ma_mon_3: string) => {
-        await adminService.getAdminId();
-        validateCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3]);
-        return await prisma.toHopXetTuyen.update({
-            where: { ma_to_hop },
-            data: {
-                ma_mon_1,
-                ma_mon_2,
-                ma_mon_3
-            }
-        });
+        return saveCombination(ma_to_hop, [ma_mon_1, ma_mon_2, ma_mon_3], true);
     },
 
     delete: async (ma_to_hop: string) => {

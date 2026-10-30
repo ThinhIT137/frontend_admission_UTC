@@ -1,9 +1,12 @@
 "use client";
+import { AdminIcon } from "@/components/admin/AdminIcon";
+import { useAdminDialog } from "@/hooks/useAdminDialog";
+import { useAdminTask } from "@/hooks/useAdminTask";
 import { publicError } from "@/libs/client-error";
 
 import { useState, useEffect } from "react";
 import { createRoleAction, updateRoleAction } from "@/actions/role.action";
-import { toast } from "sonner";
+import { toast } from "@/libs/admin-toast";
 
 export interface PermissionGroup {
   id: string;
@@ -92,6 +95,8 @@ interface RoleModalProps {
 }
 
 export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
+  const { pending: taskPending, run: runTask } = useAdminTask();
+  const dialogRef = useAdminDialog(isOpen, onClose, taskPending);
   const isEditing = !!role;
 
   const [ten_vai_tro, setTenVaiTro] = useState("");
@@ -186,32 +191,32 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
   const totalPossible = PERMISSION_GROUPS.reduce((acc, g) => acc + g.permissions.length, 0);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1e1b14]/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-[#fff9ee] w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden border border-[#e9e2d5] flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1e293b]/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={isEditing ? "Cập nhật vai trò" : "Thêm vai trò"} tabIndex={-1} className="bg-[#f6f8fc] w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden border border-[#e2e8f0] flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#e9e2d5] flex justify-between items-center bg-white">
+        <div className="px-6 py-4 border-b border-[#e2e8f0] flex justify-between items-center bg-white">
           <div>
-            <h2 className="text-[18px] font-black text-[#0d1b4e] font-display flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#fdb712]">shield_person</span>
+            <h2 className="text-[18px] font-black text-[#192b59] font-display flex items-center gap-2">
+              <AdminIcon name="shield_person" className="text-[#fdb712]" />
               {isEditing ? `Cập Nhật Vai Trò: ${role?.ten_vai_tro}` : "Thiết Lập Vai Trò & Ma Trận Phân Quyền Mới"}
             </h2>
-            <p className="text-[12px] text-[#767680]">
-              Đã cấp quyền: <strong className="text-[#0d1b4e]">{selectedPermissions.length}/{totalPossible}</strong> chức năng hệ thống
+            <p className="text-[12px] text-[#64748b]">
+              Đã cấp quyền: <strong className="text-[#192b59]">{selectedPermissions.length}/{totalPossible}</strong> chức năng hệ thống
             </p>
           </div>
           <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#f4ede0] text-[#767680] transition-colors"
+            disabled={taskPending} aria-label="Đóng hộp thoại" onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#f1f5f9] text-[#64748b] transition-colors"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <AdminIcon name="close" className="text-[20px]" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+        <form onSubmit={(event) => { event.preventDefault(); void runTask(() => handleSubmit(event)); }} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 space-y-6 overflow-y-auto flex-1">
             {/* Quick Presets */}
             <div>
-              <label className="block text-[11px] font-black text-[#767680] uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-black text-[#64748b] uppercase tracking-wider mb-2">
                 Áp Dụng Mẫu Phân Quyền Nhanh:
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -220,12 +225,12 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                     key={preset.name}
                     type="button"
                     onClick={() => applyPreset(preset)}
-                    className="p-2.5 bg-white hover:bg-[#faf3e6] border border-[#c6c5d0] hover:border-[#0d1b4e] rounded-xl text-left transition-all group"
+                    className="p-2.5 bg-white hover:bg-[#f8fafc] border border-[#cbd5e1] hover:border-[#192b59] rounded-xl text-left transition-all group"
                   >
-                    <span className="text-[12px] font-bold text-[#0d1b4e] group-hover:text-[#fdb712] block truncate">
+                    <span className="text-[12px] font-bold text-[#192b59] group-hover:text-[#fdb712] block truncate">
                       {preset.name}
                     </span>
-                    <span className="text-[10px] text-[#767680] block mt-0.5">
+                    <span className="text-[10px] text-[#64748b] block mt-0.5">
                       {preset.perms.length} quyền
                     </span>
                   </button>
@@ -234,9 +239,9 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
             </div>
 
             {/* Basic Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-[#e9e2d5]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-[#e2e8f0]">
               <div>
-                <label className="block text-[12px] font-bold text-[#1e1b14] mb-1">
+                <label className="block text-[12px] font-bold text-[#1e293b] mb-1">
                   Tên Vai Trò <span className="text-[#ba1a1a]">*</span>
                 </label>
                 <input
@@ -245,20 +250,20 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                   value={ten_vai_tro}
                   onChange={(e) => setTenVaiTro(e.target.value)}
                   disabled={isEditing && (role?.ten_vai_tro === "super_admin" || role?.ten_vai_tro === "chuyen_vien")}
-                  className="w-full px-3.5 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold text-[#0d1b4e] outline-none focus:border-[#0d1b4e] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full px-3.5 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] font-bold text-[#192b59] outline-none focus:border-[#192b59] disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="VD: chuyen_vien_tuyen_sinh, can_bo_khoa..."
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-bold text-[#1e1b14] mb-1">
+                <label className="block text-[12px] font-bold text-[#1e293b] mb-1">
                   Mô Tả Nhiệm Vụ & Quyền Hạn
                 </label>
                 <input
                   type="text"
                   value={descriptionText}
                   onChange={(e) => setDescriptionText(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e]"
+                  className="w-full px-3.5 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] outline-none focus:border-[#192b59]"
                   placeholder="VD: Phụ trách cấu hình phương thức và chỉ tiêu tuyển sinh..."
                 />
               </div>
@@ -267,8 +272,8 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
             {/* Permission Matrix */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-[14px] font-black text-[#0d1b4e] uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]">tune</span>
+                <h3 className="text-[14px] font-black text-[#192b59] uppercase tracking-wider flex items-center gap-1.5">
+                  <AdminIcon name="tune" className="text-[18px]" />
                   Ma Trận Phân Quyền Chi Tiết
                 </h3>
                 <div className="flex items-center gap-2">
@@ -277,7 +282,7 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                     onClick={() =>
                       setSelectedPermissions(PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.id)))
                     }
-                    className="text-[11px] font-bold text-[#0d1b4e] hover:underline"
+                    className="text-[11px] font-bold text-[#192b59] hover:underline"
                   >
                     Chọn tất cả
                   </button>
@@ -301,14 +306,14 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                   return (
                     <div
                       key={group.id}
-                      className="bg-white rounded-xl border border-[#e9e2d5] p-4 space-y-3 shadow-sm hover:border-[#0d1b4e]/30 transition-all"
+                      className="bg-white rounded-xl border border-[#e2e8f0] p-4 space-y-3 shadow-sm hover:border-[#192b59]/30 transition-all"
                     >
-                      <div className="flex items-center justify-between border-b border-[#f4ede0] pb-2">
+                      <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-2">
                         <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[20px] text-[#0d1b4e]">
+                          <span className="material-symbols-outlined text-[20px] text-[#192b59]">
                             {group.icon}
                           </span>
-                          <span className="font-bold text-[13px] text-[#0d1b4e]">
+                          <span className="font-bold text-[13px] text-[#192b59]">
                             {group.title}
                           </span>
                         </div>
@@ -317,10 +322,10 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                           onClick={() => toggleGroup(group)}
                           className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${
                             isAllInGroup
-                              ? "bg-[#0d1b4e] text-white"
+                              ? "bg-[#192b59] text-white"
                               : countInGroup > 0
                               ? "bg-[#ffdea8] text-[#7c5800]"
-                              : "bg-[#faf3e6] text-[#767680] hover:bg-[#f4ede0]"
+                              : "bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]"
                           }`}
                         >
                           {countInGroup}/{group.permissions.length} Quyền
@@ -334,20 +339,20 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
                             <label
                               key={perm.id}
                               className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
-                                isChecked ? "bg-[#faf3e6] border border-[#fdb712]/40" : "hover:bg-[#faf3e6]/50"
+                                isChecked ? "bg-[#f8fafc] border border-[#fdb712]/40" : "hover:bg-[#f8fafc]/50"
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => togglePermission(perm.id)}
-                                className="mt-0.5 w-4 h-4 rounded text-[#0d1b4e] accent-[#0d1b4e] focus:ring-0"
+                                className="mt-0.5 w-4 h-4 rounded text-[#192b59] accent-[#192b59] focus:ring-0"
                               />
                               <div className="flex-1 min-w-0">
-                                <span className={`text-[12px] font-bold block leading-tight ${isChecked ? "text-[#0d1b4e]" : "text-[#1e1b14]"}`}>
+                                <span className={`text-[12px] font-bold block leading-tight ${isChecked ? "text-[#192b59]" : "text-[#1e293b]"}`}>
                                   {perm.label}
                                 </span>
-                                <span className="text-[11px] text-[#767680] block mt-0.5 leading-snug">
+                                <span className="text-[11px] text-[#64748b] block mt-0.5 leading-snug">
                                   {perm.description}
                                 </span>
                               </div>
@@ -363,25 +368,25 @@ export function RoleModal({ isOpen, onClose, role }: RoleModalProps) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 bg-white border-t border-[#e9e2d5] flex items-center justify-between">
-            <div className="text-[12px] text-[#767680]">
-              Tổng quyền đã chọn: <strong className="text-[#0d1b4e]">{selectedPermissions.length}</strong> quyền
+          <div className="px-6 py-4 bg-white border-t border-[#e2e8f0] flex items-center justify-between">
+            <div className="text-[12px] text-[#64748b]">
+              Tổng quyền đã chọn: <strong className="text-[#192b59]">{selectedPermissions.length}</strong> quyền
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-[13px] font-bold text-[#45464f] hover:bg-[#f4ede0] rounded-lg transition-colors"
+                disabled={taskPending} aria-label="Đóng hộp thoại" onClick={onClose}
+                className="px-4 py-2 text-[13px] font-bold text-[#475569] hover:bg-[#f1f5f9] rounded-lg transition-colors"
               >
                 HỦY BỎ
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
-                className="px-6 py-2.5 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] font-extrabold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center min-w-[140px] disabled:opacity-50"
+                disabled={isLoading || taskPending}
+                className="px-6 py-2.5 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] font-extrabold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center min-w-[140px] disabled:opacity-50"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-t-transparent border-[#0d1b4e] rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-t-transparent border-[#192b59] rounded-full animate-spin" />
                 ) : (
                   "LƯU PHÂN QUYỀN"
                 )}

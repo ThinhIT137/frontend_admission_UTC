@@ -1,0 +1,25 @@
+.admin-ui { color-scheme: light; }
+.admin-ui :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #192b59; outline-offset: 3px; }
+.admin-ui .admin-sidebar :is(button, a):focus-visible { outline-color: #fbbf24; }
+.admin-ui button:not(:disabled), .admin-ui summary { cursor: pointer; }
+.admin-ui button:disabled { cursor: not-allowed; opacity: .55; }
+.admin-ui :is(input, select, textarea) { max-width: 100%; }
+.admin-ui :is(input, select, textarea):disabled { background-color: #f1f5f9; }
+.admin-ui main > :first-child { margin-top: 0; }
+.admin-ui main :is(h1, h2, h3) { text-wrap: balance; }
+.admin-ui main h1 { color: #192b59; }
+.admin-ui main table { background: white; }
+.admin-ui main th { background: #f8fafc; color: #192b59; }
+.admin-ui main :is(th, td) { border-color: #e2e8f0; }
+.admin-ui .admin-workflow :is(input, textarea) { border: 1px solid #cbd5e1; border-radius: .75rem; padding: .625rem .75rem; }
+.admin-ui .admin-workflow button { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .625rem .875rem; background: #f8fafc; color: #192b59; font-size: .875rem; font-weight: 600; margin: .25rem .5rem .25rem 0; }
+.admin-ui .admin-workflow button:hover:not(:disabled) { background: #eef2ff; }
+.admin-ui .admin-workflow section { border-top: 1px solid #e2e8f0; padding-top: 1rem; }
+@media (max-width: 767px) {
+  .admin-ui main > div { min-width: 0; }
+  .admin-ui main .flex.gap-3 { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-ui *, .admin-ui *::before, .admin-ui *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media print { .admin-ui main { overflow: visible; } }

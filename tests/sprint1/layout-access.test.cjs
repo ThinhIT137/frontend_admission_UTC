@@ -19,7 +19,7 @@ function pageFixture(user) {
             __esModule: true,
             default: { vaiTro: { findMany: async () => [] } },
         },
-        "next/navigation": { redirect },
+        "next/navigation": { redirect, usePathname: () => "/admin" },
         "@/components/admin/AdminSidebar": {
             AdminSidebar: marker("admin-sidebar"),
         },

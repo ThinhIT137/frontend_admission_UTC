@@ -2,6 +2,8 @@ import { enforceSameOrigin, readBoundedJson, privateJson, apiFailure, publicApiL
 import { backendRequest } from "@/libs/api-services/backend.server";
 import { adminService } from "@/services/user.service";
 import { NextRequest } from "next/server";
+import { retryWithdrawnEvidence, withdrawWithEvidence } from "@/libs/withdrawal-storage.server";
+import { cutoffApi } from "@/libs/cutoff-api.server";
 
 // Chừa ngân sách lớn hơn thời gian chờ 90s của chat; giới hạn host vẫn được áp dụng.
 export const maxDuration = 120;
@@ -13,6 +15,8 @@ function policy(
     path: string,
     method: string,
 ): "admin" | "candidate" | "session" | "public" | null {
+    if (service === "score" && ["GET", "POST"].includes(method) && /^\/diem-chuan\/nam\/\d{4}\/khoa$/.test(path)) return "admin";
+    if (service === "score" && path === "/ho-so/cua-toi/don-minh-chung" && method === "POST") return "candidate";
     if (service === "ai") {
         if (
             method === "GET" &&
@@ -53,6 +57,7 @@ function policy(
             return "admin";
         if (method === "GET" && path === "/ho-so/cua-toi") return "candidate";
         if (method === "PUT" && path === "/ho-so/cua-toi/thu-tu") return "candidate";
+        if (method === "PUT" && /^\/ho-so\/cua-toi\/[^/]+\/nganh$/.test(path)) return "candidate";
         if (method === "DELETE" && /^\/ho-so\/cua-toi\/[^/]+$/.test(path))
             return "candidate";
         if (
@@ -126,6 +131,16 @@ async function handle(
         }
         // Cho phép thân yêu cầu rỗng khi phù hợp (ví dụ DELETE), nhưng vẫn giới hạn JSON đầu vào.
         const body = request.method === "GET" ? undefined : await readBoundedJson(request, path === "/ho-so/tra-cuu-cong-khai" ? 1024 : path === "/diem/tinh-diem-doi-soat" ? 4096 : 100_000, true);
+        if (service === "score") {
+            const response = await cutoffApi(request, path, body);
+            if (response) return response;
+        }
+        if (service === "score" && path === "/ho-so/cua-toi/don-minh-chung" && request.method === "POST") {
+            await retryWithdrawnEvidence();
+            return privateJson({ success: true });
+        }
+        if (service === "score" && request.method === "DELETE" && /^\/ho-so\/cua-toi\/[^/]+$/.test(path))
+            return privateJson(await withdrawWithEvidence(path));
         if (
             service === "ai" &&
             /^\/api\/predict\/(admission-chance|recommend-majors)$/.test(path)

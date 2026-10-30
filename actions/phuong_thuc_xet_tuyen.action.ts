@@ -7,6 +7,7 @@ import {
   deletePhuongThucXetTuyen,
 } from "@/services/phuong_thuc_xet_tuyen.service";
 import { revalidatePath } from "next/cache";
+import type { MethodConfig } from "@/libs/admission-catalog";
 
 export async function getPhuongThucXetTuyenAction() {
   try {
@@ -16,7 +17,7 @@ export async function getPhuongThucXetTuyenAction() {
   }
 }
 
-export async function createPhuongThucXetTuyenAction(data: { ma_phuong_thuc: string; ten_phuong_thuc: string }) {
+export async function createPhuongThucXetTuyenAction(data: { ma_phuong_thuc: string; ten_phuong_thuc: string } & MethodConfig) {
   try {
     const result = await createPhuongThucXetTuyen(data);
     revalidatePath("/admin/phuong-thuc-xet-tuyen");
@@ -26,7 +27,7 @@ export async function createPhuongThucXetTuyenAction(data: { ma_phuong_thuc: str
   }
 }
 
-export async function updatePhuongThucXetTuyenAction(ma_phuong_thuc: string, data: { ten_phuong_thuc?: string }) {
+export async function updatePhuongThucXetTuyenAction(ma_phuong_thuc: string, data: { ten_phuong_thuc: string } & MethodConfig) {
   try {
     const result = await updatePhuongThucXetTuyen(ma_phuong_thuc, data);
     revalidatePath("/admin/phuong-thuc-xet-tuyen");

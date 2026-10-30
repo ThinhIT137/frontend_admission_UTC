@@ -1,0 +1,11 @@
+const React=require('react');
+exports.__esModule=true;
+exports.usePathname=()=>'/admin/to-hop-mon';
+exports.useRouter=()=>({push(){},refresh(){}});
+exports.default=({children,...props})=>React.createElement('a',props,children);
+exports.toast={success(){},error(){},warning(){},info(){}};
+exports.logout=async()=>{};
+exports.getProgramsByToHopAction=async()=>[{ma_ctdt_to_hop:'P1-A00',nam:2026,chuong_trinh:{ma_chuong_trinh:'P1',ten_chuong_trinh:'Kỹ thuật công nghệ thông tin'}}];
+exports.addProgramToToHopAction=async()=>{};
+exports.removeProgramFromToHopAction=async()=>{};
+exports.LoadingProvider=({children})=>children;

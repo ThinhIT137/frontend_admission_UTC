@@ -1,4 +1,5 @@
 "use client";
+import { AdminIcon } from "@/components/admin/AdminIcon";
 import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo } from "react";
@@ -7,7 +8,7 @@ import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { createDanhMucMonAction, updateDanhMucMonAction, deleteDanhMucMonAction } from "@/actions/danh_muc_mon.action";
-import { toast } from "sonner";
+import { toast } from "@/libs/admin-toast";
 
 export default function MonXetTuyenClient({ initialData }: { initialData: any[] }) {
   const [search, setSearch] = useState("");
@@ -96,28 +97,28 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
     {
       header: "STT",
       accessor: (_, idx) => (
-        <span className="font-bold text-[#767680] text-[13px]">
+        <span className="font-bold text-[#64748b] text-[13px]">
           {idx + 1 + (currentPage - 1) * PAGE_SIZE}
         </span>
       ),
       className: "w-[60px] text-center",
     },
-    { 
-      header: "Mã Môn", 
+    {
+      header: "Mã Môn",
       accessor: (r) => (
-        <span className="font-stamp font-bold text-[#0284c7] bg-[#e0f2fe] px-2.5 py-1 rounded border border-[#0d1b4e]">
+        <span className="font-stamp font-bold text-[#0284c7] bg-[#e0f2fe] px-2.5 py-1 rounded border border-[#192b59]">
           {r.ma_mon}
         </span>
       ),
       className: "w-[120px]"
     },
-    { 
-      header: "Tên Môn Học", 
+    {
+      header: "Tên Môn Học",
       accessor: (r) => (
-        <span className="font-bold text-[#1e1b14]">
+        <span className="font-bold text-[#1e293b]">
           {r.ten_mon}
         </span>
-      ) 
+      )
     },
   ];
 
@@ -125,45 +126,43 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
     <div className="p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-[24px] font-bold text-[#0d1b4e]">Quản Lý Môn Xét Tuyển</h1>
-          <p className="text-[13px] text-[#45464f] mt-1">Quản lý danh mục các môn học tham gia xét tuyển (Toán, Lý, Hóa...).</p>
+          <h1 className="text-[24px] font-bold text-[#192b59]">Quản Lý Môn Xét Tuyển</h1>
+          <p className="text-[13px] text-[#475569] mt-1">Quản lý danh mục các môn học tham gia xét tuyển (Toán, Lý, Hóa...).</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#0d1b4e] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
-          <span className="material-symbols-outlined text-[18px]">add_circle</span> Thêm Môn Học
+        <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
+          <AdminIcon name="add_circle" className="text-[18px]" /> Thêm Môn Học
         </button>
       </div>
 
       <div className="flex items-center justify-between mb-4">
         <div className="relative w-80">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-            search
-          </span>
+          <AdminIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] text-[18px]" />
           <input
             type="text"
             placeholder="Tìm theo mã hoặc tên môn..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-white border border-[#cbd5e1] rounded-lg text-[13px] outline-none focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
           />
         </div>
-        <span className="text-[12px] font-bold text-[#45464f]">
+        <span className="text-[12px] font-bold text-[#475569]">
           Tổng số: {filteredData.length} môn
         </span>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] overflow-hidden">
         <DataTable columns={columns} data={paginatedData} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} />
 
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-[#e9e2d5] flex items-center justify-between bg-white">
+          <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white">
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <AdminIcon name="chevron_left" className="text-[18px]" />
             </button>
-            
+
             <div className="flex items-center gap-1">
               {Array.from({ length: totalPages }).map((_, i) => {
                 const page = i + 1;
@@ -173,14 +172,14 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
                       key={page}
                       onClick={() => setCurrentPage(page)}
                       className={`w-8 h-8 rounded-lg text-[13px] font-bold transition-colors ${
-                        currentPage === page ? "bg-[#0d1b4e] text-white" : "text-[#45464f] hover:bg-[#faf3e6]"
+                        currentPage === page ? "bg-[#192b59] text-white" : "text-[#475569] hover:bg-[#f8fafc]"
                       }`}
                     >
                       {page}
                     </button>
                   );
                 } else if (page === currentPage - 2 || page === currentPage + 2) {
-                  return <span key={page} className="px-1 text-[#767680]">...</span>;
+                  return <span key={page} className="px-1 text-[#64748b]">...</span>;
                 }
                 return null;
               })}
@@ -189,9 +188,9 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <AdminIcon name="chevron_right" className="text-[18px]" />
             </button>
           </div>
         )}
@@ -201,23 +200,23 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
         <div className="space-y-4">
           <div>
             <label className="block text-[12px] font-bold mb-1">Mã Môn (Vd: TOAN, NGU_VAN):</label>
-            <input 
-              type="text" 
-              required 
-              value={code} 
-              onChange={(e) => setCode(e.target.value.toUpperCase())} 
+            <input
+              type="text"
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
               disabled={!!editingRow}
-              className={`w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold uppercase ${editingRow ? 'opacity-70 cursor-not-allowed' : ''}`} 
+              className={`w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] font-bold uppercase ${editingRow ? 'opacity-70 cursor-not-allowed' : ''}`}
             />
           </div>
           <div>
             <label className="block text-[12px] font-bold mb-1">Tên Môn Học:</label>
-            <input 
-              type="text" 
-              required 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none" 
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] outline-none"
             />
           </div>
         </div>

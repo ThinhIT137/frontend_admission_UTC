@@ -1,10 +1,12 @@
 "use client";
+import { AdminIcon } from "@/components/admin/AdminIcon";
+import { useAdminTask } from "@/hooks/useAdminTask";
 import { publicError } from "@/libs/client-error";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deleteRoleAction } from "@/actions/role.action";
-import { toast } from "sonner";
+import { toast } from "@/libs/admin-toast";
 import { RoleModal, PERMISSION_GROUPS } from "./RoleModal";
 
 interface Role {
@@ -20,6 +22,7 @@ interface RoleListProps {
 }
 
 export function RoleList({ initialData, totalPages, currentPage }: RoleListProps) {
+  const { pending: taskPending, run: runTask } = useAdminTask();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -95,42 +98,40 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display font-black text-[28px] text-[#0d1b4e] tracking-tight">
+          <h1 className="font-display font-black text-[28px] text-[#192b59] tracking-tight">
             Quản Lý & Phân Quyền Vai Trò
           </h1>
-          <p className="text-[14px] text-[#45464f] mt-0.5">
+          <p className="text-[14px] text-[#475569] mt-0.5">
             Cấu hình ma trận phân quyền truy cập theo từng phân hệ cho các nhóm cán bộ tuyển sinh UTC.
           </p>
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#0d1b4e] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
         >
-          <span className="material-symbols-outlined text-[20px]">add_moderator</span>
+          <AdminIcon name="add_moderator" className="text-[20px]" />
           Thêm Vai Trò Mới
         </button>
       </div>
 
       {/* Main Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#e9e2d5] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden">
         {/* Toolbar */}
-        <div className="p-4 border-b border-[#e9e2d5] flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#faf3e6]">
+        <div className="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#f8fafc]">
           <div className="relative w-full sm:max-w-md">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767680] text-[20px]">
-              search
-            </span>
+            <AdminIcon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748b] text-[20px]" />
             <input
               type="text"
               placeholder="Tìm theo tên vai trò hoặc nhóm quyền..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && updateFilters("search", search)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-xl text-[13px] font-medium outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e]"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-[#cbd5e1] rounded-xl text-[13px] font-medium outline-none focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59]"
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[12px] font-semibold text-[#45464f]">
-            <span className="material-symbols-outlined text-[18px] text-[#fdb712]">info</span>
+          <div className="flex items-center gap-2 text-[12px] font-semibold text-[#475569]">
+            <AdminIcon name="info" className="text-[18px] text-[#fdb712]" />
             Tổng cộng {initialData.length} nhóm vai trò trong hệ thống
           </div>
         </div>
@@ -139,25 +140,25 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#f4ede0] border-b border-[#e9e2d5]">
-                <th className="px-6 py-3.5 text-[12px] font-black text-[#0d1b4e] uppercase tracking-wider">
+              <tr className="bg-[#f1f5f9] border-b border-[#e2e8f0]">
+                <th className="px-6 py-3.5 text-[12px] font-black text-[#192b59] uppercase tracking-wider">
                   Tên Vai Trò
                 </th>
-                <th className="px-6 py-3.5 text-[12px] font-black text-[#0d1b4e] uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-[12px] font-black text-[#192b59] uppercase tracking-wider">
                   Quyền Hạn Được Cấp
                 </th>
-                <th className="px-6 py-3.5 text-[12px] font-black text-[#0d1b4e] uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-[12px] font-black text-[#192b59] uppercase tracking-wider">
                   Mô Tả Nhiệm Vụ
                 </th>
-                <th className="px-6 py-3.5 text-[12px] font-black text-[#0d1b4e] uppercase tracking-wider text-right">
+                <th className="px-6 py-3.5 text-[12px] font-black text-[#192b59] uppercase tracking-wider text-right">
                   Thao Tác
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e9e2d5]">
+            <tbody className="divide-y divide-[#e2e8f0]">
               {initialData.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-[14px] text-[#767680]">
+                  <td colSpan={4} className="px-6 py-12 text-center text-[14px] text-[#64748b]">
                     Không tìm thấy vai trò nào phù hợp!
                   </td>
                 </tr>
@@ -167,18 +168,18 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                   const isSys = role.ten_vai_tro === "super_admin" || role.ten_vai_tro === "chuyen_vien";
 
                   return (
-                    <tr key={role.ma_vai_tro} className="hover:bg-[#faf3e6]/50 transition-colors">
+                    <tr key={role.ma_vai_tro} className="hover:bg-[#f8fafc]/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${
-                            info.isSuper ? "bg-[#0d1b4e] text-[#fdb712]" : "bg-[#faf3e6] text-[#0d1b4e] border border-[#c6c5d0]"
+                            info.isSuper ? "bg-[#192b59] text-[#fdb712]" : "bg-[#f8fafc] text-[#192b59] border border-[#cbd5e1]"
                           }`}>
                             <span className="material-symbols-outlined text-[18px]">
                               {info.isSuper ? "local_police" : "shield"}
                             </span>
                           </div>
                           <div>
-                            <span className="text-[14px] font-bold text-[#1e1b14] block">
+                            <span className="text-[14px] font-bold text-[#1e293b] block">
                               {role.ten_vai_tro}
                             </span>
                             {isSys && (
@@ -208,7 +209,7 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-[13px] text-[#45464f] max-w-md">
+                      <td className="px-6 py-4 text-[13px] text-[#475569] max-w-md">
                         {info.desc}
                       </td>
 
@@ -216,15 +217,15 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenModal(role)}
-                            className="px-3 py-1.5 bg-[#faf3e6] hover:bg-[#0d1b4e] hover:text-white text-[#0d1b4e] border border-[#c6c5d0] rounded-lg text-[12px] font-bold transition-all flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#f8fafc] hover:bg-[#192b59] hover:text-white text-[#192b59] border border-[#cbd5e1] rounded-lg text-[12px] font-bold transition-all flex items-center gap-1"
                             title="Chỉnh sửa & Cấp quyền"
                           >
-                            <span className="material-symbols-outlined text-[16px]">tune</span>
+                            <AdminIcon name="tune" className="text-[16px]" />
                             Phân quyền
                           </button>
                           <button
-                            onClick={() => handleDelete(role)}
-                            disabled={isSys}
+                            onClick={() => void runTask(() => handleDelete(role))}
+                            disabled={isSys || taskPending}
                             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                               isSys
                                 ? "text-gray-300 cursor-not-allowed"
@@ -232,7 +233,7 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                             }`}
                             title={isSys ? "Không thể xóa vai trò mặc định" : "Xóa vai trò"}
                           >
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                            <AdminIcon name="delete" className="text-[18px]" />
                           </button>
                         </div>
                       </td>
@@ -246,13 +247,13 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-[#e9e2d5] flex items-center justify-between bg-white">
+          <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <AdminIcon name="chevron_left" className="text-[18px]" />
             </button>
 
             <div className="flex items-center gap-1">
@@ -264,8 +265,8 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                     onClick={() => handlePageChange(page)}
                     className={`w-8 h-8 rounded-lg text-[13px] font-bold transition-colors ${
                       currentPage === page
-                        ? "bg-[#0d1b4e] text-white"
-                        : "text-[#45464f] hover:bg-[#faf3e6]"
+                        ? "bg-[#192b59] text-white"
+                        : "text-[#475569] hover:bg-[#f8fafc]"
                     }`}
                   >
                     {page}
@@ -277,9 +278,9 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <AdminIcon name="chevron_right" className="text-[18px]" />
             </button>
           </div>
         )}

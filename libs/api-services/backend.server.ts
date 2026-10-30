@@ -10,6 +10,7 @@ export class BackendError extends Error {
     constructor(
         message: string,
         public status = 502,
+        public code?: "ENDPOINT_NOT_FOUND",
     ) {
         super(message);
     }
@@ -236,6 +237,7 @@ export async function backendRequest<T>(
                 ? "Phiên đăng nhập hết hạn"
                 : "Dịch vụ chưa xử lý được yêu cầu",
             response.ok ? 502 : response.status,
+            response.status === 404 && json?.detail === "Not Found" ? "ENDPOINT_NOT_FOUND" : undefined,
         );
     }
     return json as T;

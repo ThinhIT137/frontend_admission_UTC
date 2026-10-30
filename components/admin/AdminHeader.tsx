@@ -3,105 +3,38 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronDown, LogOut, Menu, UserRound } from "lucide-react";
+import { toast } from "@/libs/admin-toast";
 import { logout } from "@/actions/auth.action";
+import { useAdminTask } from "@/hooks/useAdminTask";
 
-interface AdminHeaderProps {
-  onSearch?: (query: string) => void;
-  userName?: string;
-  email?: string;
-  isSidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
-}
-
-export function AdminHeader({
-  onSearch,
-  userName = "Admin",
-  email = "admin@utc.edu.vn",
-  isSidebarOpen = true,
-  onToggleSidebar,
-}: AdminHeaderProps) {
+interface AdminHeaderProps { userName?: string; email?: string; isSidebarOpen?: boolean; onToggleSidebar?: () => void; }
+export function AdminHeader({ userName = "Admin", email = "", onToggleSidebar }: AdminHeaderProps) {
   const router = useRouter();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const initial = userName.charAt(0).toUpperCase();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push("/admin/login");
-  };
-
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { pending, run } = useAdminTask();
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const outside = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", outside); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("mousedown", outside); document.removeEventListener("keydown", escape); };
   }, []);
-
-  return (
-    <header className="w-full h-16 bg-[#fff9ee]/90 backdrop-blur-md border-b border-[#e9e2d5] shadow-xs px-6 flex items-center justify-between gap-4">
-      {/* Left Area: Toggle button if sidebar is hidden */}
-      <div className="flex items-center gap-3">
-        {!isSidebarOpen && onToggleSidebar && (
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-xl bg-[#faf3e6] hover:bg-[#fdb712]/20 hover:border-[#0d1b4e] text-[#0d1b4e] border border-[#c6c5d0] flex items-center justify-center transition-all shadow-xs"
-            title="Hiện thanh Sidebar"
-            aria-label="Hiện thanh Sidebar"
-          >
-            <span className="material-symbols-outlined text-[22px]">menu</span>
-          </button>
-        )}
-      </div>
-
-      {/* Right Controls & Profile */}
-      <div className="flex items-center gap-4">
-        {/* Notification Bell */}
-        <div className="relative">
-          <button className="w-9 h-9 rounded-full flex items-center justify-center bg-[#faf3e6] text-[#1e1b14] hover:bg-[#eee7db] transition-colors border border-[#c6c5d0]">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-          </button>
-          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#fdb712] rounded-full ring-2 ring-[#fff9ee]"></span>
-        </div>
-
-        <div className="h-8 w-[1px] bg-[#c6c5d0]"></div>
-
-        {/* Admin Profile Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-[#0d1b4e] text-white flex items-center justify-center font-bold text-[13px] border border-[#fdb712] hover:ring-2 hover:ring-[#fdb712] transition-all"
-          >
-            {initial}
-          </button>
-
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-[#e9e2d5] overflow-hidden flex flex-col z-50 animate-in fade-in zoom-in-95 duration-200">
-              <div className="px-4 py-3 border-b border-[#e9e2d5] bg-[#faf3e6]">
-                <p className="text-[13px] font-bold text-[#1e1b14] truncate">{userName}</p>
-                <p className="text-[11px] text-[#767680] truncate">{email}</p>
-              </div>
-              <Link
-                href="/admin/profile"
-                className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#1e1b14] hover:bg-[#fff9ee] transition-colors flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[18px]">person</span>
-                Hồ sơ của tôi
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors flex items-center gap-2 border-t border-[#e9e2d5]"
-              >
-                <span className="material-symbols-outlined text-[18px]">logout</span>
-                Đăng xuất
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
+  return <header className="flex h-16 w-full items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-6">
+    <div className="flex min-w-0 items-center gap-3">
+      <button type="button" onClick={onToggleSidebar} aria-label="Mở hoặc thu gọn menu quản trị" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-[#192b59] hover:bg-slate-50"><Menu size={20} aria-hidden="true" /></button>
+      <div className="min-w-0"><p className="truncate text-sm font-bold text-[#192b59]">Không gian quản trị</p><p className="hidden text-xs text-slate-500 sm:block">Cổng tư vấn tuyển sinh UTC</p></div>
+    </div>
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Mở tùy chọn tài khoản" className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-slate-50">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#192b59] text-sm font-bold text-white">{userName.charAt(0).toUpperCase()}</span>
+        <span className="hidden max-w-40 truncate text-sm font-semibold text-slate-700 sm:block">{userName}</span><ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open && <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">
+        <div className="border-b border-slate-100 px-3 py-3"><p className="truncate text-sm font-bold text-[#192b59]">{userName}</p><p className="truncate text-xs text-slate-500">{email}</p></div>
+        <Link href="/admin/profile" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm hover:bg-slate-50"><UserRound size={18} aria-hidden="true" />Hồ sơ của tôi</Link>
+        <button type="button" disabled={pending} onClick={() => void run(async () => { try { await logout(); router.push("/admin/login"); } catch { toast.error("Chưa thể đăng xuất. Vui lòng thử lại."); } })} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-red-700 hover:bg-red-50"><LogOut size={18} aria-hidden="true" />{pending ? "Đang đăng xuất…" : "Đăng xuất"}</button>
+      </div>}
+    </div>
+  </header>;
 }

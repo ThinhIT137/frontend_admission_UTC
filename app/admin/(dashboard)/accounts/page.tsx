@@ -40,10 +40,10 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
     <div className="w-full max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-display text-[#0d1b4e]">
+          <h1 className="text-2xl font-bold font-display text-[#192b59]">
             Quản Lý Tài Khoản
           </h1>
-          <p className="text-sm text-[#767680] mt-1">
+          <p className="text-sm text-[#64748b] mt-1">
             Thêm, sửa, xóa và phân quyền tài khoản quản trị
           </p>
         </div>

@@ -4,6 +4,7 @@ import { SignJWT } from "jose";
 import { backendRequest, BackendError } from "@/libs/api-services/backend.server";
 import { currentCandidate } from "@/services/candidate-auth.service";
 import { inspectEvidence, privateEvidenceStorage, sha256 } from "@/libs/submission-storage.server";
+import { retryWithdrawnEvidence } from "@/libs/withdrawal-storage.server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     if (!origin || new URL(origin).host !== request.headers.get("host")) throw new BackendError("Origin không hợp lệ",403);
     if (Number(request.headers.get("content-length") || 0) > 4400000) throw new BackendError("Dữ liệu quá lớn",413);
     const me = await currentCandidate(); cccd = me.cccd;
+    await retryWithdrawnEvidence();
     const form = await boundedForm(request);
     const raw = form.get("payload");
     if (typeof raw !== "string" || Buffer.byteLength(raw,"utf8") > 131072) throw new BackendError("Dữ liệu không hợp lệ",400);
@@ -75,8 +77,19 @@ export async function POST(request: NextRequest) {
     const store = prepared.length ? await privateEvidenceStorage() : undefined;
     // Không upload khi validation/commit dữ liệu thất bại. Retry cùng UUID chỉ nhận lại đúng journal.
     createAttempted = true;
-    operation = await backendRequest<Operation>("score","/submission-operations",{method:"POST",auth:"candidate",
-      body:{operation_id:operationId,document,run_id:runId,proof:await proof("create",sha256(document))}});
+    try {
+      operation = await backendRequest<Operation>("score","/submission-operations",{method:"POST",auth:"candidate",
+        body:{operation_id:operationId,document,run_id:runId,proof:await proof("create",sha256(document))}});
+    } catch (error) {
+      // Only FastAPI's exact missing-route response proves no operation was started.
+      // Domain 404s and ambiguous timeouts still follow the reconciliation path below.
+      if (error instanceof BackendError && error.code === "ENDPOINT_NOT_FOUND") {
+        return NextResponse.json({ success: false, rollback: "not_started", code: "SUBMISSION_SERVICE_UNAVAILABLE",
+          message: "Dịch vụ nộp hồ sơ đang được cập nhật nên chưa thể lưu hồ sơ và tệp minh chứng. Dữ liệu chưa được gửi; vui lòng giữ các tệp và thử lại sau." },
+          { status: 503, headers: { "Cache-Control": "private, no-store" } });
+      }
+      throw error;
+    }
     if (operation.status === "completed") return NextResponse.json({success:true,maHoSo:operation.ma_ho_so});
     if (operation.status === "rolled_back") return NextResponse.json({success:false,rollback:"completed",message:"Lần nộp trước đã hoàn tác. Vui lòng bấm nộp lại để tạo lần mới."},{status:409});
     if (operation.status !== "pending") throw new BackendError("Lần nộp cần hoàn tác",409);

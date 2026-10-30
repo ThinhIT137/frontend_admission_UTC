@@ -46,6 +46,7 @@ model Admin {
   bai_viet           TrangNoiDung[]
   tri_thuc_ai        TriThucAi[]
   score_imports      AdmissionScoreImport[]
+  score_year_locks   AdmissionYearLock[]
   tinTucs            TinTuc[]
 
   @@map("admin")
@@ -230,11 +231,24 @@ model CtdtToHop {
   @@map("ctdt_to_hop")
 }
 
+model AdmissionYearLock {
+  nam       Int      @id
+  locked_at DateTime @default(now())
+  ma_admin  String
+  admin     Admin    @relation(fields: [ma_admin], references: [ma_admin])
+
+  @@map("admission_year_lock")
+}
+
 model PhuongThucXetTuyen {
   ma_phuong_thuc   String               @id
   ten_phuong_thuc  String
+  nhom_xet_tuyen   String?
+  diem_toi_thieu   Float?
+  diem_toi_da      Float?
   diem_trung_tuyen DiemTrungTuyen[]
   nguyen_vong      NguyenVongSinhVien[]
+  chi_tieu_ap_dung CutoffMethod[]
 
   @@map("phuong_thuc_xet_tuyen")
 }
@@ -248,11 +262,22 @@ model LichSuDiemChuan {
   ma_admin_cap_nhat String
   create_at         DateTime          @default(now())
   diem_trung_tuyen  DiemTrungTuyen[]
+  phuong_thuc_ap_dung CutoffMethod[]
   admin             Admin             @relation(fields: [ma_admin_cap_nhat], references: [ma_admin])
   chuong_trinh      ChuongTrinhDaoTao @relation(fields: [ma_chuong_trinh], references: [ma_chuong_trinh])
 
   @@unique([ma_chuong_trinh, nam])
   @@map("lich_su_diem_chuan")
+}
+
+model CutoffMethod {
+  ma_ls_dc        String
+  ma_phuong_thuc  String
+  lich_su        LichSuDiemChuan    @relation(fields: [ma_ls_dc], references: [ma_ls_dc], onDelete: Cascade)
+  phuong_thuc    PhuongThucXetTuyen @relation(fields: [ma_phuong_thuc], references: [ma_phuong_thuc])
+
+  @@id([ma_ls_dc, ma_phuong_thuc])
+  @@map("cutoff_method")
 }
 
 model DiemTrungTuyen {

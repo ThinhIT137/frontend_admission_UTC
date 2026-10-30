@@ -1,5 +1,6 @@
 import prisma from "@/libs/prisma";
 import { adminService } from "./user.service";
+import { validateMethodConfig, type MethodConfig } from "@/libs/admission-catalog";
 
 export const getPhuongThucXetTuyenList = async () => {
   try {
@@ -13,9 +14,10 @@ export const getPhuongThucXetTuyenList = async () => {
   }
 };
 
-export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; ten_phuong_thuc: string }) => {
+export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; ten_phuong_thuc: string } & MethodConfig) => {
   try {
     await adminService.getAdminId();
+    const config = validateMethodConfig(data);
     if (typeof data.ma_phuong_thuc !== "string" || !data.ma_phuong_thuc.trim() ||
         typeof data.ten_phuong_thuc !== "string" || !data.ten_phuong_thuc.trim()) {
       throw new Error("Vui lòng nhập mã và tên phương thức");
@@ -29,6 +31,7 @@ export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; t
       data: {
         ma_phuong_thuc: data.ma_phuong_thuc,
         ten_phuong_thuc: data.ten_phuong_thuc,
+        ...config,
       }
     });
   } catch (error) {
@@ -37,16 +40,20 @@ export const createPhuongThucXetTuyen = async (data: { ma_phuong_thuc: string; t
   }
 };
 
-export const updatePhuongThucXetTuyen = async (ma_phuong_thuc: string, data: { ten_phuong_thuc?: string }) => {
+export const updatePhuongThucXetTuyen = async (ma_phuong_thuc: string, data: { ten_phuong_thuc: string } & MethodConfig) => {
   try {
     await adminService.getAdminId();
+    const config = validateMethodConfig(data);
     if (data.ten_phuong_thuc !== undefined &&
         (typeof data.ten_phuong_thuc !== "string" || !data.ten_phuong_thuc.trim())) {
       throw new Error("Tên phương thức không được để trống");
     }
-    return await prisma.phuongThucXetTuyen.update({
-      where: { ma_phuong_thuc },
-      data,
+    return await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT ma_phuong_thuc FROM phuong_thuc_xet_tuyen WHERE ma_phuong_thuc = ${ma_phuong_thuc} FOR UPDATE`;
+      if (await tx.diemTrungTuyen.count({ where: { ma_phuong_thuc, OR: [
+        { diem: { lt: config.diem_toi_thieu } }, { diem: { gt: config.diem_toi_da } },
+      ] } })) throw new Error("Thang điểm mới không chứa các điểm chuẩn đã lưu");
+      return tx.phuongThucXetTuyen.update({ where: { ma_phuong_thuc }, data: { ten_phuong_thuc: data.ten_phuong_thuc.trim(), ...config } });
     });
   } catch (error) {
     console.error("Error updatePhuongThucXetTuyen:", error);

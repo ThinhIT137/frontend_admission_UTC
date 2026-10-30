@@ -19,7 +19,7 @@ export async function getLoTrinhTuyenSinhAction() {
 export async function createLoTrinhTuyenSinhAction(data: {
   ten_su_kien: string;
   thoi_gian_bat_dau: Date;
-  thoi_gian_ket_thuc?: Date;
+  thoi_gian_ket_thuc?: Date | null;
   ghi_chu?: string;
 }) {
   try {
@@ -36,7 +36,7 @@ export async function updateLoTrinhTuyenSinhAction(
   data: {
     ten_su_kien?: string;
     thoi_gian_bat_dau?: Date;
-    thoi_gian_ket_thuc?: Date;
+    thoi_gian_ket_thuc?: Date | null;
     ghi_chu?: string;
   }
 ) {

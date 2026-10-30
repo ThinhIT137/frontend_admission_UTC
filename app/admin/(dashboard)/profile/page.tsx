@@ -16,15 +16,15 @@ export default async function ProfilePage() {
   return (
     <div className="max-w-3xl mx-auto py-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold font-display text-[#0d1b4e]">
+        <h1 className="text-2xl font-bold font-display text-[#192b59]">
           Hồ Sơ Của Tôi
         </h1>
-        <p className="text-sm text-[#767680] mt-1">
+        <p className="text-sm text-[#64748b] mt-1">
           Quản lý thông tin cá nhân và bảo mật tài khoản
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-[#e9e2d5] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden">
         <ProfileForm 
           ma_admin={user.ma_admin}
           initialName={user.ho_ten} 

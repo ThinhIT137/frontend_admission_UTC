@@ -46,5 +46,5 @@ test('Workflow rejects invalid preview and displays a safe toast when backend im
  const button=text=>[...document.querySelectorAll('button')].find(node=>node.textContent===text);
  await ui.change(document.querySelectorAll('input')[1],'Reviewed source');await ui.change(document.querySelector('textarea'),'cccd,TOAN\n000000000001,99');
  await ui.click(button('Kiểm tra trước khi nhập'));assert.equal(button('Xác nhận lưu điểm').disabled,true);
- fail=true;await ui.click(button('Kiểm tra trước khi nhập'));assert.equal(toasts.length,1);assert.doesNotMatch(toasts[0],/SQL|SECRET/);assert.ok(logged.mock.callCount()>0);
+ fail=true;await ui.click(button('Kiểm tra trước khi nhập'));assert.equal(toasts.length,1);assert.doesNotMatch(toasts[0],/SQL|SECRET/);assert.equal(logged.mock.callCount(),0,'raw upstream failures must not be logged');
 });

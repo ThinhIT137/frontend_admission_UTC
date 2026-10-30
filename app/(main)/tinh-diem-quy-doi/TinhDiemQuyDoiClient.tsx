@@ -9,6 +9,8 @@ import { useLoading } from "@/contexts/loadingContext";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import AdmissionLikelihood from "./AdmissionLikelihood";
+import { ScoreInput } from "@/components/admission/ScoreInput";
+import { parseScoreInput } from "@/libs/score-input";
 
 
 export interface ProgramScoreItem {
@@ -88,9 +90,9 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const m3Name = currentCombination?.mon_3?.ten_mon || currentCombination?.ma_mon_3 || "Môn 3";
 
   // Điểm thành phần các môn thi
-  const [m1Score, setM1Score] = useState<number | "">("");
-  const [m2Score, setM2Score] = useState<number | "">("");
-  const [m3Score, setM3Score] = useState<number | "">("");
+  const [m1Score, setM1Score] = useState<string>("");
+  const [m2Score, setM2Score] = useState<string>("");
+  const [m3Score, setM3Score] = useState<string>("");
 
   const handoffApplied = useRef(false);
   const pendingHandoff = useRef<{ combination: string; scores: number[] } | null>(null);
@@ -103,31 +105,31 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
     if (subjectCodes.some(code => !code) || new Set(subjectCodes).size !== 3) return;
     const rawScores = [params.get("score1"), params.get("score2"), params.get("score3")];
     if (rawScores.some(value => value === null || value.trim() === "")) return;
-    const scores = rawScores.map(Number);
-    if (scores.some(score => !Number.isFinite(score) || score < 0 || score > 10)) return;
+    const scores = rawScores.map(value => parseScoreInput(value ?? "", 10));
+    if (scores.some(score => score === null)) return;
 
     // Chỉ nhận dữ liệu hợp lệ một lần; không ghi đè điểm người dùng sửa sau đó.
     handoffApplied.current = true;
-    pendingHandoff.current = { combination: combination.ma_to_hop, scores };
+    pendingHandoff.current = { combination: combination.ma_to_hop, scores: scores as number[] };
     setMethodTab("THPT");
     setSelectedToHop(combination.ma_to_hop);
-    setM1Score(scores[0]);
-    setM2Score(scores[1]);
-    setM3Score(scores[2]);
+    setM1Score(String(scores[0]));
+    setM2Score(String(scores[1]));
+    setM3Score(String(scores[2]));
   }, [initialToHops]);
 
   // IELTS được kiểm tra band và ngày cấp trước khi cộng điểm.
-  const [certScore, setCertScore] = useState<number | "">("");
+  const [certScore, setCertScore] = useState<string>("");
   const [certDate, setCertDate] = useState("");
-  const [annualScores, setAnnualScores] = useState<Record<string, Array<number | "">>>({});
-  const [thptMath, setThptMath] = useState<number | "">("");
-  const [thptEnglish, setThptEnglish] = useState<number | "">("");
+  const [annualScores, setAnnualScores] = useState<Record<string, Array<string>>>({});
+  const [thptMath, setThptMath] = useState<string>("");
+  const [thptEnglish, setThptEnglish] = useState<string>("");
   const subjectCodes = [currentCombination?.ma_mon_1 ?? "", currentCombination?.ma_mon_2 ?? "", currentCombination?.ma_mon_3 ?? ""];
   const annualMatrix = subjectCodes.map(code => annualScores[code] ?? ["", "", ""]);
 
   // Điểm Kỳ thi ĐGNL / ĐGTD (PT 405)
   const [dgnlType, setDgnlType] = useState<"HSA" | "TSA">("HSA");
-  const [dgnlScore, setDgnlScore] = useState<number | "">("");
+  const [dgnlScore, setDgnlScore] = useState<string>("");
 
   // Điểm ưu tiên
   const [region, setRegion] = useState<"KV3" | "KV2" | "KV2-NT" | "KV1">("KV2");
@@ -137,6 +139,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const [calculationResult, setCalculationResult] = useState<CalculationSnapshot | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // Bộ lọc bảng so sánh ngành
   const [searchMajorText, setSearchMajorText] = useState("");
@@ -183,6 +186,11 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   const { beginLoading } = useLoading();
   const requestId = useRef(0);
   const releaseLoading = useRef<(() => void) | null>(null);
+  const invalidateCalculation = () => {
+    requestId.current += 1;
+    releaseLoading.current?.(); releaseLoading.current = null;
+    setBusy(false); setCalculationResult(null); setErrorMessage("");
+  };
   // Any input change invalidates the result; a late response cannot restore stale scores.
   useEffect(() => {
     requestId.current += 1;
@@ -193,16 +201,24 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
 
   const handleCalculate = async () => {
     if (busy) return;
+    setSubmitAttempted(true);
     if (calculationYear !== 2026) { setErrorMessage("Công cụ hiện áp dụng quy tắc UTC GHA 2026; chưa có cấu hình năm khác."); return; }
     if (methodTab !== "DGNL" && !currentCombination) {
       setErrorMessage("Chưa tải được tổ hợp môn từ database. Vui lòng tải lại trang.");
       return;
     }
-    const subjectInputs = methodTab === "DGNL" ? [] : methodTab === "HOC_BA" ? annualMatrix.map(row => row.some(value => value === "") ? "" : row.reduce<number>((sum,value) => sum + Number(value),0) / 3) : [m1Score, m2Score, m3Score];
-    if (subjectInputs.some(value => value === "" || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 10)
-        || (methodTab === "HOC_BA" && (annualMatrix.flat().some(value => value === "" || !Number.isFinite(Number(value)) || Number(value)<0 || Number(value)>10) || (thptMath !== "" && (!Number.isFinite(thptMath) || thptMath<0 || thptMath>10)) || (thptEnglish !== "" && (!Number.isFinite(thptEnglish) || thptEnglish<0 || thptEnglish>10))))
-        || (methodTab === "DGNL" && (dgnlScore === "" || !Number.isFinite(Number(dgnlScore)) || dgnlScore < 0 || dgnlScore > (dgnlType === "HSA" ? 150 : 100)))
-        || (certScore !== "" && (!Number.isFinite(certScore) || certScore<0 || certScore>9 || certScore*2!==Math.trunc(certScore*2) || !certDate || certDate <= "2024-06-30" || certDate > new Date().toISOString().slice(0,10)))) {
+    const parsedAnnual = annualMatrix.map(row => row.map(value => parseScoreInput(value, 10)));
+    const subjectInputs = methodTab === "DGNL" ? [] : methodTab === "HOC_BA"
+      ? parsedAnnual.map(row => row.some(value => value === null) ? NaN : row.reduce<number>((sum, value) => sum + (value ?? 0), 0) / 3)
+      : [m1Score, m2Score, m3Score].map(value => parseScoreInput(value, 10) ?? NaN);
+    const mathScore = thptMath.trim() === "" ? undefined : parseScoreInput(thptMath, 10);
+    const englishScore = thptEnglish.trim() === "" ? undefined : parseScoreInput(thptEnglish, 10);
+    const examScore = parseScoreInput(dgnlScore, dgnlType === "HSA" ? 150 : 100);
+    const certificateScore = certScore.trim() === "" ? undefined : parseScoreInput(certScore, 9, 0.5);
+    if (subjectInputs.some(value => !Number.isFinite(value))
+      || (methodTab === "HOC_BA" && (mathScore === null || englishScore === null))
+      || (methodTab === "DGNL" && examScore === null)
+      || (certificateScore !== undefined && (certificateScore === null || !certDate || certDate <= "2024-06-30" || certDate > new Date().toISOString().slice(0,10)))) {
       setErrorMessage("Vui lòng nhập đủ điểm hợp lệ trước khi đối soát."); return;
     }
     const id = ++requestId.current;
@@ -211,9 +227,9 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
     try {
       const result = await api<{ calculation: Omit<CalculationSnapshot, "subjects" | "calculationYear"> }>("score", "/diem/tinh-diem-doi-soat", {
         method: methodTab, year: calculationYear, combination: methodTab === "DGNL" ? "DGNL" : selectedToHop, scores: subjectInputs.map(Number),
-        ...(methodTab === "HOC_BA" ? { annual_scores: annualMatrix, ...(thptMath !== "" ? {thpt_math_score: thptMath} : {}), ...(thptEnglish !== "" ? {thpt_english_score: thptEnglish} : {}) } : {}),
-        region, priority: priorityObj, exam: dgnlType, ...(methodTab === "DGNL" ? {exam_score: dgnlScore} : {}),
-        ...(certScore !== "" ? { certificate: "IELTS", certificate_score: certScore, certificate_date: certDate } : {}),
+        ...(methodTab === "HOC_BA" ? { annual_scores: parsedAnnual, ...(mathScore !== undefined ? {thpt_math_score: mathScore} : {}), ...(englishScore !== undefined ? {thpt_english_score: englishScore} : {}) } : {}),
+        region, priority: priorityObj, exam: dgnlType, ...(methodTab === "DGNL" ? {exam_score: examScore} : {}),
+        ...(certificateScore !== undefined ? { certificate: "IELTS", certificate_score: certificateScore, certificate_date: certDate } : {}),
       });
       if (id !== requestId.current) return;
       if (result?.calculation?.contractVersion !== "utc-gha-2026-v2") throw new Error("Legacy score contract");
@@ -241,7 +257,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
   useEffect(() => {
     const handoff = pendingHandoff.current;
     if (!handoff || busy || methodTab !== "THPT" || selectedToHop !== handoff.combination) return;
-    if (![m1Score, m2Score, m3Score].every((score, index) => score === handoff.scores[index])) return;
+    if (![m1Score, m2Score, m3Score].every((score, index) => parseScoreInput(score, 10) === handoff.scores[index])) return;
     pendingHandoff.current = null;
     void handleCalculate();
   }, [busy, methodTab, selectedToHop, m1Score, m2Score, m3Score, handleCalculate]);
@@ -381,13 +397,13 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
               </label>
               {methodTab === "HOC_BA" ? <>
                 <p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">Nhập điểm trung bình cả năm của từng môn ở lớp 10, 11, 12. Mỗi ô phải từ 5,5 để đạt điều kiện PT2; hệ thống lấy trung bình ba năm, nhân hệ số Toán rồi quy đổi theo bảng.</p>
-                <div className="space-y-4">{[m1Name,m2Name,m3Name].map((name,index)=><fieldset key={subjectCodes[index]} className="rounded-xl border border-slate-200 p-3"><legend className="px-1 text-sm font-bold text-slate-800">{name}</legend><div className="grid grid-cols-3 gap-3">{[10,11,12].map((grade,yearIndex)=><label key={grade} className="text-xs font-medium text-slate-600">Lớp {grade}<input aria-label={`${name} lớp ${grade}`} type="number" min="0" max="10" step="0.01" value={annualMatrix[index][yearIndex]} onChange={e=>{const value=e.target.value===""?"":Number(e.target.value);setAnnualScores(old=>({...old,[subjectCodes[index]]:(old[subjectCodes[index]]??["","",""]).map((v,j)=>j===yearIndex?value:v)}));}} className="mt-2 w-full rounded-lg border border-slate-300 p-2 text-center text-base font-semibold"/></label>)}</div></fieldset>)}</div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><h3 className="text-sm font-bold text-amber-900">Điều kiện điểm thi THPT 2026 (khác điểm học bạ)</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Toán THPT (chưa có điểm có thể để trống)<input aria-label="Toán THPT điều kiện PT2" type="number" min="0" max="10" step="0.01" value={thptMath} onChange={e=>setThptMath(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label><label className="text-sm">Tiếng Anh THPT (nếu xét Ngôn ngữ Anh)<input aria-label="Tiếng Anh THPT điều kiện PT2" type="number" min="0" max="10" step="0.01" value={thptEnglish} onChange={e=>setThptEnglish(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label></div><p className="mt-3 text-xs leading-5 text-amber-900">Có thể tính học bạ khi chưa có điểm thi; trạng thái điều kiện sẽ là chưa kiểm tra được. Toán từ 5; Toán ứng dụng từ 6. Ngôn ngữ Anh: tiếng Anh THPT từ 6 hoặc IELTS từ 4,5.</p></div>
-              </> : <div className="grid grid-cols-3 gap-3">{[m1Name,m2Name,m3Name].map((name,index)=><label key={subjectCodes[index]} className="min-w-0 text-sm font-semibold text-slate-700">{name}<input aria-label={`Điểm thi ${name}`} type="number" min="0" max="10" step="0.01" value={[m1Score,m2Score,m3Score][index]} onChange={e=>[setM1Score,setM2Score,setM3Score][index](e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-center text-lg"/></label>)}</div>}
+                <div className="space-y-4">{[m1Name,m2Name,m3Name].map((name,index)=><fieldset key={subjectCodes[index]} className="rounded-xl border border-slate-200 p-3"><legend className="px-1 text-sm font-bold text-slate-800">{name}</legend><div className="grid grid-cols-3 gap-3">{[10,11,12].map((grade,yearIndex)=><label key={grade} className="text-xs font-medium text-slate-600">Lớp {grade}<ScoreInput aria-label={`${name} lớp ${grade}`} showRequired={submitAttempted} value={annualMatrix[index][yearIndex]} onValueChange={value=>{invalidateCalculation();setAnnualScores(old=>({...old,[subjectCodes[index]]:(old[subjectCodes[index]]??["","",""]).map((v,j)=>j===yearIndex?value:v)}));}} className="mt-2 w-full rounded-lg border border-slate-300 p-2 text-center text-base font-semibold"/></label>)}</div></fieldset>)}</div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><h3 className="text-sm font-bold text-amber-900">Điều kiện điểm thi THPT 2026 (khác điểm học bạ)</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Toán THPT (chưa có điểm có thể để trống)<ScoreInput aria-label="Toán THPT điều kiện PT2" value={thptMath} onValueChange={value=>{invalidateCalculation();setThptMath(value);}} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label><label className="text-sm">Tiếng Anh THPT (nếu xét Ngôn ngữ Anh)<ScoreInput aria-label="Tiếng Anh THPT điều kiện PT2" value={thptEnglish} onValueChange={value=>{invalidateCalculation();setThptEnglish(value);}} className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2"/></label></div><p className="mt-3 text-xs leading-5 text-amber-900">Có thể tính học bạ khi chưa có điểm thi; trạng thái điều kiện sẽ là chưa kiểm tra được. Toán từ 5; Toán ứng dụng từ 6. Ngôn ngữ Anh: tiếng Anh THPT từ 6 hoặc IELTS từ 4,5.</p></div>
+              </> : <div className="grid grid-cols-3 gap-3">{[m1Name,m2Name,m3Name].map((name,index)=><label key={subjectCodes[index]} className="min-w-0 text-sm font-semibold text-slate-700">{name}<ScoreInput aria-label={`Điểm thi ${name}`} showRequired={submitAttempted} value={[m1Score,m2Score,m3Score][index]} onValueChange={value=>{invalidateCalculation();[setM1Score,setM2Score,setM3Score][index](value);}} className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-center text-lg"/></label>)}</div>}
               <p className="text-xs leading-6 text-slate-500">Điểm cơ sở: (Toán × 2 + hai môn còn lại) × 3/4. Ngành Ngôn ngữ Anh dùng tổng ba môn không nhân hệ số; bảng đối chiếu tính riêng theo ngành.</p>
             </div>}
-            {methodTab === "DGNL" && <div className="space-y-4"><label className="block text-sm font-semibold">Kỳ thi tại Hà Nội<select aria-label="Kỳ thi đánh giá" value={dgnlType} onChange={e=>setDgnlType(e.target.value as "HSA"|"TSA")} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3"><option value="HSA">HSA · ĐHQG Hà Nội · thang 150</option><option value="TSA">TSA · ĐH Bách khoa Hà Nội · thang 100</option></select></label><label className="block text-sm font-semibold">Điểm {dgnlType}<input aria-label={`Điểm ${dgnlType}`} type="number" min="0" max={dgnlType==="HSA"?150:100} step="0.01" value={dgnlScore} onChange={e=>setDgnlScore(e.target.value===""?"":Number(e.target.value))} className="mt-2 w-full rounded-xl border border-slate-300 p-3"/></label><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">Quy đổi theo từng khoảng trong bảng năm 2026 bằng nội suy, không chia tuyến tính toàn thang. Ngoài khoảng bảng sẽ báo chưa quy đổi được. Cần kiểm tra phương thức và điều kiện bổ sung từng chương trình GHA.</p></div>}
-            <fieldset className="rounded-xl border border-slate-200 p-4"><legend className="px-1 text-sm font-bold text-slate-800">IELTS (không bắt buộc)</legend><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Điểm IELTS<input aria-label="Điểm IELTS" type="number" min="0" max="9" step="0.5" value={certScore} onChange={e=>{setCertScore(e.target.value===""?"":Number(e.target.value));if(e.target.value==="")setCertDate("");}} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label><label className="text-sm">Ngày cấp chứng chỉ<input aria-label="Ngày cấp IELTS" type="date" min="2024-07-01" max={new Date().toISOString().slice(0,10)} value={certDate} onChange={e=>setCertDate(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label></div><p className="mt-3 text-xs leading-6 text-slate-600">IELTS chỉ cộng điểm, không thay môn tiếng Anh: 5,0 +0,50; 5,5 +0,75; 6,0 +1,00; 6,5 +1,25; từ 7,0 +1,50. Chứng chỉ cấp sau 30/06/2024. IELTS 4,5 có thể đáp ứng điều kiện PT2 Ngôn ngữ Anh nhưng không có điểm cộng.</p></fieldset>
+            {methodTab === "DGNL" && <div className="space-y-4"><label className="block text-sm font-semibold">Kỳ thi tại Hà Nội<select aria-label="Kỳ thi đánh giá" value={dgnlType} onChange={e=>setDgnlType(e.target.value as "HSA"|"TSA")} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3"><option value="HSA">HSA · ĐHQG Hà Nội · thang 150</option><option value="TSA">TSA · ĐH Bách khoa Hà Nội · thang 100</option></select></label><label className="block text-sm font-semibold">Điểm {dgnlType}<ScoreInput aria-label={`Điểm ${dgnlType}`} maxScore={dgnlType==="HSA"?150:100} showRequired={submitAttempted} value={dgnlScore} onValueChange={value=>{invalidateCalculation();setDgnlScore(value);}} className="mt-2 w-full rounded-xl border border-slate-300 p-3"/></label><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">Quy đổi theo từng khoảng trong bảng năm 2026 bằng nội suy, không chia tuyến tính toàn thang. Ngoài khoảng bảng sẽ báo chưa quy đổi được. Cần kiểm tra phương thức và điều kiện bổ sung từng chương trình GHA.</p></div>}
+            <fieldset className="rounded-xl border border-slate-200 p-4"><legend className="px-1 text-sm font-bold text-slate-800">IELTS (không bắt buộc)</legend><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Điểm IELTS<ScoreInput aria-label="Điểm IELTS" maxScore={9} scoreStep={0.5} value={certScore} onValueChange={value=>{invalidateCalculation();setCertScore(value);if(value==="")setCertDate("");}} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label><label className="text-sm">Ngày cấp chứng chỉ<input aria-label="Ngày cấp IELTS" type="date" min="2024-07-01" max={new Date().toISOString().slice(0,10)} value={certDate} onChange={e=>setCertDate(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-2"/></label></div><p className="mt-3 text-xs leading-6 text-slate-600">IELTS chỉ cộng điểm, không thay môn tiếng Anh: 5,0 +0,50; 5,5 +0,75; 6,0 +1,00; 6,5 +1,25; từ 7,0 +1,50. Chứng chỉ cấp sau 30/06/2024. IELTS 4,5 có thể đáp ứng điều kiện PT2 Ngôn ngữ Anh nhưng không có điểm cộng.</p></fieldset>
             <a href="https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/th%C3%B4ng-tin-tuy%E1%BB%83n-sinh-%C4%91%E1%BA%A1i-h%E1%BB%8Dc-h%E1%BB%87-ch%C3%ADnh-quy-2026" target="_blank" rel="noreferrer" className="block text-sm font-medium text-blue-700 underline">Nguồn: Thông tin tuyển sinh UTC 2026 · mục 2 và 5.3</a>
             {/* Bước 2: Khu vực & Đối tượng ưu tiên */}
             <div className="border-t-[2px] border-dashed border-[#d1d5db] pt-4">

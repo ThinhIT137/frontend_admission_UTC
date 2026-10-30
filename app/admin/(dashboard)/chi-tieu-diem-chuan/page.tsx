@@ -1,4 +1,4 @@
-import { getChiTieuAction } from "@/actions/chi_tieu.action";
+import { getChiTieuAction, getScoreYearLockAction } from "@/actions/chi_tieu.action";
 import ChiTieuClient from "./ChiTieuClient";
 import prisma from "@/libs/prisma";
 
@@ -27,8 +27,9 @@ export default async function ChiTieuDiemChuanPage(props: { searchParams: Promis
   
   const methods = await prisma.phuongThucXetTuyen.findMany({
     orderBy: { ma_phuong_thuc: "asc" },
-    select: { ma_phuong_thuc: true, ten_phuong_thuc: true }
+    select: { ma_phuong_thuc: true, ten_phuong_thuc: true, nhom_xet_tuyen: true, diem_toi_thieu: true, diem_toi_da: true }
   });
+  const lock = await getScoreYearLockAction(year);
 
   return (
     <div className="p-6">
@@ -37,6 +38,7 @@ export default async function ChiTieuDiemChuanPage(props: { searchParams: Promis
         programs={programs} 
         methods={methods} 
         currentYear={year} 
+        yearLocked={lock.locked}
       />
     </div>
   );

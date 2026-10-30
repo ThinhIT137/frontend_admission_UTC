@@ -22,8 +22,10 @@ type Row = {
     trang_thai: string;
     ket_qua?: string;
     co_the_chinh_sua?: boolean;
+    co_the_doi_nganh?: boolean;
 };
-export default function MyPreferences() {
+type Program = { ma_chuong_trinh: string; ten_chuong_trinh: string; ctdt_to_hop: Array<{nam: number; ma_to_hop: string}> };
+export default function MyPreferences({ programs = [] }: { programs?: Program[] } = {}) {
     const [rows, setRows] = useState<Row[] | null>(null);
     const [signedIn, setSignedIn] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -32,6 +34,8 @@ export default function MyPreferences() {
     const [draft, setDraft] = useState<Row[] | null>(null);
     const [withdrawId, setWithdrawId] = useState<string | null>(null);
     const [confirmation, setConfirmation] = useState("");
+    const [changingId, setChangingId] = useState<string | null>(null);
+    const [targetProgram, setTargetProgram] = useState("");
     const [error, setError] = useState("");
     const generation = useRef(0);
     const mutationActive = useRef(false);
@@ -42,9 +46,11 @@ export default function MyPreferences() {
         setRows(null);
         setDraft(null);
         setWithdrawId(null);
+        setChangingId(null);
         setConfirmation("");
         setError("");
         try {
+            await api("score", "/ho-so/cua-toi/don-minh-chung", undefined, "POST");
             const data = await api<Row[]>("score", "/ho-so/cua-toi");
             if (current === generation.current) setRows(data);
         } catch (failure) {
@@ -72,6 +78,7 @@ export default function MyPreferences() {
         setMutating(false);
         setDraft(null);
         setWithdrawId(null);
+        setChangingId(null);
         setConfirmation("");
         setError("");
         setYear("");
@@ -93,6 +100,7 @@ export default function MyPreferences() {
         path: string,
         method: "PUT" | "DELETE",
         payload?: unknown,
+        successMessage?: string,
     ) {
         if (mutationActive.current) return;
         const current = generation.current;
@@ -102,10 +110,10 @@ export default function MyPreferences() {
         try {
             await api("score", path, payload, method);
             if (current !== generation.current) return;
-            toast.success(
+            toast.success(successMessage ?? (
                 method === "PUT"
                     ? "Đã lưu thứ tự nguyện vọng."
-                    : "Đã rút và xóa hồ sơ chờ kiểm tra.",
+                    : "Đã rút và xóa hồ sơ chờ kiểm tra."),
             );
             await load();
         } catch (failure) {
@@ -327,8 +335,9 @@ export default function MyPreferences() {
                                     <p className="font-bold">
                                         Rút hồ sơ sẽ xóa vĩnh viễn hồ sơ chờ
                                         kiểm tra này và không thể hoàn tác. Học
-                                        bạ, chứng chỉ, giải thưởng và file minh
-                                        chứng dùng chung vẫn được giữ lại.
+                                        bạ vẫn được giữ lại. Ảnh minh chứng sẽ bị xóa
+                                        khỏi kho khi không còn hồ sơ nào của bạn;
+                                        ảnh đang dùng cho ngành khác vẫn được giữ.
                                     </p>
                                     <label className="block">
                                         Nhập mã hồ sơ để xác nhận
@@ -372,6 +381,26 @@ export default function MyPreferences() {
                                     </div>
                                 </div>
                             )}
+                            {!draft && r.co_the_doi_nganh === true && <div className="space-y-3">
+                                <button disabled={disabled || !!withdrawId} className="rounded-xl border border-blue-800 px-4 py-2 text-blue-900 disabled:opacity-50"
+                                    onClick={() => { setChangingId(r.ma_ho_so); setTargetProgram(""); }}>Đổi ngành</button>
+                                {changingId === r.ma_ho_so && <div role="group" aria-label="Đổi ngành hồ sơ" className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                    <p>Chỉ đổi khi chờ kiểm tra hoặc hợp lệ. Sau khi đổi, hồ sơ trở về chờ kiểm tra; học bạ, ảnh và thứ tự nguyện vọng được giữ nguyên.</p>
+                                    <label className="block">Ngành / chương trình mới<select aria-label="Ngành mới" value={targetProgram} disabled={disabled}
+                                        onChange={event => setTargetProgram(event.target.value)} className="mt-2 w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3">
+                                        <option value="">Chọn chương trình</option>
+                                        {programs.filter(program => program.ma_chuong_trinh !== r.ma_chuong_trinh
+                                            && !(rows ?? []).some(other => other.ma_ho_so !== r.ma_ho_so && other.nam_tuyen_sinh === r.nam_tuyen_sinh && other.ma_chuong_trinh === program.ma_chuong_trinh)
+                                            && (!r.ma_to_hop || program.ctdt_to_hop.some(link => link.nam === r.nam_tuyen_sinh && link.ma_to_hop === r.ma_to_hop)))
+                                            .map(program => <option key={program.ma_chuong_trinh} value={program.ma_chuong_trinh}>{program.ma_chuong_trinh} — {program.ten_chuong_trinh}</option>)}
+                                    </select></label>
+                                    <div className="flex flex-wrap gap-3"><button disabled={disabled || !targetProgram}
+                                        onClick={() => void mutate(`/ho-so/cua-toi/${encodeURIComponent(r.ma_ho_so)}/nganh`, "PUT",
+                                            { ma_chuong_trinh_cu: r.ma_chuong_trinh, ma_chuong_trinh: targetProgram }, "Đã đổi ngành. Hồ sơ đang chờ kiểm tra lại.")}
+                                        className="rounded-xl bg-blue-900 px-4 py-2 font-semibold text-white disabled:opacity-50">Xác nhận đổi ngành</button>
+                                        <button disabled={disabled} onClick={() => setChangingId(null)} className="rounded-xl border bg-white px-4 py-2">Hủy đổi ngành</button></div>
+                                </div>}
+                            </div>}
                         </article>
                     ))}
                     <p className={styles.notice}>

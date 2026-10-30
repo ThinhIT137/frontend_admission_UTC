@@ -1,4 +1,5 @@
 "use client";
+import { AdminIcon } from "@/components/admin/AdminIcon";
 import { publicError } from "@/libs/client-error";
 
 import { useState, useMemo } from "react";
@@ -6,8 +7,9 @@ import Fuse from "fuse.js";
 import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { createCTDTAction, updateCTDTAction, deleteCTDTAction } from "@/actions/chuong_trinh_dao_tao.action";
-import { toast } from "sonner";
+import { toast } from "@/libs/admin-toast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { saveProgramCombinationsAction } from "@/actions/program-combinations.action";
 
 const CHUAN_DAU_RA_LABELS: Record<string, string> = {
   CU_NHAN: "Cử nhân",
@@ -22,7 +24,15 @@ const CHUAN_DAU_RA_OPTIONS = Object.keys(CHUAN_DAU_RA_LABELS).map(key => ({
   label: CHUAN_DAU_RA_LABELS[key]
 }));
 
-export default function CTDTClient({ initialData, majors }: { initialData: any[]; majors: any[] }) {
+export default function CTDTClient({ initialData, majors, combinations = [] }: { initialData: any[]; majors: any[]; combinations?: any[] }) {
+  const [mappingProgram, setMappingProgram] = useState<any>(null);
+  const [mappingYear, setMappingYear] = useState(new Date().getFullYear());
+  const [mappingCodes, setMappingCodes] = useState<string[]>([]);
+  const [mappingError, setMappingError] = useState("");
+  const chooseMappingYear = (row: any, year: number) => {
+    setMappingYear(year); setMappingError("");
+    setMappingCodes((row.ctdt_to_hop || []).filter((link: any) => link.nam === year).map((link: any) => link.ma_to_hop));
+  };
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -32,11 +42,9 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [maNganh, setMaNganh] = useState("");
-  const [maNganhName, setMaNganhName] = useState("");
   const [deCuong, setDeCuong] = useState("");
   const [moTaNgan, setMoTaNgan] = useState("");
   const [chuanDauRa, setChuanDauRa] = useState<string[]>([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,9 +96,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     setDeCuong("");
     setMoTaNgan("");
     setChuanDauRa([]);
-    const defaultMajor = majors[0];
-    setMaNganh(defaultMajor?.ma_nganh || "");
-    setMaNganhName(defaultMajor?.ten_nganh || "");
+    setMaNganh("");
     setIsModalOpen(true);
   };
 
@@ -102,7 +108,6 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     setMoTaNgan(row.mo_ta_ngan || "");
     setChuanDauRa(row.chuan_dau_ra || []);
     setMaNganh(row.ma_nganh);
-    setMaNganhName(row.nganh?.ten_nganh || "");
     setIsModalOpen(true);
   };
 
@@ -145,7 +150,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     {
       header: "STT",
       accessor: (_, idx) => (
-        <span className="font-bold text-[#767680] text-[13px]">
+        <span className="font-bold text-[#64748b] text-[13px]">
           {idx + 1 + (currentPage - 1) * PAGE_SIZE}
         </span>
       ),
@@ -154,7 +159,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     {
       header: "Mã CTĐT",
       accessor: (r) => (
-        <span className="font-stamp font-bold text-[#0d1b4e] bg-[#f4ede0] px-2 py-0.5 rounded border border-[#c6c5d0]">
+        <span className="font-stamp font-bold text-[#192b59] bg-[#f1f5f9] px-2 py-0.5 rounded border border-[#cbd5e1]">
           {r.ma_chuong_trinh}
         </span>
       ),
@@ -164,9 +169,9 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       header: "Tên Chương Trình Đào Tạo",
       accessor: (r) => (
         <div>
-          <span className="font-bold text-[#1e1b14] text-[14px] block">{r.ten_chuong_trinh}</span>
-          <span className="text-[12px] text-[#767680]">
-            Ngành: <span className="font-bold text-[#0d1b4e]">{r.nganh?.ten_nganh || "Chưa xác định"}</span>
+          <span className="font-bold text-[#1e293b] text-[14px] block">{r.ten_chuong_trinh}</span>
+          <span className="text-[12px] text-[#64748b]">
+            Ngành: <span className="font-bold text-[#192b59]">{r.nganh?.ten_nganh || "Chưa xác định"}</span>
             {r.nganh?.khoi_nganh?.ten_khoi_nganh && (
               <span className="ml-1 text-[#0284c7]">({r.nganh.khoi_nganh.ten_khoi_nganh})</span>
             )}
@@ -179,24 +184,24 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       header: "Tổ Hợp Xét Tuyển",
       accessor: (r) => {
         const combinations = r.ctdt_to_hop || [];
-        if (combinations.length === 0) {
-          return <span className="text-[12px] text-[#767680] italic">Chưa gán</span>;
-        }
         return (
           <div className="flex flex-wrap gap-1 max-w-[220px]">
+            {!combinations.length && <span className="text-xs text-slate-500">Chưa gán</span>}
             {combinations.slice(0, 4).map((c: any) => (
               <span
-                key={c.ma_to_hop}
-                className="font-bold text-[11px] px-2 py-0.5 rounded bg-[#f4ede0] text-[#0d1b4e] border border-[#c6c5d0]"
+                key={`${c.ma_to_hop}:${c.nam}`}
+                className="font-bold text-[11px] px-2 py-0.5 rounded bg-[#f1f5f9] text-[#192b59] border border-[#cbd5e1]"
               >
-                {c.ma_to_hop}
+                {c.ma_to_hop} · {c.nam}
               </span>
             ))}
             {combinations.length > 4 && (
-              <span className="text-[11px] text-[#767680] font-bold self-center">
+              <span className="text-[11px] text-[#64748b] font-bold self-center">
                 +{combinations.length - 4}
               </span>
             )}
+            <button type="button" className="w-full py-2 text-left text-sm font-bold text-blue-800 underline"
+              onClick={() => { setMappingProgram(r); chooseMappingYear(r, new Date().getFullYear()); }}>Gán tổ hợp</button>
           </div>
         );
       },
@@ -206,7 +211,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       header: "Chuẩn Đầu Ra",
       accessor: (r) => {
         const cdr = r.chuan_dau_ra || [];
-        if (!cdr.length) return <span className="text-[12px] text-[#767680] italic">-</span>;
+        if (!cdr.length) return <span className="text-[12px] text-[#64748b] italic">-</span>;
         return (
           <div className="flex flex-wrap gap-1">
             {cdr.map((k: string) => (
@@ -228,18 +233,18 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[24px] font-bold text-[#0d1b4e]">
+          <h1 className="text-[24px] font-bold text-[#192b59]">
             Quản Lý Chương Trình Đào Tạo
           </h1>
-          <p className="text-[13px] text-[#767680] mt-1">
+          <p className="text-[13px] text-[#64748b] mt-1">
             Quản lý {initialData.length} chương trình đào tạo chuẩn & chất lượng cao trực thuộc các ngành học UTC
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-[#0d1b4e] hover:bg-[#1a2c6d] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#192b59] hover:bg-[#243c78] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <AdminIcon name="add" className="text-[18px]" />
           Thêm CTĐT Mới
         </button>
       </div>
@@ -248,22 +253,20 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-72">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767680] text-[18px]">
-              search
-            </span>
+            <AdminIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] text-[18px]" />
             <input
               type="text"
               placeholder="Tìm theo tên CTĐT hoặc mã..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-[#cbd5e1] rounded-lg text-[13px] outline-none focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
             />
           </div>
 
           <select
             value={selectedMajorFilter}
             onChange={(e) => setSelectedMajorFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-[#c6c5d0] rounded-lg text-[13px] font-bold text-[#0d1b4e] outline-none focus:border-[#0d1b4e]"
+            className="px-3 py-2 bg-white border border-[#cbd5e1] rounded-lg text-[13px] font-bold text-[#192b59] outline-none focus:border-[#192b59]"
           >
             <option value="all">Tất cả ngành học ({majors.length})</option>
             {majors.map((m) => (
@@ -274,12 +277,12 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
           </select>
         </div>
 
-        <span className="text-[12px] font-bold text-[#45464f] self-end sm:self-center">
+        <span className="text-[12px] font-bold text-[#475569] self-end sm:self-center">
           Hiển thị: {filteredData.length} / {initialData.length} CTĐT
         </span>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-[#e9e2d5] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] overflow-hidden">
         <DataTable
           columns={columns}
           data={paginatedData}
@@ -288,13 +291,13 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
         />
 
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-[#e9e2d5] flex items-center justify-between bg-white">
+          <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white">
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <AdminIcon name="chevron_left" className="text-[18px]" />
             </button>
             
             <div className="flex items-center gap-1">
@@ -311,8 +314,8 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                       onClick={() => setCurrentPage(page)}
                       className={`w-8 h-8 rounded-lg text-[13px] font-bold transition-colors ${
                         currentPage === page
-                          ? "bg-[#0d1b4e] text-white"
-                          : "text-[#45464f] hover:bg-[#faf3e6]"
+                          ? "bg-[#192b59] text-white"
+                          : "text-[#475569] hover:bg-[#f8fafc]"
                       }`}
                     >
                       {page}
@@ -322,7 +325,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                   page === currentPage - 2 ||
                   page === currentPage + 2
                 ) {
-                  return <span key={page} className="px-1 text-[#767680]">...</span>;
+                  return <span key={page} className="px-1 text-[#64748b]">...</span>;
                 }
                 return null;
               })}
@@ -331,9 +334,9 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="w-8 h-8 rounded-lg border border-[#c6c5d0] flex items-center justify-center text-[#45464f] hover:bg-[#faf3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 rounded-lg border border-[#cbd5e1] flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <AdminIcon name="chevron_right" className="text-[18px]" />
             </button>
           </div>
         )}
@@ -349,7 +352,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
           <div className="flex gap-4">
             {!editingRow && (
               <div className="flex-1 max-w-[200px]">
-                <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+                <label className="block text-[11px] font-bold text-[#64748b] mb-1 uppercase">
                   Mã CTĐT:
                 </label>
                 <input
@@ -358,12 +361,12 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="Vd: 7480201CLC"
-                  className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                  className="w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] font-bold outline-none focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
                 />
               </div>
             )}
             <div className="flex-[2]">
-              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+              <label className="block text-[11px] font-bold text-[#64748b] mb-1 uppercase">
                 Tên CTĐT:
               </label>
               <input
@@ -372,85 +375,28 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Vd: Kỹ sư Phần mềm Chất lượng cao"
-                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] font-bold outline-none focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                className="w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] font-bold outline-none focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
               />
             </div>
           </div>
 
-          <div className="relative">
-            <label className="block text-[12px] font-bold text-[#767680] mb-1 uppercase">
-              Trực thuộc Ngành:
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={maNganhName}
-                onFocus={() => setIsDropdownOpen(true)}
-                onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMaNganhName(val);
-                  setIsDropdownOpen(true);
-                  if (!val) setMaNganh("");
-                }}
-                placeholder="Gõ để tìm kiếm..."
-                className={`w-full pl-3 pr-10 py-2 bg-[#faf3e6] border rounded-lg text-[13px] font-bold outline-none transition-colors cursor-text ${
-                  !maNganh && maNganhName ? "border-red-500 focus:border-red-500" : "border-[#c6c5d0] focus:border-[#0d1b4e]"
-                }`}
-              />
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#767680] pointer-events-none">
-                arrow_drop_down
-              </span>
-            </div>
-            
-            {/* Custom Dropdown */}
-            {isDropdownOpen && (
-              <ul className="absolute z-[100] w-full mt-1 bg-white border border-[#c6c5d0] rounded-lg shadow-lg max-h-48 overflow-y-auto divide-y divide-[#e9e2d5]">
-                {majors.filter(f => f.ten_nganh.toLowerCase().includes(maNganhName.toLowerCase())).length > 0 ? (
-                  majors
-                    .filter(f => f.ten_nganh.toLowerCase().includes(maNganhName.toLowerCase()))
-                    .map((f) => (
-                      <li
-                        key={f.ma_nganh}
-                        onMouseDown={() => {
-                          setMaNganh(f.ma_nganh);
-                          setMaNganhName(f.ten_nganh);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`px-3 py-2 text-[13px] font-medium cursor-pointer transition-colors flex flex-col ${
-                          maNganh === f.ma_nganh ? "bg-[#fdb712] text-[#0d1b4e]" : "text-[#1e1b14] hover:bg-[#faf3e6]"
-                        }`}
-                      >
-                        <span className="font-bold">{f.ten_nganh}</span>
-                        <span className="text-[11px] opacity-80">Mã: {f.ma_nganh}</span>
-                      </li>
-                    ))
-                ) : (
-                  <li className="px-3 py-2 text-[13px] text-[#767680] italic text-center">
-                    Không tìm thấy kết quả phù hợp
-                  </li>
-                )}
-              </ul>
-            )}
-
-            {!maNganh && maNganhName && (
-              <span className="text-[11px] text-red-500 mt-1 block">
-                * Ngành học không tồn tại. Vui lòng chọn từ danh sách.
-              </span>
-            )}
-          </div>
+          <label className="block text-sm font-bold text-slate-600">Trực thuộc ngành
+            <select aria-label="Trực thuộc ngành" required value={maNganh} onChange={e => setMaNganh(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3">
+              <option value="">Chọn ngành học</option>
+              {majors.map(major => <option key={major.ma_nganh} value={major.ma_nganh}>{major.ma_nganh} — {major.ten_nganh}</option>)}
+            </select>
+          </label>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+            <label className="block text-[11px] font-bold text-[#64748b] mb-1 uppercase">
               Chuẩn Đầu Ra:
             </label>
-            <div className="grid grid-cols-4 gap-2 bg-white p-2 border border-[#c6c5d0] rounded-lg">
+            <div className="grid grid-cols-4 gap-2 bg-white p-2 border border-[#cbd5e1] rounded-lg">
               {CHUAN_DAU_RA_OPTIONS.map((opt) => (
                 <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 text-[#0d1b4e] rounded focus:ring-[#0d1b4e]"
+                    className="w-3.5 h-3.5 text-[#192b59] rounded focus:ring-[#192b59]"
                     checked={chuanDauRa.includes(opt.value)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -460,7 +406,7 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
                       }
                     }}
                   />
-                  <span className="text-[13px] text-[#1e1b14] font-medium">{opt.label}</span>
+                  <span className="text-[13px] text-[#1e293b] font-medium">{opt.label}</span>
                 </label>
               ))}
             </div>
@@ -468,32 +414,46 @@ export default function CTDTClient({ initialData, majors }: { initialData: any[]
 
           <div className="flex flex-col gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+              <label className="block text-[11px] font-bold text-[#64748b] mb-1 uppercase">
                 Mô tả ngắn:
               </label>
               <textarea
                 value={moTaNgan}
                 onChange={(e) => setMoTaNgan(e.target.value)}
                 placeholder="Nhập mô tả ngắn gọn về chương trình..."
-                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none min-h-[60px] focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                className="w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] outline-none min-h-[60px] focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-[#767680] mb-1 uppercase">
+              <label className="block text-[11px] font-bold text-[#64748b] mb-1 uppercase">
                 Đề cương:
               </label>
               <textarea
                 value={deCuong}
                 onChange={(e) => setDeCuong(e.target.value)}
                 placeholder="Nhập đề cương chương trình..."
-                className="w-full px-3 py-2 bg-[#faf3e6] border border-[#c6c5d0] rounded-lg text-[13px] outline-none min-h-[80px] focus:border-[#0d1b4e] focus:ring-1 focus:ring-[#0d1b4e] transition-all"
+                className="w-full px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-[13px] outline-none min-h-[80px] focus:border-[#192b59] focus:ring-1 focus:ring-[#192b59] transition-all"
               />
             </div>
           </div>
         </div>
       </ModalForm>
 
+      <ModalForm isOpen={!!mappingProgram} title={`Gán tổ hợp — ${mappingProgram?.ten_chuong_trinh || ""}`} onClose={() => setMappingProgram(null)}
+        onSubmit={async event => { event.preventDefault(); setMappingError(""); try {
+          await saveProgramCombinationsAction(mappingProgram.ma_chuong_trinh, mappingYear, mappingCodes);
+          toast.success("Đã lưu tổ hợp theo năm tuyển sinh"); setMappingProgram(null);
+        } catch { setMappingError("Không lưu được tổ hợp. Kiểm tra năm tuyển sinh; không thể bỏ tổ hợp đang có hồ sơ."); } }}>
+        <label className="block">Năm tuyển sinh<input aria-label="Năm gán tổ hợp" className="mt-2 block rounded-xl border p-3" type="number" min={2000} max={2100} required
+          value={mappingYear} onChange={e => chooseMappingYear(mappingProgram, Number(e.target.value))} /></label>
+        <p className="my-3 text-sm text-slate-600">Chọn tổ hợp cho năm này. Dữ liệu các năm khác được giữ nguyên.</p>
+        <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">{combinations.map(combination => <label key={combination.ma_to_hop} className="flex items-center gap-3 rounded-xl border p-3">
+          <input type="checkbox" checked={mappingCodes.includes(combination.ma_to_hop)} onChange={e => setMappingCodes(prev => e.target.checked ? [...prev, combination.ma_to_hop] : prev.filter(code => code !== combination.ma_to_hop))} />
+          {combination.ma_to_hop}</label>)}</div>
+        {!combinations.length && <p>Chưa có tổ hợp. Hãy tạo tổ hợp xét tuyển trước.</p>}
+        {mappingError && <p role="alert" className="mt-3 text-red-700">{mappingError}</p>}
+      </ModalForm>
       {/* Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={!!deletingRow}

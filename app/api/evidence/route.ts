@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       }, { maxWait: 5000, timeout: 20000 });
     } else await upload();
     return NextResponse.json({ key, name: file.name, size: file.size });
-  } catch (err) { console.error("[API thất bại]", err); return NextResponse.json({ message: "Thao tác thất bại. Vui lòng thử lại." }, { status: err instanceof BackendError ? err.status : 400 }); }
+  } catch (err) { console.error("[API thất bại]", err); return NextResponse.json({ message: "Thao tác thất bại. Vui lòng thử lại." }, { status: err instanceof BackendError ? err.status : 400, headers: { "Cache-Control": "private, no-store", "Vary": "Cookie" } }); }
 }
 export const PUT = POST;
 /** ?list=1 liệt kê file của chính thí sinh; ?key=... tạo liên kết tải chỉ có hiệu lực 60 giây.
@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
     }
     const key = request.nextUrl.searchParams.get("key") || "";
     if (!/^\d{12}\/[\da-f-]{36}\.(pdf|jpg|png)$/.test(key)) throw new BackendError("Minh chứng không thuộc kho lưu trữ được hỗ trợ", 400);
+    const mode = request.nextUrl.searchParams.get("mode");
+    if (mode !== null && mode !== "inline" && mode !== "download") throw new BackendError("Chế độ xem không hợp lệ", 400);
     const admin = await adminService.getCurrentUser();
     if (!admin || !["super_admin", "chuyen_vien"].includes(admin.vai_tro.ten_vai_tro)) {
       const me = await backendRequest<{ cccd: string }>("score", "/auth/candidate/me", { auth: "candidate" });
@@ -92,8 +94,8 @@ export async function GET(request: NextRequest) {
     const { client, bucket } = storage();
     const { data: info, error: bucketError } = await client.storage.getBucket(bucket);
     if (bucketError || !info || info.public) throw new BackendError("Kho minh chứng phải riêng tư", 503);
-    const { data, error } = await client.storage.from(bucket).createSignedUrl(key, 60, { download: true });
+    const { data, error } = await client.storage.from(bucket).createSignedUrl(key, 60, { download: mode !== "inline" });
     if (error || !data) throw new BackendError("Không tìm thấy minh chứng", 404);
-    return NextResponse.redirect(data.signedUrl, { headers: { "Cache-Control": "private, no-store" } });
-  } catch (err) { console.error("[API thất bại]", err); return NextResponse.json({ message: "Thao tác thất bại. Vui lòng thử lại." }, { status: err instanceof BackendError ? err.status : 400 }); }
+    return NextResponse.redirect(data.signedUrl, { headers: { "Cache-Control": "private, no-store", "Vary": "Cookie", "Referrer-Policy": "no-referrer" } });
+  } catch (err) { console.error("[API thất bại]", err); return NextResponse.json({ message: "Thao tác thất bại. Vui lòng thử lại." }, { status: err instanceof BackendError ? err.status : 400, headers: { "Cache-Control": "private, no-store", "Vary": "Cookie" } }); }
 }

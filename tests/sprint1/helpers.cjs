@@ -12,6 +12,8 @@ function loader(overrides = {}) {
     const cache = new Map();
     function load(file) {
         file = path.resolve(root, file);
+        // Styles are exercised by browser checks, not evaluated as CommonJS.
+        if (file === path.join(root, 'components/admin/admin.css')) return {};
         if (cache.has(file)) return cache.get(file).exports;
         const loadedModule = { exports: {} };
         // Lưu trước khi nạp dependency để hỗ trợ các module import vòng.

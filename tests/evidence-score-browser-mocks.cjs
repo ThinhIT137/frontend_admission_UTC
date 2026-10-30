@@ -1,0 +1,12 @@
+const React=require('react');
+exports.__esModule=true;
+exports.default=({children,...p})=>React.createElement('a',p,children);
+const params=new URLSearchParams();
+exports.useSearchParams=()=>params;
+exports.useRouter=()=>({push(){},refresh(){}});
+exports.useLoading=()=>({beginLoading:()=>()=>{}});
+exports.toast={success(){},error(){},warning(){},info(){}};
+exports.api=(...args)=>{window.apiCalls??=[];window.apiCalls.push(args);return new Promise(resolve=>window.resolveScore=resolve);};
+exports.BrowserApiError=class extends Error{};
+exports.loadAiBenchmarks=async()=>[];
+for(const name of ['createNganhHoc','updateNganhHoc','deleteNganhHoc','reassignProgramsToMajorAction','deleteCTDTAction','createCTDTAction'])exports[name]=async()=>{throw Error('Unexpected mutation');};

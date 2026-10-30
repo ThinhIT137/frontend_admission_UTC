@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
+import { toast } from "@/libs/admin-toast";
 import { api } from "@/libs/api-services/browser-api";
 import { publicError } from "@/libs/client-error";
 
@@ -16,13 +16,16 @@ export default function WorkflowPanel({ year, onChanged }: { year: number; onCha
   const [preview, setPreview] = useState<{ result: Preview; year: number; source: string; csv: string } | null>(null);
   const [deliveries, setDeliveries] = useState<{ year: number; rows: Delivery[] } | null>(null);
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const ready = preview && preview.year === year && preview.source === source && preview.csv === csv;
 
   async function run(task: () => Promise<void>) {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     try { await task(); }
-    catch (error) { console.error("[workflow]", error); toast.error(publicError(error)); }
-    finally { setBusy(false); }
+    catch (error) { toast.error(publicError(error)); }
+    finally { pending.current = false; setBusy(false); }
   }
   async function importScores(commit: boolean) {
     if (commit && (!ready || preview.result.errors.length || !preview.result.valid ||
@@ -31,7 +34,7 @@ export default function WorkflowPanel({ year, onChanged }: { year: number; onCha
     setPreview({ result, year, source, csv });
     if (commit) toast.success(result.duplicate ? "Dữ liệu này đã được nhập trước đó" : "Đã lưu điểm THPT");
   }
-  return <details className="rounded border bg-white p-4 space-y-4">
+  return <details className="admin-workflow rounded-2xl border border-slate-200 bg-white p-5 space-y-4" aria-busy={busy}>
     <summary className="font-bold cursor-pointer">Công bố, nhập điểm và trạng thái thông báo</summary>
     <section className="space-y-2 mt-4">
       <h2 className="font-bold">Công bố kết quả chính thức</h2>
@@ -40,7 +43,8 @@ export default function WorkflowPanel({ year, onChanged }: { year: number; onCha
       <button disabled={busy || !program.trim()} onClick={() => void run(async () => {
         if (!window.confirm(`Công bố kết quả chương trình ${program.trim()}, năm ${year} cho thí sinh xem?`)) return;
         await api("score", "/ho-so/cong-bo-ket-qua", { nam_tuyen_sinh: year, ma_chuong_trinh: program.trim() });
-        toast.success("Đã công bố kết quả"); await onChanged();
+        try { await onChanged(); toast.success("Đã công bố kết quả"); }
+        catch { toast.warning("Đã công bố kết quả, nhưng chưa tải lại được danh sách hồ sơ."); }
       })}>Công bố chương trình</button>
     </section>
     <section className="space-y-2">

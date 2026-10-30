@@ -16,6 +16,7 @@ export default function CandidateSession({ onAuthenticated, onLogout }: { onAuth
   const [otpSent, setOtpSent] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cccd, setCccd] = useState("");
   const sessionVersion = useRef(0);
   const mounted = useRef(false);
   const authenticatedCallback = useRef(onAuthenticated);
@@ -38,6 +39,8 @@ export default function CandidateSession({ onAuthenticated, onLogout }: { onAuth
     const version = ++sessionVersion.current;
     const isCurrent = () => mounted.current && version === sessionVersion.current;
     const form = Object.fromEntries(new FormData(event.currentTarget));
+    const cleanCccd = typeof form.cccd === "string" ? form.cccd.replace(/\D/g, "").slice(0, 12) : cccd.replace(/\D/g, "").slice(0, 12);
+    form.cccd = cleanCccd;
     try {
       const action = activate ? (otpSent ? "activation/confirm" : "activation/request") : register ? "register" : "login";
       const input = activate ? otpSent ? { cccd: form.cccd, password: form.password, otp: form.otp } : { cccd: form.cccd, channel: form.channel } : form;
@@ -82,11 +85,11 @@ export default function CandidateSession({ onAuthenticated, onLogout }: { onAuth
         </div> : <>
           <form onSubmit={submit} onInvalidCapture={()=>setMessage("Vui lòng nhập CCCD gồm 12 số, không dùng email quản trị. Kiểm tra các trường bắt buộc và mật khẩu từ 10 đến 128 ký tự.")} className="space-y-5">
             <div className="flex flex-col gap-5">
-              <label className={fieldClass}>Số căn cước công dân<input className={controlClass} name="cccd" aria-label="CCCD đăng nhập" placeholder="Nhập 12 số CCCD" inputMode="numeric" maxLength={12} autoComplete="username" pattern="[0-9]{12}" required /></label>
+              <label className={fieldClass}>Số căn cước công dân<input className={controlClass} name="cccd" type="text" aria-label="CCCD đăng nhập" placeholder="Nhập 12 số CCCD" inputMode="numeric" autoComplete="username" value={cccd} onChange={e=>{const sanitized=e.target.value.replace(/\D/g,"").slice(0,12);setCccd(sanitized);e.target.setCustomValidity("");setMessage("");}} onPaste={e=>{e.preventDefault();const text=e.clipboardData.getData("text").replace(/\D/g,"").slice(0,12);setCccd(text);}} onInvalid={e=>{const t=e.currentTarget;if(t.validity.valueMissing){t.setCustomValidity("Vui lòng nhập số căn cước công dân");}else if(t.validity.patternMismatch||t.value.length<12){t.setCustomValidity("Vui lòng nhập đúng 12 chữ số CCCD (chỉ gồm các chữ số từ 0 đến 9)");}else{t.setCustomValidity("");}}} onInput={e=>e.currentTarget.setCustomValidity("")} pattern="[0-9]{12}" title="Vui lòng nhập đúng 12 chữ số CCCD (chỉ gồm các chữ số từ 0 đến 9)" required /></label>
               {(!activate || otpSent) && <label className={fieldClass}>Mật khẩu<input className={controlClass} name="password" aria-label="Mật khẩu thí sinh" placeholder="Từ 10 đến 128 ký tự" type="password" minLength={10} maxLength={128} autoComplete={register || activate ? "new-password" : "current-password"} required /></label>}
               {activate && !otpSent && <label className={fieldClass}>Kênh nhận mã<select name="channel" aria-label="Kênh nhận mã" className={controlClass}><option value="email">Email đã lưu</option><option value="sms">Số điện thoại đã lưu</option></select></label>}
-              {activate && otpSent && <label className={fieldClass}>Mã xác minh<input name="otp" aria-label="Mã OTP kích hoạt" placeholder="Nhập 6 số OTP" pattern="[0-9]{6}" autoComplete="one-time-code" required className={controlClass} /></label>}
-              {register && <><label className={fieldClass}>Họ và tên<input className={controlClass} name="ho_ten" aria-label="Họ tên đăng ký" placeholder="Nhập họ tên đầy đủ" minLength={2} maxLength={100} required /></label><label className={fieldClass}>Số điện thoại<input className={controlClass} name="so_dien_thoai" aria-label="Điện thoại đăng ký" placeholder="Số điện thoại liên hệ" pattern="[0-9]{10,11}" required /></label></>}
+              {activate && otpSent && <label className={fieldClass}>Mã xác minh<input name="otp" type="text" aria-label="Mã OTP kích hoạt" placeholder="Nhập 6 số OTP" pattern="[0-9]{6}" title="Mã OTP gồm đúng 6 chữ số" autoComplete="one-time-code" onInvalid={e=>{const t=e.currentTarget;if(t.validity.valueMissing){t.setCustomValidity("Vui lòng nhập mã OTP");}else if(t.validity.patternMismatch){t.setCustomValidity("Mã OTP phải gồm đúng 6 chữ số");}else{t.setCustomValidity("");}}} onInput={e=>e.currentTarget.setCustomValidity("")} required className={controlClass} /></label>}
+              {register && <><label className={fieldClass}>Họ và tên<input className={controlClass} name="ho_ten" aria-label="Họ tên đăng ký" placeholder="Nhập họ tên đầy đủ" minLength={2} maxLength={100} required /></label><label className={fieldClass}>Số điện thoại<input className={controlClass} name="so_dien_thoai" type="tel" aria-label="Điện thoại đăng ký" placeholder="Số điện thoại liên hệ" pattern="[0-9]{10,11}" title="Số điện thoại phải gồm 10 hoặc 11 chữ số" onInvalid={e=>{const t=e.currentTarget;if(t.validity.valueMissing){t.setCustomValidity("Vui lòng nhập số điện thoại");}else if(t.validity.patternMismatch){t.setCustomValidity("Số điện thoại phải gồm 10 hoặc 11 chữ số");}else{t.setCustomValidity("");}}} onInput={e=>e.currentTarget.setCustomValidity("")} required /></label></>}
             </div>
             <p className="text-xs leading-6 text-slate-500">Đăng nhập bằng CCCD thí sinh, không dùng email quản trị. Hồ sơ cũ chưa có mật khẩu cần kích hoạt bằng OTP.</p>
             <button disabled={busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Đang xử lý…" : activate ? otpSent ? "Xác minh và đặt mật khẩu" : "Gửi mã kích hoạt" : register ? "Tạo tài khoản" : "Đăng nhập"}<ArrowRight className="h-4 w-4" aria-hidden="true" /></button>

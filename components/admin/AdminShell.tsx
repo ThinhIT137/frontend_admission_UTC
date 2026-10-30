@@ -1,59 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { LoadingProvider } from "@/contexts/loadingContext";
+import { useAdminDialog } from "@/hooks/useAdminDialog";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
+import "./admin.css";
 
-interface AdminShellProps {
-  role?: string;
-  userName?: string;
-  email?: string;
-  children: React.ReactNode;
-}
+interface AdminShellProps { role?: string; userName?: string; email?: string; children: React.ReactNode; }
 
 export function AdminShell({ role, userName, email, children }: AdminShellProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen((prev) => !prev);
+  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
+  const drawerRef = useAdminDialog(mobileOpen, () => setMobileOpen(false));
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => { setIsMobile(!media.matches); if (media.matches) setMobileOpen(false); };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  const toggle = () => {
+    if (window.matchMedia("(min-width: 768px)").matches) setDesktopOpen(value => !value);
+    else setMobileOpen(value => !value);
   };
-
-  return (
-    <div className="bg-[#fff9ee] font-body-md text-[#1e1b14] antialiased min-h-screen relative overflow-x-hidden print:bg-white print:min-h-0 print:overflow-visible">
-      {/* Fixed Admin Sidebar with slide transition - hoàn toàn ẩn khi in */}
-      <div
-        className={`fixed left-0 top-0 h-full z-50 transition-all duration-300 ease-in-out print:hidden ${
-          isSidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full"
-        }`}
-      >
-        <AdminSidebar role={role} isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+  return <LoadingProvider>
+    <div className="admin-ui min-h-screen bg-[#f6f8fc] font-body-md text-slate-800 antialiased print:bg-white">
+      <a href="#admin-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-white focus:p-3">Đi đến nội dung</a>
+      {mobileOpen && <button type="button" aria-label="Đóng menu quản trị" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden print:hidden" />}
+      <div ref={drawerRef} inert={!mobileOpen && (isMobile || !desktopOpen)} role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-label="Điều hướng quản trị" tabIndex={-1}
+        className={`fixed inset-y-0 left-0 z-50 w-72 transition-transform duration-200 motion-reduce:transition-none print:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"} ${desktopOpen ? "md:translate-x-0" : "md:-translate-x-full"}`}>
+        <AdminSidebar role={role} onToggle={toggle} />
       </div>
-
-      {/* Main Admin Area */}
-      <div
-        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out print:pl-0 print:m-0 print:w-full print:min-h-0 ${
-          isSidebarOpen ? "pl-72" : "pl-0"
-        }`}
-      >
-        {/* Fixed Admin Header - hoàn toàn ẩn khi in */}
-        <div
-          className={`fixed top-0 right-0 h-16 z-40 transition-all duration-300 ease-in-out print:hidden ${
-            isSidebarOpen ? "left-72" : "left-0"
-          }`}
-        >
-          <AdminHeader
-            userName={userName}
-            email={email}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={toggleSidebar}
-          />
+      <div inert={mobileOpen} className={`flex min-h-screen min-w-0 flex-col print:pl-0 ${desktopOpen ? "md:pl-72" : ""}`}>
+        <div className={`fixed inset-x-0 top-0 z-30 h-16 print:hidden ${desktopOpen ? "md:left-72" : ""}`}>
+          <AdminHeader userName={userName} email={email} onToggleSidebar={toggle} />
         </div>
-
-        {/* Page Content */}
-        <main className="w-full pt-16 px-8 min-h-screen bg-[#fff9ee] flex-1 pb-12 print:pt-0 print:px-0 print:pb-0 print:bg-white print:min-h-0 print:m-0">
-          {children}
-        </main>
+        <main id="admin-content" className="min-w-0 flex-1 px-4 pb-10 pt-20 sm:px-6 lg:px-8 print:m-0 print:min-h-0 print:bg-white print:p-0">{children}</main>
       </div>
     </div>
-  );
+  </LoadingProvider>;
 }
