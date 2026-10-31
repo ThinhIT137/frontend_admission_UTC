@@ -1,11 +1,14 @@
 import { Prisma, PrismaClient } from "@/app/generated/prisma/client";
 import { VaiTroAdmin } from "@/constants/role";
-import { CreateAdminRequest, UpdateAdminRequest } from "@/libs/admin_account/adminAccountProps";
+import {
+    CreateAdminRequest,
+    UpdateAdminRequest,
+} from "@/libs/admin_account/adminAccountProps";
 import { LoginPayload } from "@/libs/auth";
-import prisma from "@/libs/prisma";
 import { readAuthWithReconnect } from "@/libs/auth-read";
+import prisma from "@/libs/prisma";
 import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from "@/libs/token";
-import { verifyPassword, hashPassword } from "@/libs/utils/password";
+import { hashPassword, verifyPassword } from "@/libs/utils/password";
 import { cookieService } from "./cookie.service";
 import { tokenService } from "./token.service";
 
@@ -21,16 +24,20 @@ export const adminService = {
         const read = () => client.admin.findUnique({ where: { ma_admin } });
         // Không thử lại trong transaction đã bị lỗi; outage phải truyền lên,
         // không được coi như tài khoản bị vô hiệu rồi xóa phiên đang hợp lệ.
-        const admin = await (client === prisma ? readAuthWithReconnect(read) : read());
+        const admin = await (client === prisma
+            ? readAuthWithReconnect(read)
+            : read());
         return admin !== null;
     },
     /* =====================================================================
      Đăng nhập
     =====================================================================*/
     login: async ({ email, password }: LoginPayload) => {
-        const user = await readAuthWithReconnect(() => prisma.admin.findUnique({
-            where: { email: email },
-        }));
+        const user = await readAuthWithReconnect(() =>
+            prisma.admin.findUnique({
+                where: { email: email },
+            }),
+        );
 
         if (!user || !(await verifyPassword(password, user.mat_khau)))
             throw new Error("Email hoặc mật khẩu không chính xác!");
@@ -79,7 +86,9 @@ export const adminService = {
             throw new Error("Tài khoản đã bị vô hiệu hóa");
         }
 
-        const [accessToken, refreshToken] = await tokenService.generateToken(payload.userId);
+        const [accessToken, refreshToken] = await tokenService.generateToken(
+            payload.userId,
+        );
 
         await cookieService.deleteCookie("accessToken");
         await cookieService.deleteCookie("refreshToken");
@@ -103,18 +112,20 @@ export const adminService = {
             await cookieService.deleteCookie("accessToken");
             return null;
         }
-        const user = await readAuthWithReconnect(() => prisma.admin.findUnique({
-            where: {
-                ma_admin: payload.userId,
-            },
-            select: {
-                ma_admin: true,
-                ho_ten: true,
-                email: true,
-                vai_tro: true,
-                create_at: true,
-            },
-        }));
+        const user = await readAuthWithReconnect(() =>
+            prisma.admin.findUnique({
+                where: {
+                    ma_admin: payload.userId,
+                },
+                select: {
+                    ma_admin: true,
+                    ho_ten: true,
+                    email: true,
+                    vai_tro: true,
+                    create_at: true,
+                },
+            }),
+        );
 
         return user;
     },
@@ -124,11 +135,15 @@ export const adminService = {
     // Dành cho thao tác quản trị cần danh tính: thử refresh nếu cần, rồi kiểm tra vai trò hiện tại.
     getAdminId: async () => {
         let accesstoken = await cookieService.getCookie("accessToken");
-        let payload = accesstoken ? await tokenService.verifyAccessToken(accesstoken) : null;
-        if (!payload && await cookieService.getCookie("refreshToken")) {
+        let payload = accesstoken
+            ? await tokenService.verifyAccessToken(accesstoken)
+            : null;
+        if (!payload && (await cookieService.getCookie("refreshToken"))) {
             await adminService.refreshAccessToken();
             accesstoken = await cookieService.getCookie("accessToken");
-            payload = accesstoken ? await tokenService.verifyAccessToken(accesstoken) : null;
+            payload = accesstoken
+                ? await tokenService.verifyAccessToken(accesstoken)
+                : null;
         }
         if (!accesstoken) {
             throw new Error("Bạn không có quyền truy cập");
@@ -136,10 +151,20 @@ export const adminService = {
         if (!payload) {
             throw new Error("Token không hợp lệ");
         }
-        if (typeof payload.userId !== "string" || !payload.userId) throw new Error("Token không có danh tính quản trị");
+        if (typeof payload.userId !== "string" || !payload.userId)
+            throw new Error("Token không có danh tính quản trị");
         const userId = payload.userId;
-        const actor = await readAuthWithReconnect(() => prisma.admin.findUnique({ where: { ma_admin: userId }, include: { vai_tro: true } }));
-        if (!actor || !["super_admin", "chuyen_vien"].includes(actor.vai_tro.ten_vai_tro)) throw new Error("Tài khoản không có quyền quản trị");
+        const actor = await readAuthWithReconnect(() =>
+            prisma.admin.findUnique({
+                where: { ma_admin: userId },
+                include: { vai_tro: true },
+            }),
+        );
+        if (
+            !actor ||
+            !["super_admin", "chuyen_vien"].includes(actor.vai_tro.ten_vai_tro)
+        )
+            throw new Error("Tài khoản không có quyền quản trị");
         return payload.userId;
     },
 
@@ -147,26 +172,33 @@ export const adminService = {
         Check Super Admin
     ====================================================================*/
     isSuperAdmin: async (ma_admin: string) => {
-        const admin = await readAuthWithReconnect(() => prisma.admin.findUnique({
-            where: { ma_admin },
-            include: { vai_tro: true },
-        }));
+        const admin = await readAuthWithReconnect(() =>
+            prisma.admin.findUnique({
+                where: { ma_admin },
+                include: { vai_tro: true },
+            }),
+        );
         return admin?.vai_tro?.ten_vai_tro === VaiTroAdmin.super_admin;
     },
 
     /*====================================================================
         Get Danh sách Admin
     ====================================================================*/
-    get: async (search?: string, role?: VaiTroAdmin, page: number = 1, limit: number = 10) => {
+    get: async (
+        search?: string,
+        role?: VaiTroAdmin,
+        page: number = 1,
+        limit: number = 10,
+    ) => {
         const where: Prisma.AdminWhereInput = {};
-        
+
         if (search) {
             where.OR = [
                 { ho_ten: { contains: search, mode: "insensitive" } },
                 { email: { contains: search, mode: "insensitive" } },
             ];
         }
-        
+
         if (role) {
             where.vai_tro = { ten_vai_tro: role };
         }

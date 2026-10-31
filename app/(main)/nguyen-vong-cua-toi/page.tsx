@@ -1,5 +1,5 @@
-import MyPreferences from "./MyPreferences";
 import { prismaPublic } from "@/libs/prisma";
+import MyPreferences from "./MyPreferences";
 
 export default async function Page() {
   const programs = await prismaPublic.chuongTrinhDaoTao.findMany({

@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({success:false,rollback,
       message: rollback === "pending" || rollback === "files_pending"
         ? "Chưa hoàn tất đối soát lần nộp. Vui lòng giữ trang và thử lại sau vài phút; không tạo hồ sơ mới."
-        : "Không thể nộp hồ sơ. Dữ liệu lần nộp chưa được giữ lại; vui lòng kiểm tra và thử lại."},
+        : (error instanceof Error && error.message ? error.message : "Không thể nộp hồ sơ. Dữ liệu lần nộp chưa được giữ lại; vui lòng kiểm tra và thử lại.")},
       {status:error instanceof BackendError?error.status:400,headers:{"Cache-Control":"private, no-store"}});
   }
 }

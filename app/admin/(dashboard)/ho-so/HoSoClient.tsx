@@ -1,5 +1,4 @@
 "use client";
-import { publicError } from "@/libs/client-error";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/libs/api-services/browser-api";
 import { toast } from "@/libs/admin-toast";
@@ -9,7 +8,7 @@ import WorkflowPanel from "./WorkflowPanel";
 
 const statusLabels: Record<string, string> = { cho: "Chờ kiểm tra", hop_le: "Hợp lệ", tu_choi: "Từ chối", dang_xu_ly: "Đang xét tuyển", do: "Đỗ", truot: "Trượt" };
 
-type Row = { ma_ho_so: string; cccd: string; ma_chuong_trinh: string; ma_phuong_thuc: string; trang_thai: string; ket_qua?: string; create_at: string };
+type Row = { ma_ho_so: string; cccd: string; ma_chuong_trinh: string; ma_phuong_thuc: string; trang_thai: string; ket_qua?: string; create_at: string; diem_trace?: Record<string, unknown> | null; tong_diem_xet_tuyen?: number | null };
 type Detail = Row & { tong_diem_xet_tuyen?: number; bang_diem: Array<{ loai_diem: string; nam_hoc: number; hoc_ky?: number; chi_tiet: Array<{ ma_mon: string; diem_so: number }> }>; chung_chi: Array<{ ma_chung_chi: string; loai_chung_chi: string; diem_hoac_hang?: string; ngay_cap?: string; ngay_het_han?: string; file_dinh_kem?: string }>; giai_thuong?: Array<{ma_giai_thuong:string;giai_thuong:string;loai_giai_thuong:string;mon_hoc:string;file_dinh_kem?:string}> };
 export default function HoSoClient() {
   const { pending: mutationPending, run: runMutation } = useAdminTask();
@@ -49,7 +48,7 @@ export default function HoSoClient() {
     if (!approve && !reason?.trim()) return;
     setBusy(true); setError("");
     try { await api("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}/${approve ? "duyet" : "tu-choi"}`, approve ? {} : { ly_do: reason }, "PATCH"); setDetail(null); if (await load()) toast.success("Đã cập nhật hồ sơ"); else toast.warning("Đã cập nhật hồ sơ, nhưng chưa tải lại được danh sách."); }
-    catch (e) { setError(publicError(e instanceof Error ? e.message : "Không thể xử lý hồ sơ")); } finally { setBusy(false); }
+    catch (e) { setError(e instanceof Error ? e.message : "Không thể xử lý hồ sơ"); } finally { setBusy(false); }
   }
   async function progress(row: Row, action: "start" | "score" | "do" | "truot") {
     if (!rowsAreCurrent || busy) return;
@@ -58,6 +57,10 @@ export default function HoSoClient() {
       const key = encodeURIComponent(row.ma_ho_so);
       if (action === "start") await api("score", `/xet-tuyen/${key}/bat-dau-xu-ly`, {}, "PATCH");
       else {
+        if (action === "do" && !row.diem_trace) {
+          toast.error("Hồ sơ chưa có điểm đối soát. Vui lòng bấm 'Chốt điểm đối soát' trước khi chốt đỗ.");
+          return;
+        }
         const source = window.prompt("Nhập căn cứ được duyệt (ít nhất 5 ký tự):");
         if (!source || source.trim().length < 5) return;
         if (action === "score") {
@@ -68,12 +71,19 @@ export default function HoSoClient() {
           await api("score", `/xet-tuyen/${key}/chot-diem`, { kind: "manual", manual_score: score, source });
         } else {
           if (!window.confirm(`Chốt ${action === "do" ? "đỗ" : "trượt"} cho ${row.ma_ho_so}?`)) return;
-          await api("score", "/xet-tuyen/chot-ket-qua", { source, rows: [{ ma_ho_so: row.ma_ho_so, result: action === "do" ? "trung_tuyen" : "khong_trung_tuyen" }] });
+          await api("score", "/xet-tuyen/chot-ket-qua", {
+            source,
+            rows: [{
+              ma_ho_so: row.ma_ho_so,
+              result: action === "do" ? "trung_tuyen" : "khong_trung_tuyen",
+              exception_reason: source,
+            }],
+          });
         }
       }
       const resultMessage = { start: "Đã bắt đầu xét tuyển", score: "Đã lưu điểm đối soát", do: "Đã chốt đỗ", truot: "Đã chốt trượt" }[action];
       setDetail(null); if (await load()) toast.success(resultMessage); else toast.warning("Đã cập nhật hồ sơ, nhưng chưa tải lại được danh sách.");
-    } catch (error) { toast.error(publicError(error)); } finally { setBusy(false); }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Thao tác thất bại. Vui lòng thử lại."); } finally { setBusy(false); }
   }
   return <div className="space-y-5"><h1 className="text-2xl font-bold">Quản lý hồ sơ</h1>
     <WorkflowPanel year={year} onChanged={async () => { if (!await load()) throw new Error("refresh"); }} />
@@ -82,8 +92,8 @@ export default function HoSoClient() {
       <button disabled={busy || mutationPending} onClick={() => void load()} className="rounded-xl bg-[#192b59] px-4 py-2.5 text-sm font-semibold text-white">Tải lại</button></div>
     {error && <p role="alert" className="text-red-700">{error}</p>}{busy && <p role="status">Đang xử lý…</p>}
     <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200"><table className="w-full text-sm"><thead><tr>{["Mã hồ sơ", "CCCD", "Chương trình", "Phương thức", "Trạng thái", "Thao tác"].map(x => <th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
-      {rows.map(row => <tr key={row.ma_ho_so} className="border-t"><td className="p-3">{row.ma_ho_so}</td><td>{row.cccd}</td><td>{row.ma_chuong_trinh}</td><td>{row.ma_phuong_thuc}</td><td>{statusLabels[row.trang_thai] || row.trang_thai}</td><td className="space-x-3">
-        <button disabled={busy || mutationPending} className="underline" onClick={async () => { const request = requestId.current; try { const data = await api<Detail>("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}`); if (request === requestId.current) setDetail(data); } catch (e) { if (request === requestId.current) setError(publicError((e as Error).message)); } }}>Chi tiết</button>
+      {rows.map(row => <tr key={row.ma_ho_so} className="border-t"><td className="p-3">{row.ma_ho_so}</td><td>{row.cccd}</td><td>{row.ma_chuong_trinh}</td><td>{row.ma_phuong_thuc}</td><td>{statusLabels[row.trang_thai] || row.trang_thai}{row.diem_trace ? ` (${(row.diem_trace as any).total ?? (row.diem_trace as any).base ?? "Đã có điểm"})` : (row.trang_thai === "dang_xu_ly" ? " (Chưa chốt điểm)" : "")}</td><td className="space-x-3">
+        <button disabled={busy || mutationPending} className="underline" onClick={async () => { const request = requestId.current; try { const data = await api<Detail>("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}`); if (request === requestId.current) setDetail(data); } catch (e) { if (request === requestId.current) setError((e as Error).message || "Không thể tải chi tiết"); } }}>Chi tiết</button>
         <button disabled={busy || mutationPending || row.trang_thai !== "cho"} className="text-green-800 disabled:opacity-40" onClick={() => void runMutation(() => review(row, true))}>Duyệt hợp lệ</button>
         <button disabled={busy || mutationPending || row.trang_thai !== "cho"} className="text-red-700 disabled:opacity-40" onClick={() => void runMutation(() => review(row, false))}>Từ chối</button>
         {row.trang_thai === "hop_le" && <button disabled={busy || mutationPending} onClick={() => void runMutation(() => progress(row,"start"))}>Bắt đầu xét tuyển</button>}

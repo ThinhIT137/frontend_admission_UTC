@@ -69,7 +69,10 @@ export function apiFailure(error: unknown, fallback = 400) {
   const status = error instanceof ApiSecurityError ? error.status
     : typeof error === "object" && error && "status" in error && typeof error.status === "number" ? error.status : fallback;
   const safeStatus = status >= 400 && status <= 599 ? status : fallback;
-  return privateJson({ success: false, message: safeStatus === 429 ? "Quá nhiều yêu cầu. Vui lòng thử lại sau." : "Thao tác thất bại. Vui lòng thử lại." }, {
+  const message = safeStatus < 500 && safeStatus !== 429 && typeof (error as any)?.message === "string" && (error as any).message
+    ? (error as any).message
+    : (safeStatus === 429 ? "Quá nhiều yêu cầu. Vui lòng thử lại sau." : "Thao tác thất bại. Vui lòng thử lại.");
+  return privateJson({ success: false, message }, {
     status: safeStatus,
     headers: error instanceof ApiSecurityError && error.retryAfter ? { "Retry-After": String(error.retryAfter) } : undefined,
   });

@@ -232,10 +232,20 @@ export async function backendRequest<T>(
             ? null
             : await response.json().catch(() => null);
     if (!response.ok || json?.success === false) {
+        const detailMsg =
+            response.status < 500 && response.status !== 401
+                ? (typeof json?.detail === "string"
+                    ? json.detail
+                    : Array.isArray(json?.detail) && json.detail[0]?.msg
+                      ? json.detail[0].msg
+                      : typeof json?.message === "string"
+                        ? json.message
+                        : undefined)
+                : undefined;
         throw new BackendError(
             response.status === 401
                 ? "Phiên đăng nhập hết hạn"
-                : "Dịch vụ chưa xử lý được yêu cầu",
+                : (detailMsg || "Dịch vụ chưa xử lý được yêu cầu"),
             response.ok ? 502 : response.status,
             response.status === 404 && json?.detail === "Not Found" ? "ENDPOINT_NOT_FOUND" : undefined,
         );

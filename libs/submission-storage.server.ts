@@ -7,10 +7,10 @@ export const sha256 = (bytes: Buffer | string) => createHash("sha256").update(by
 
 /** Kiểm tra bytes trước khi ghi dữ liệu; MIME/tên file từ trình duyệt không đáng tin. */
 export async function inspectEvidence(file: File) {
-  if (!file.size || file.size > 5 * 1024 * 1024) throw new BackendError("File không hợp lệ", 400);
+  if (!file.size || file.size > 5 * 1024 * 1024) throw new BackendError("Dung lượng file vượt quá giới hạn tối đa 5MB", 400);
   const bytes = Buffer.from(await file.arrayBuffer());
   const type = bytes.subarray(0, 5).toString() === "%PDF-" ? "pdf" : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? "jpg" : bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? "png" : null;
-  if (!type) throw new BackendError("File không hợp lệ", 400);
+  if (!type) throw new BackendError("Định dạng file không hợp lệ. Vui lòng chọn tệp PDF, JPG hoặc PNG (ảnh từ iPhone vui lòng đổi từ HEIC sang JPG).", 400);
   return { bytes, type, sha256: sha256(bytes), size: bytes.length };
 }
 

@@ -99,6 +99,18 @@ export default function NganhHocClient({
   const [khoiKienThuc, setKhoiKienThuc] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  const filteredFaculties = useMemo(() => {
+    if (!facultyName.trim()) return faculties;
+    const isCurrentSelected =
+      faculty &&
+      faculties.find((f) => f.ma_khoi_nganh === faculty)?.ten_khoi_nganh ===
+        facultyName;
+    if (isCurrentSelected) return faculties;
+    return faculties.filter((f) =>
+      f.ten_khoi_nganh.toLowerCase().includes(facultyName.toLowerCase()),
+    );
+  }, [faculties, faculty, facultyName]);
+
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -217,9 +229,8 @@ export default function NganhHocClient({
     setEditingRow(null);
     setCode("");
     setName("");
-    const defaultFaculty = faculties[0];
-    setFaculty(defaultFaculty?.ma_khoi_nganh || "");
-    setFacultyName(defaultFaculty?.ten_khoi_nganh || "");
+    setFaculty("");
+    setFacultyName("");
     setKhoiKienThuc("");
     setIsModalOpen(true);
   };
@@ -536,42 +547,52 @@ export default function NganhHocClient({
                 required
                 value={facultyName}
                 onFocus={() => setIsDropdownOpen(true)}
-                onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
+                onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
                 onChange={(e) => {
                   const val = e.target.value;
                   setFacultyName(val);
                   setIsDropdownOpen(true);
-                  if (!val) setFaculty("");
+                  const matched = faculties.find(
+                    (f) =>
+                      f.ten_khoi_nganh.toLowerCase() === val.trim().toLowerCase(),
+                  );
+                  setFaculty(matched ? matched.ma_khoi_nganh : "");
                 }}
-                placeholder="Gõ để tìm kiếm hoặc chọn..."
+                placeholder="Chọn hoặc gõ để tìm kiếm..."
                 className={`w-full pl-3 pr-10 py-2 bg-[#f8fafc] border rounded-lg text-[13px] font-bold outline-none transition-colors cursor-text ${
                   !faculty && facultyName ? "border-red-500 focus:border-red-500" : "border-[#cbd5e1] focus:border-[#192b59]"
                 }`}
               />
-              <AdminIcon name="arrow_drop_down" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none" />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#64748b] hover:text-[#192b59]"
+                title="Mở danh sách khoa / viện"
+              >
+                <AdminIcon name="arrow_drop_down" className="text-[20px]" />
+              </button>
             </div>
 
             {/* Custom Dropdown */}
             {isDropdownOpen && (
               <ul className="absolute z-[100] w-full mt-1 bg-white border border-[#cbd5e1] rounded-lg shadow-lg max-h-48 overflow-y-auto divide-y divide-[#e2e8f0]">
-                {faculties.filter(f => f.ten_khoi_nganh.toLowerCase().includes(facultyName.toLowerCase())).length > 0 ? (
-                  faculties
-                    .filter(f => f.ten_khoi_nganh.toLowerCase().includes(facultyName.toLowerCase()))
-                    .map((f) => (
-                      <li
-                        key={f.ma_khoi_nganh}
-                        onMouseDown={() => {
-                          setFaculty(f.ma_khoi_nganh);
-                          setFacultyName(f.ten_khoi_nganh);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`px-3 py-2 text-[13px] font-medium cursor-pointer transition-colors ${
-                          faculty === f.ma_khoi_nganh ? "bg-[#fdb712] text-[#192b59] font-bold" : "text-[#1e293b] hover:bg-[#f8fafc]"
-                        }`}
-                      >
-                        {f.ten_khoi_nganh}
-                      </li>
-                    ))
+                {filteredFaculties.length > 0 ? (
+                  filteredFaculties.map((f) => (
+                    <li
+                      key={f.ma_khoi_nganh}
+                      onMouseDown={() => {
+                        setFaculty(f.ma_khoi_nganh);
+                        setFacultyName(f.ten_khoi_nganh);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`px-3 py-2 text-[13px] font-medium cursor-pointer transition-colors ${
+                        faculty === f.ma_khoi_nganh ? "bg-[#fdb712] text-[#192b59] font-bold" : "text-[#1e293b] hover:bg-[#f8fafc]"
+                      }`}
+                    >
+                      {f.ten_khoi_nganh}
+                    </li>
+                  ))
                 ) : (
                   <li className="px-3 py-2 text-[13px] text-[#64748b] italic text-center">
                     Không tìm thấy kết quả phù hợp
