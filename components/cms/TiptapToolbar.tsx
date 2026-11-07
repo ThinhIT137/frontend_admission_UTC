@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   Bold,
@@ -28,31 +28,88 @@ import {
   Plus,
   Trash2,
   X,
+  Upload,
+  Globe,
+  FileImage,
 } from "lucide-react";
 
 interface TiptapToolbarProps {
   editor: Editor | null;
 }
 
+interface ToolbarBtnProps {
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  title: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+}
+
+function ToolbarBtn({
+  onClick,
+  active = false,
+  disabled = false,
+  title,
+  ariaLabel,
+  children,
+}: ToolbarBtnProps) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => {
+        // Ngăn trình duyệt chuyển focus sang button làm mất vị trí con trỏ & gây giật cuộn màn hình
+        e.preventDefault();
+      }}
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1.5 rounded text-xs transition-colors flex items-center justify-center ${
+        active
+          ? "bg-[#14244e] text-white shadow-xs"
+          : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+      } ${disabled ? "opacity-30 pointer-events-none" : ""}`}
+      title={title}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function TiptapToolbar({ editor }: TiptapToolbarProps) {
   const [showTableMenu, setShowTableMenu] = useState(false);
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+
+  // Modal hình ảnh: hỗ trợ cả upload từ thiết bị và đường dẫn URL
   const [imageInputOpen, setImageInputOpen] = useState(false);
+  const [imageTab, setImageTab] = useState<"upload" | "url">("upload");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+  const [selectedFile, setSelectedFile] = useState<{
+    name: string;
+    size: string;
+    dataUrl: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!editor) return null;
 
-  // Handlers for Link
+  // Xử lý Liên Kết (Link)
   const handleSetLink = () => {
     if (!linkUrl.trim()) {
-      editor.chain().focus().unsetLink().run();
+      editor.chain().focus(null, { scrollIntoView: false }).unsetLink().run();
     } else {
       let finalUrl = linkUrl.trim();
       if (!/^https?:\/\//i.test(finalUrl)) {
         finalUrl = `https://${finalUrl}`;
       }
-      editor.chain().focus().extendMarkRange("link").setLink({ href: finalUrl }).run();
+      editor
+        .chain()
+        .focus(null, { scrollIntoView: false })
+        .extendMarkRange("link")
+        .setLink({ href: finalUrl })
+        .run();
     }
     setLinkUrl("");
     setLinkInputOpen(false);
@@ -64,51 +121,87 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
     setLinkInputOpen(true);
   };
 
-  // Handlers for Image
-  const handleSetImage = () => {
-    if (imageUrl.trim()) {
-      editor.chain().focus().setImage({ src: imageUrl.trim() }).run();
+  // Xử lý chọn tệp hình ảnh từ thiết bị
+  const handleFileChosen = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn một tệp hình ảnh hợp lệ (PNG, JPG, WEBP, GIF, SVG).");
+      return;
     }
-    setImageUrl("");
-    setImageInputOpen(false);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const sizeStr =
+        file.size > 1024 * 1024
+          ? (file.size / (1024 * 1024)).toFixed(2) + " MB"
+          : Math.round(file.size / 1024) + " KB";
+      setSelectedFile({
+        name: file.name,
+        size: sizeStr,
+        dataUrl: reader.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
-  const btnClass = (active: boolean) =>
-    `p-1.5 rounded text-xs transition-colors flex items-center justify-center ${
-      active
-        ? "bg-[#14244e] text-white shadow-xs"
-        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-    }`;
+  // Xác nhận chèn ảnh vào nội dung bài viết
+  const handleInsertImage = () => {
+    if (imageTab === "upload") {
+      if (!selectedFile?.dataUrl) return;
+      editor
+        .chain()
+        .focus(null, { scrollIntoView: false })
+        .setImage({
+          src: selectedFile.dataUrl,
+          alt: imageAlt.trim() || selectedFile.name,
+        })
+        .run();
+    } else {
+      if (!imageUrl.trim()) return;
+      let finalUrl = imageUrl.trim();
+      if (!/^https?:\/\//i.test(finalUrl) && !finalUrl.startsWith("/")) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      editor
+        .chain()
+        .focus(null, { scrollIntoView: false })
+        .setImage({
+          src: finalUrl,
+          alt: imageAlt.trim() || "Hình ảnh bài viết",
+        })
+        .run();
+    }
+
+    // Reset modal state
+    setSelectedFile(null);
+    setImageUrl("");
+    setImageAlt("");
+    setImageInputOpen(false);
+  };
 
   const iconSize = 15;
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200 text-slate-700 select-none">
-      {/* 1. History Group */}
+    <div className="tiptap-sticky-toolbar flex flex-wrap items-center gap-1 p-2 bg-white/95 backdrop-blur-xs border-b border-slate-200 text-slate-700 select-none shadow-xs">
+      {/* 1. Lịch sử Thao tác (Undo / Redo) */}
       <div className="flex items-center gap-0.5 pr-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().undo().run()}
+        <ToolbarBtn
+          onClick={() => editor.chain().focus(null, { scrollIntoView: false }).undo().run()}
           disabled={!editor.can().undo()}
-          className="p-1.5 rounded text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
           title="Hoàn tác (Ctrl+Z)"
-          aria-label="Hoàn tác"
+          ariaLabel="Hoàn tác"
         >
           <RotateCcw size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().redo().run()}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus(null, { scrollIntoView: false }).redo().run()}
           disabled={!editor.can().redo()}
-          className="p-1.5 rounded text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
           title="Làm lại (Ctrl+Y)"
-          aria-label="Làm lại"
+          ariaLabel="Làm lại"
         >
           <RotateCw size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* 2. Headings Selector */}
+      {/* 2. Cấp độ Văn bản (Headings) */}
       <div className="flex items-center px-1 border-r border-slate-200">
         <select
           value={
@@ -120,12 +213,17 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
               ? "h3"
               : "p"
           }
+          onMouseDown={(e) => e.stopPropagation()}
           onChange={(e) => {
             const val = e.target.value;
-            if (val === "p") editor.chain().focus().setParagraph().run();
-            else if (val === "h1") editor.chain().focus().toggleHeading({ level: 1 }).run();
-            else if (val === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
-            else if (val === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
+            if (val === "p")
+              editor.chain().focus(null, { scrollIntoView: false }).setParagraph().run();
+            else if (val === "h1")
+              editor.chain().focus(null, { scrollIntoView: false }).toggleHeading({ level: 1 }).run();
+            else if (val === "h2")
+              editor.chain().focus(null, { scrollIntoView: false }).toggleHeading({ level: 2 }).run();
+            else if (val === "h3")
+              editor.chain().focus(null, { scrollIntoView: false }).toggleHeading({ level: 3 }).run();
           }}
           className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600"
           aria-label="Cấp độ văn bản"
@@ -137,375 +235,525 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
         </select>
       </div>
 
-      {/* 3. Text Formatting Group */}
+      {/* 3. Định dạng Văn bản Cơ bản */}
       <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={btnClass(editor.isActive("bold"))}
+        <ToolbarBtn
+          onClick={() => editor.chain().focus(null, { scrollIntoView: false }).toggleBold().run()}
+          active={editor.isActive("bold")}
           title="In đậm (Ctrl+B)"
-          aria-label="In đậm"
+          ariaLabel="In đậm"
         >
           <Bold size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={btnClass(editor.isActive("italic"))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus(null, { scrollIntoView: false }).toggleItalic().run()}
+          active={editor.isActive("italic")}
           title="In nghiêng (Ctrl+I)"
-          aria-label="In nghiêng"
+          ariaLabel="In nghiêng"
         >
           <Italic size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={btnClass(editor.isActive("underline"))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleUnderline().run()
+          }
+          active={editor.isActive("underline")}
           title="Gạch chân (Ctrl+U)"
-          aria-label="Gạch chân"
+          ariaLabel="Gạch chân"
         >
           <UnderlineIcon size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={btnClass(editor.isActive("strike"))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleStrike().run()
+          }
+          active={editor.isActive("strike")}
           title="Gạch ngang"
-          aria-label="Gạch ngang"
+          ariaLabel="Gạch ngang"
         >
           <Strikethrough size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
-          className={btnClass(editor.isActive("highlight"))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight().run()
+          }
+          active={editor.isActive("highlight")}
           title="Đánh dấu highlight màu vàng"
-          aria-label="Highlight"
+          ariaLabel="Highlight"
         >
           <Highlighter size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* 4. Text Alignment */}
+      {/* 4. Căn Lề Văn bản */}
       <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          className={btnClass(editor.isActive({ textAlign: "left" }))}
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).setTextAlign("left").run()
+          }
+          active={editor.isActive({ textAlign: "left" })}
           title="Căn trái"
-          aria-label="Căn trái"
+          ariaLabel="Căn trái"
         >
           <AlignLeft size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          className={btnClass(editor.isActive({ textAlign: "center" }))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).setTextAlign("center").run()
+          }
+          active={editor.isActive({ textAlign: "center" })}
           title="Căn giữa"
-          aria-label="Căn giữa"
+          ariaLabel="Căn giữa"
         >
           <AlignCenter size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          className={btnClass(editor.isActive({ textAlign: "right" }))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).setTextAlign("right").run()
+          }
+          active={editor.isActive({ textAlign: "right" })}
           title="Căn phải"
-          aria-label="Căn phải"
+          ariaLabel="Căn phải"
         >
           <AlignRight size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-          className={btnClass(editor.isActive({ textAlign: "justify" }))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).setTextAlign("justify").run()
+          }
+          active={editor.isActive({ textAlign: "justify" })}
           title="Căn đều hai bên"
-          aria-label="Căn đều"
+          ariaLabel="Căn đều hai bên"
         >
           <AlignJustify size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* 5. Lists & Tasks */}
+      {/* 5. Danh sách & Trích dẫn */}
       <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={btnClass(editor.isActive("bulletList"))}
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleBulletList().run()
+          }
+          active={editor.isActive("bulletList")}
           title="Danh sách gạch đầu dòng"
-          aria-label="Danh sách gạch đầu dòng"
+          ariaLabel="Danh sách chấm"
         >
           <List size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={btnClass(editor.isActive("orderedList"))}
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleOrderedList().run()
+          }
+          active={editor.isActive("orderedList")}
           title="Danh sách đánh số"
-          aria-label="Danh sách đánh số"
+          ariaLabel="Danh sách số"
         >
           <ListOrdered size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          className={btnClass(editor.isActive("taskList"))}
-          title="Checklist nhiệm vụ / hồ sơ"
-          aria-label="Checklist nhiệm vụ"
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleTaskList().run()
+          }
+          active={editor.isActive("taskList")}
+          title="Danh sách công việc (Checklist)"
+          ariaLabel="Danh sách công việc"
         >
           <CheckSquare size={iconSize} />
-        </button>
-      </div>
-
-      {/* 6. Blocks */}
-      <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={btnClass(editor.isActive("blockquote"))}
-          title="Trích dẫn / Lời nhắn"
-          aria-label="Trích dẫn"
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleBlockquote().run()
+          }
+          active={editor.isActive("blockquote")}
+          title="Trích dẫn"
+          ariaLabel="Trích dẫn"
         >
           <Quote size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={btnClass(editor.isActive("codeBlock"))}
-          title="Khối mã lệnh / định dạng"
-          aria-label="Khối mã lệnh"
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).toggleCodeBlock().run()
+          }
+          active={editor.isActive("codeBlock")}
+          title="Khối mã code"
+          ariaLabel="Mã code"
         >
           <Code size={iconSize} />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          className="p-1.5 rounded text-xs text-slate-700 hover:bg-slate-100"
-          title="Đường phân cách ngang"
-          aria-label="Đường phân cách"
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).setHorizontalRule().run()
+          }
+          title="Đường kẻ ngang phân cách"
+          ariaLabel="Kẻ ngang"
         >
           <Minus size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* 7. Tables Dropdown */}
-      <div className="relative px-1 border-r border-slate-200">
-        <button
-          type="button"
-          onClick={() => setShowTableMenu(!showTableMenu)}
-          className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${
-            editor.isActive("table")
-              ? "bg-[#14244e] text-white"
-              : "text-slate-700 hover:bg-slate-100"
-          }`}
-          title="Công cụ bảng biểu"
-          aria-label="Công cụ bảng"
-        >
-          <TableIcon size={iconSize} />
-          <span>Bảng</span>
-          <ChevronDown size={12} />
-        </button>
+      {/* 6. Chèn Đa Phương Tiện (Bảng, Link, Ảnh) */}
+      <div className="flex items-center gap-0.5 px-1 border-r border-slate-200 relative">
+        {/* Nút chèn Bảng biểu */}
+        <div className="relative">
+          <ToolbarBtn
+            onClick={() => setShowTableMenu(!showTableMenu)}
+            active={editor.isActive("table") || showTableMenu}
+            title="Quản lý Bảng biểu (Table)"
+            ariaLabel="Bảng biểu"
+          >
+            <TableIcon size={iconSize} />
+            <ChevronDown size={12} className="ml-0.5 opacity-70" />
+          </ToolbarBtn>
 
-        {showTableMenu && (
-          <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 text-xs text-slate-700">
-            {!editor.isActive("table") ? (
-              <button
-                type="button"
-                onClick={() => {
-                  editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-                  setShowTableMenu(false);
-                }}
-                className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2"
-              >
-                <Plus size={13} className="text-blue-700" />
-                <span>Tạo bảng 3x3</span>
-              </button>
-            ) : (
-              <>
+          {showTableMenu && (
+            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 z-50 text-xs flex flex-col gap-1">
+              {!editor.isActive("table") ? (
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    editor.chain().focus().addRowAfter().run();
+                    editor
+                      .chain()
+                      .focus(null, { scrollIntoView: false })
+                      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                      .run();
                     setShowTableMenu(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-50"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
                 >
-                  Thêm dòng phía dưới
+                  <Plus size={14} className="text-emerald-600" /> Tạo bảng mới (3x3)
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().deleteRow().run();
-                    setShowTableMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-red-600"
-                >
-                  Xóa dòng này
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().addColumnAfter().run();
-                    setShowTableMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-50"
-                >
-                  Thêm cột phía sau
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().deleteColumn().run();
-                    setShowTableMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-red-600"
-                >
-                  Xóa cột này
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().deleteTable().run();
-                    setShowTableMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-700 font-semibold flex items-center gap-2"
-                >
-                  <Trash2 size={13} />
-                  <span>Xóa toàn bộ bảng</span>
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).addColumnAfter().run();
+                      setShowTableMenu(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left"
+                  >
+                    <Plus size={14} className="text-blue-600" /> Thêm cột bên phải
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).addRowAfter().run();
+                      setShowTableMenu(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left"
+                  >
+                    <Plus size={14} className="text-blue-600" /> Thêm dòng bên dưới
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).deleteColumn().run();
+                      setShowTableMenu(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-red-50 text-red-600 text-left"
+                  >
+                    <Trash2 size={14} /> Xóa cột hiện tại
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).deleteRow().run();
+                      setShowTableMenu(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-red-50 text-red-600 text-left"
+                  >
+                    <Trash2 size={14} /> Xóa dòng hiện tại
+                  </button>
+                  <div className="border-t border-slate-100 my-0.5" />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).deleteTable().run();
+                      setShowTableMenu(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-red-100 text-red-700 text-left font-bold"
+                  >
+                    <Trash2 size={14} /> Xóa toàn bộ bảng
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
-      {/* 8. Links & Images */}
-      <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
-        <button
-          type="button"
+        {/* Nút chèn Link */}
+        <ToolbarBtn
           onClick={handleOpenLinkModal}
-          className={btnClass(editor.isActive("link"))}
-          title="Chèn hoặc chỉnh sửa liên kết (Link)"
-          aria-label="Chèn liên kết"
+          active={editor.isActive("link")}
+          title="Chèn liên kết web"
+          ariaLabel="Chèn link"
         >
           <LinkIcon size={iconSize} />
-        </button>
-        <button
-          type="button"
+        </ToolbarBtn>
+
+        {/* Nút chèn Ảnh (Upload từ thiết bị hoặc URL) */}
+        <ToolbarBtn
           onClick={() => setImageInputOpen(true)}
-          className="p-1.5 rounded text-xs text-slate-700 hover:bg-slate-100"
-          title="Chèn ảnh qua đường dẫn URL"
-          aria-label="Chèn ảnh"
+          active={editor.isActive("image") || imageInputOpen}
+          title="Chèn hình ảnh (Từ thiết bị hoặc URL)"
+          ariaLabel="Chèn hình ảnh"
         >
           <ImageIcon size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* 9. Clear formatting */}
-      <div className="flex items-center pl-1">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-          className="p-1.5 rounded text-xs text-slate-600 hover:bg-slate-100"
-          title="Xóa toàn bộ định dạng vùng chọn"
-          aria-label="Xóa định dạng"
+      {/* 7. Xóa định dạng */}
+      <div className="flex items-center px-1">
+        <ToolbarBtn
+          onClick={() =>
+            editor.chain().focus(null, { scrollIntoView: false }).unsetAllMarks().clearNodes().run()
+          }
+          title="Xóa tất cả định dạng về mặc định"
+          ariaLabel="Xóa định dạng"
         >
           <RemoveFormatting size={iconSize} />
-        </button>
+        </ToolbarBtn>
       </div>
 
-      {/* Modal / Dialog for Link */}
+      {/* MODAL CHÈN LINK */}
       {linkInputOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-5 w-full max-w-sm space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#14244e]">Chèn liên kết (URL)</h3>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="font-bold text-sm text-[#14244e] flex items-center gap-1.5">
+                <LinkIcon size={16} className="text-blue-600" /> Chèn Liên Kết Web
+              </h4>
               <button
                 type="button"
                 onClick={() => setLinkInputOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"
               >
                 <X size={16} />
               </button>
             </div>
-            <input
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://tuyensinh.utc.edu.vn..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSetLink();
-                }
-              }}
-            />
-            <div className="flex justify-end gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Địa chỉ URL (https://...):
+              </label>
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://tuyensinh.utc.edu.vn/..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-blue-600"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSetLink();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setLinkInputOpen(false)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleSetLink}
-                className="px-4 py-1.5 text-xs font-semibold bg-[#14244e] text-white hover:bg-blue-800 rounded-lg shadow-xs"
+                className="px-4 py-1.5 rounded-lg bg-[#14244e] text-white text-xs font-semibold hover:bg-[#1e3a8a] shadow-xs"
               >
-                Áp dụng
+                Áp Dụng
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal / Dialog for Image */}
+      {/* MODAL CHÈN ẢNH (Từ thiết bị hoặc URL) */}
       {imageInputOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-5 w-full max-w-sm space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#14244e]">Chèn ảnh qua URL</h3>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="font-bold text-sm text-[#14244e] flex items-center gap-1.5">
+                <ImageIcon size={18} className="text-amber-500" /> Chèn Hình Ảnh Vào Bài Viết
+              </h4>
               <button
                 type="button"
                 onClick={() => setImageInputOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"
               >
                 <X size={16} />
               </button>
             </div>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/banner.jpg"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSetImage();
-                }
-              }}
-            />
-            <div className="flex justify-end gap-2">
+
+            {/* Tab chuyển đổi: Tải từ thiết bị vs URL */}
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setImageTab("upload")}
+                className={`py-2 px-3 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+                  imageTab === "upload"
+                    ? "bg-white text-[#14244e] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Upload size={14} /> Tải từ thiết bị (Máy tính)
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageTab("url")}
+                className={`py-2 px-3 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+                  imageTab === "url"
+                    ? "bg-white text-[#14244e] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Globe size={14} /> Đường dẫn URL trực tiếp
+              </button>
+            </div>
+
+            {imageTab === "upload" ? (
+              <div className="space-y-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileChosen(f);
+                  }}
+                />
+
+                {!selectedFile ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) handleFileChosen(f);
+                    }}
+                    className="border-2 border-dashed border-slate-300 hover:border-[#14244e] rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 hover:bg-blue-50/30 transition-all text-center"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-blue-100 text-[#14244e] flex items-center justify-center shadow-xs">
+                      <Upload size={22} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">
+                        Nhấp để chọn ảnh từ máy tính hoặc kéo thả vào đây
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Hỗ trợ PNG, JPG, JPEG, WEBP, GIF, SVG (tối đa 10MB)
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0 flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={selectedFile.dataUrl}
+                          alt="Xem trước ảnh"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                          Dung lượng: {selectedFile.size}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-[11px] font-bold text-blue-700 hover:underline mt-1"
+                        >
+                          Chọn tệp khác
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="w-8 h-8 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition-colors"
+                        title="Xóa ảnh đã chọn"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Đường dẫn URL hình ảnh:
+                  </label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://tuyensinh.utc.edu.vn/images/banner-k66.jpg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-blue-600"
+                    autoFocus
+                  />
+                </div>
+                {imageUrl && (
+                  <div className="w-full h-32 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl}
+                      alt="Xem trước ảnh"
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Chú thích Alt text (tùy chọn) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Chú thích ảnh / Mô tả Alt (Tùy chọn):
+              </label>
+              <input
+                type="text"
+                value={imageAlt}
+                onChange={(e) => setImageAlt(e.target.value)}
+                placeholder="VD: Sơ đồ phương thức tuyển sinh Đại học UTC K66..."
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setImageInputOpen(false)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Hủy
               </button>
               <button
                 type="button"
-                onClick={handleSetImage}
-                className="px-4 py-1.5 text-xs font-semibold bg-[#14244e] text-white hover:bg-blue-800 rounded-lg shadow-xs"
+                onClick={handleInsertImage}
+                disabled={imageTab === "upload" ? !selectedFile : !imageUrl.trim()}
+                className="px-4 py-1.5 rounded-lg bg-[#14244e] text-white text-xs font-semibold hover:bg-[#1e3a8a] disabled:opacity-40 shadow-xs flex items-center gap-1.5"
               >
-                Chèn ảnh
+                <Plus size={14} /> Chèn Ảnh Vào Bài Viết
               </button>
             </div>
           </div>
@@ -514,3 +762,5 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
     </div>
   );
 }
+
+export default TiptapToolbar;

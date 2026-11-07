@@ -46,6 +46,66 @@ export function useCmsEditor({
     immediatelyRender: false, // Critical for Next.js SSR hydration safety
     editable,
     content: contentToLoad.current,
+    editorProps: {
+      attributes: {
+        class: "focus:outline-none",
+      },
+      // Handle clipboard image paste directly (e.g. Snipping tool / Ctrl+V)
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (items) {
+          for (const item of Array.from(items)) {
+            if (item.type.startsWith("image/")) {
+              const file = item.getAsFile();
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const base64 = e.target?.result as string;
+                  if (base64 && view.state.schema.nodes.image) {
+                    const node = view.state.schema.nodes.image.create({
+                      src: base64,
+                      alt: file.name,
+                    });
+                    const tr = view.state.tr.replaceSelectionWith(node);
+                    view.dispatch(tr);
+                  }
+                };
+                reader.readAsDataURL(file);
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      },
+      // Handle drag & drop image files
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files;
+        if (files && files.length > 0) {
+          for (const file of Array.from(files)) {
+            if (file.type.startsWith("image/")) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const base64 = e.target?.result as string;
+                if (base64 && view.state.schema.nodes.image) {
+                  const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                  const pos = coordinates ? coordinates.pos : view.state.selection.from;
+                  const node = view.state.schema.nodes.image.create({
+                    src: base64,
+                    alt: file.name,
+                  });
+                  const tr = view.state.tr.insert(pos, node);
+                  view.dispatch(tr);
+                }
+              };
+              reader.readAsDataURL(file);
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+    },
     extensions: [
       StarterKit.configure({
         heading: {

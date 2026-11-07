@@ -6,13 +6,27 @@
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tiptap-editor-wrapper:focus-within {
   border-color: #14244e;
   box-shadow: 0 0 0 1px #14244e;
+}
+
+/* Sticky Toolbar */
+.tiptap-sticky-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
 }
 
 /* Editor surface */
@@ -23,11 +37,25 @@
   color: #1e293b;
   font-size: 0.9375rem;
   line-height: 1.75;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .tiptap-editor-content .tiptap {
   outline: none;
   min-height: 200px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Prose-UTC Viewer and General Typo */
+.prose-utc,
+.prose-utc * {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 /* Placeholder */
@@ -199,11 +227,13 @@
 .prose-utc table,
 .tiptap table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   margin: 1rem 0;
-  overflow: hidden;
   border-radius: 0.5rem;
   border: 1px solid #e2e8f0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .prose-utc th,
@@ -249,4 +279,63 @@
   border: 1px solid #e2e8f0;
   margin: 1rem auto;
   display: block;
+  object-fit: contain;
+}
+
+/* Floating Bubble Menu */
+.tiptap-bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.375rem;
+  background-color: #14244e;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 50;
+  animation: tiptap-bubble-fade 0.15s ease-out;
+}
+
+@keyframes tiptap-bubble-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tiptap-bubble-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.25rem;
+  color: #cbd5e1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.tiptap-bubble-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.tiptap-bubble-btn.is-active {
+  background-color: #fdb712;
+  color: #14244e;
+  font-weight: 700;
+}
+
+.tiptap-bubble-divider {
+  width: 1px;
+  height: 1.125rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 0 0.2rem;
 }

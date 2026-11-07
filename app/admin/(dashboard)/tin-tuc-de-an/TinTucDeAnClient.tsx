@@ -68,7 +68,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
     setEditingRow(row);
     setTitle(row.title);
     setCategory(row.category);
-    setSummary(row.summary);
+    setSummary(extractCmsSummary(row.summary || row.content, 180));
     setContent(row.content);
     setFileName(row.fileName || "");
     setStatus(row.status);
@@ -293,18 +293,18 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-4">
-              <h2 className="text-[20px] font-black font-display text-[#192b59] leading-snug">
+            <div className="p-6 overflow-y-auto overflow-x-hidden space-y-4 min-w-0 max-w-full">
+              <h2 className="text-[20px] font-black font-display text-[#192b59] leading-snug break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">
                 {viewingArticle.title}
               </h2>
 
-              <div className="p-3.5 bg-[#f8fafc] border-l-4 border-[#fdb712] rounded-r-xl">
+              <div className="p-3.5 bg-[#f8fafc] border-l-4 border-[#fdb712] rounded-r-xl break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">
                 <p className="text-[13px] font-medium text-[#1e293b] italic leading-relaxed">
                   {extractCmsSummary(viewingArticle.summary || viewingArticle.content, 200)}
                 </p>
               </div>
 
-              <div className="p-4 bg-white rounded-xl border border-[#e2e8f0]">
+              <div className="p-4 bg-white rounded-xl border border-[#e2e8f0] min-w-0 max-w-full overflow-hidden break-words">
                 <ContentRenderer content={viewingArticle.content} />
               </div>
 
@@ -416,7 +416,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
               placeholder="Tóm tắt thông tin quan trọng nhất của văn bản..."
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#f8fafc] border border-[#cbd5e1] rounded-xl text-[13px] outline-none resize-none"
+              className="w-full px-4 py-2.5 bg-[#f8fafc] border border-[#cbd5e1] rounded-xl text-[13px] outline-none resize-none break-words [overflow-wrap:anywhere]"
             />
           </div>
 
@@ -457,7 +457,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
                 initialContent={content}
                 onChange={(html) => {
                   setContent(html);
-                  if (!summary.trim()) {
+                  if (!summary.trim() || summary.includes("<")) {
                     setSummary(extractCmsSummary(html, 150));
                   }
                 }}

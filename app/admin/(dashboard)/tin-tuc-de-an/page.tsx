@@ -24,7 +24,9 @@ export default async function ArticlesAdminPage() {
         category: (["ĐỀ ÁN", "QUY CHẾ", "TIN TỨC", "HƯỚNG DẪN"].includes(item.chuyen_muc)
           ? item.chuyen_muc
           : "ĐỀ ÁN") as any,
-        summary: item.noi_dung_html ? item.noi_dung_html.slice(0, 150) + "..." : "Thông tin tuyển sinh UTC",
+        summary: item.noi_dung_html
+          ? item.noi_dung_html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 150) + "..."
+          : "Thông tin tuyển sinh UTC",
         content: item.noi_dung_html || "",
         fileName: "De_an_tuyen_sinh_UTC.pdf",
         fileUrl: "/documents/De_an_tuyen_sinh_UTC.pdf",

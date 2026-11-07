@@ -37,7 +37,7 @@ export function ContentRenderer({
 
   return (
     <div
-      className={`prose-utc ${className}`}
+      className={`prose-utc break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full overflow-hidden ${className}`}
       dangerouslySetInnerHTML={{ __html: cleanHtml }}
     />
   );
