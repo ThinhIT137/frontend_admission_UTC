@@ -47,6 +47,7 @@ next-env.d.ts
 
 .agents/
 .antigravity/
+skills-lock.json
 AI_RULES.md
 .test-tools/
 .next-tests/

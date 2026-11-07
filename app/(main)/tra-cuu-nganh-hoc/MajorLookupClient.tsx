@@ -10,6 +10,7 @@ import MajorList from "@/components/tra-cuu-nganh-hoc/MajorList";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import PageMotion from "@/components/ui/PageMotion";
 import { useLoading } from "@/contexts/loadingContext";
+import { ArrowLeftRight, TrendingUp } from "lucide-react";
 
 export type MajorFromApi = Awaited<ReturnType<typeof getFilterCTDTAction>>["data"][0];
 type Result = Awaited<ReturnType<typeof getFilterCTDTAction>>;
@@ -122,16 +123,51 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
     }, [completedPageRequest]);
 
     return (
-        <PageMotion className="flex flex-col w-full space-y-6 pb-12">
+        <PageMotion className="flex flex-col w-full space-y-6 pb-16 text-slate-900">
             {/* Title Header Card */}
             <Hero />
-            <Link className="underline font-bold" href="/so-sanh-chuong-trinh">So sánh chương trình và lịch sử điểm chuẩn</Link>
+
+            {/* Quick Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-xl px-4 py-3 shadow-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                        <span>Phương thức lọc điểm:</span>
+                        <select
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 transition-colors focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                            aria-label="Phương thức lọc ngành"
+                            value={selectedMethod}
+                            onChange={e => setSelectedMethod(e.target.value)}
+                        >
+                            {!methods.length && <option value={selectedMethod}>Chưa tải được phương thức</option>}
+                            {methods.map(method => (
+                                <option key={method.ma_phuong_thuc} value={method.ma_phuong_thuc}>
+                                    {method.ma_phuong_thuc} · {method.ten_phuong_thuc}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                    <Link
+                        href="/so-sanh-chuong-trinh"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
+                    >
+                        <ArrowLeftRight size={13} className="text-slate-500" />
+                        <span>So sánh chương trình</span>
+                    </Link>
+                    <Link
+                        href="/du-bao-tuyen-sinh"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 transition-colors"
+                    >
+                        <TrendingUp size={13} className="text-blue-600" />
+                        <span>Dự báo điểm chuẩn</span>
+                    </Link>
+                </div>
+            </div>
+
             <DisclaimerBanner />
-            <label className="font-bold">Phương thức lọc điểm <select className="border rounded p-2 ml-3" aria-label="Phương thức lọc ngành" value={selectedMethod} onChange={e => setSelectedMethod(e.target.value)}>
-              {!methods.length && <option value={selectedMethod}>Chưa tải được phương thức</option>}
-              {methods.map(method => <option key={method.ma_phuong_thuc} value={method.ma_phuong_thuc}>{method.ten_phuong_thuc}</option>)}
-            </select></label>
-            <Link className="underline" href="/du-bao-tuyen-sinh">Dự báo điểm chuẩn và đánh giá theo điểm môn</Link>
+
             {/* Filter and Search Bar */}
             <FilterAndSearchBar
                 searchTerm={searchTerm}
@@ -150,19 +186,25 @@ export default function MajorLookupClient({ initialFilters, initialResult, facul
                 data_to_hop={dataToHop}
                 availableYears={availableYears}
             />
-            <div role="status" aria-live="polite">{pending ? "Đang cập nhật danh sách..." : ""}</div>
-            {error && <p role="alert" className="text-red-700">{error}</p>}
+
+            <div role="status" aria-live="polite" className="text-xs text-slate-500 italic">
+                {pending ? "Đang cập nhật danh sách chương trình..." : ""}
+            </div>
+            {error && <p role="alert" className="text-xs font-semibold text-red-700">{error}</p>}
+
             {/* Giữ kết quả trước trong lúc tải để tránh nhấp nháy toàn trang. */}
             <div ref={resultsStart} className="scroll-mt-24" aria-busy={pending}>
-            {(dataNganhHoc.length > 0 || !error) && <MajorList
-                dataNganhHoc={dataNganhHoc}
-                selectedYear={selectedYear}
-                currentPage={currentPage}
-                selectedMethod={selectedMethod}
-                setCurrentPage={setCurrentPage}
-                totalPages={totalPages}
-                pageSize={pageSize}
-            />}
+                {(dataNganhHoc.length > 0 || !error) && (
+                    <MajorList
+                        dataNganhHoc={dataNganhHoc}
+                        selectedYear={selectedYear}
+                        currentPage={currentPage}
+                        selectedMethod={selectedMethod}
+                        setCurrentPage={setCurrentPage}
+                        totalPages={totalPages}
+                        pageSize={pageSize}
+                    />
+                )}
             </div>
         </PageMotion>
     );

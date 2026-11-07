@@ -9,6 +9,7 @@ import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { saveArticle, deleteArticle } from "@/actions/content.action";
 import { toast } from "@/libs/admin-toast";
+import { TiptapEditor, ContentRenderer, extractCmsSummary, clearLocalDraft } from "@/components/cms";
 
 export interface ArticleData {
   id: string;
@@ -41,6 +42,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
   const [content, setContent] = useState("");
   const [fileName, setFileName] = useState("");
   const [status, setStatus] = useState<"PUBLISHED" | "DRAFT">("PUBLISHED");
+  const [editorTab, setEditorTab] = useState<"edit" | "preview">("edit");
 
   const filteredData = data.filter((item) => {
     const matchSearch =
@@ -58,6 +60,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
     setContent("");
     setFileName("De_an_tuyen_sinh_UTC_2026.pdf");
     setStatus("PUBLISHED");
+    setEditorTab("edit");
     setIsModalOpen(true);
   };
 
@@ -69,6 +72,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
     setContent(row.content);
     setFileName(row.fileName || "");
     setStatus(row.status);
+    setEditorTab("edit");
     setIsModalOpen(true);
   };
 
@@ -80,6 +84,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
     try {
       const row = await saveArticle({ id: editingRow?.id, title, category, content, status });
       setData(prev => editingRow ? prev.map(item => item.id === row.id ? row : item) : [row, ...prev]);
+      clearLocalDraft(editingRow ? `article_${editingRow.id}` : "new_article");
       toast.success("Đã lưu bài viết");
       setIsModalOpen(false);
     } catch (err) { toast.error(publicError(err instanceof Error ? err.message : "Không thể lưu bài viết")); }
@@ -119,7 +124,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
           >
             {r.title}
           </span>
-          <p className="text-[12px] text-[#64748b] line-clamp-1">{r.summary}</p>
+          <p className="text-[12px] text-[#64748b] line-clamp-1">{extractCmsSummary(r.summary || r.content, 120)}</p>
         </div>
       ),
       className: "w-full",
@@ -143,6 +148,22 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
           </span>
         );
       },
+      className: "w-[120px] text-center",
+    },
+    {
+      header: "Trạng Thái",
+      accessor: (r) => (
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-bold text-[11px] border whitespace-nowrap ${
+            r.status === "PUBLISHED"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+              : "bg-amber-50 text-amber-800 border-amber-300"
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${r.status === "PUBLISHED" ? "bg-emerald-500" : "bg-amber-500"}`} />
+          {r.status === "PUBLISHED" ? "Xuất Bản" : "Bản Nháp"}
+        </span>
+      ),
       className: "w-[120px] text-center",
     },
     {
@@ -279,12 +300,12 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
 
               <div className="p-3.5 bg-[#f8fafc] border-l-4 border-[#fdb712] rounded-r-xl">
                 <p className="text-[13px] font-medium text-[#1e293b] italic leading-relaxed">
-                  {viewingArticle.summary}
+                  {extractCmsSummary(viewingArticle.summary || viewingArticle.content, 200)}
                 </p>
               </div>
 
-              <div className="prose prose-sm text-[#1e293b] leading-relaxed whitespace-pre-line text-[14px]">
-                {viewingArticle.content}
+              <div className="p-4 bg-white rounded-xl border border-[#e2e8f0]">
+                <ContentRenderer content={viewingArticle.content} />
               </div>
 
               {viewingArticle.fileName && (
@@ -323,6 +344,7 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
       <ModalForm
         isOpen={isModalOpen}
         title={editingRow ? "Chỉnh Sửa Văn Bản / Đề Án" : "Đăng Tải Đề Án Tuyển Sinh Mới"}
+        maxWidth="max-w-4xl"
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSave}
       >
@@ -399,16 +421,55 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
           </div>
 
           <div>
-            <label className="block text-[12px] font-bold mb-1 text-[#475569] uppercase tracking-wider">
-              Nội Dung Chi Tiết Văn Bản:
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Nội dung chi tiết quy chế, đề án hoặc hướng dẫn..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#f8fafc] border border-[#cbd5e1] rounded-xl text-[13px] outline-none resize-none font-mono"
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[12px] font-bold text-[#475569] uppercase tracking-wider">
+                Nội Dung Chi Tiết Văn Bản (Tiptap Editor):
+              </label>
+              <div className="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f1f5f9] p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("edit")}
+                  className={`px-3 py-1 rounded-md transition-all ${
+                    editorTab === "edit"
+                      ? "bg-white text-[#192b59] shadow-sm font-bold"
+                      : "text-[#64748b] hover:text-[#1e293b]"
+                  }`}
+                >
+                  Soạn Thảo (Tiptap)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("preview")}
+                  className={`px-3 py-1 rounded-md transition-all ${
+                    editorTab === "preview"
+                      ? "bg-white text-[#192b59] shadow-sm font-bold"
+                      : "text-[#64748b] hover:text-[#1e293b]"
+                  }`}
+                >
+                  Xem Trước (Live Preview)
+                </button>
+              </div>
+            </div>
+
+            {editorTab === "edit" ? (
+              <TiptapEditor
+                key={editingRow ? `edit-${editingRow.id}` : "new-article"}
+                initialContent={content}
+                onChange={(html) => {
+                  setContent(html);
+                  if (!summary.trim()) {
+                    setSummary(extractCmsSummary(html, 150));
+                  }
+                }}
+                draftKey={editingRow ? `article_${editingRow.id}` : "new_article"}
+                placeholder="Nhập nội dung thông báo, đề án, quy chế tuyển sinh... Hỗ trợ định dạng tiêu đề, danh sách, bảng biểu, ảnh, link."
+                minHeight="280px"
+              />
+            ) : (
+              <div className="p-5 bg-white border border-[#cbd5e1] rounded-xl min-h-[280px] max-h-[480px] overflow-y-auto">
+                <ContentRenderer content={content} fallbackText="Chưa có nội dung văn bản để xem trước." />
+              </div>
+            )}
           </div>
         </div>
       </ModalForm>

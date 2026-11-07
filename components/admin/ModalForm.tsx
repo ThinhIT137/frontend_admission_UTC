@@ -13,6 +13,7 @@ interface ModalFormProps {
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void | Promise<void>;
   submitText?: string;
+  maxWidth?: string;
   children: ReactNode;
 }
 
@@ -22,6 +23,7 @@ export function ModalForm({
   onClose,
   onSubmit,
   submitText = "Lưu Thay Đổi",
+  maxWidth = "max-w-lg",
   children,
 }: ModalFormProps) {
   const { pending, run } = useAdminTask();
@@ -31,7 +33,7 @@ export function ModalForm({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 overflow-y-auto">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={pending} tabIndex={-1} className="bg-white rounded-xl max-w-lg w-full shadow-2xl border border-[#e2e8f0] overflow-hidden animate-in zoom-in-95 duration-150 my-8">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={pending} tabIndex={-1} className={`bg-white rounded-xl ${maxWidth} w-full shadow-2xl border border-[#e2e8f0] overflow-hidden animate-in zoom-in-95 duration-150 my-8`}>
         {/* Header */}
         <div className="bg-[#192b59] text-white p-4 flex items-center justify-between">
           <h3 id={titleId} className="font-display font-bold text-[18px] flex items-center gap-2">

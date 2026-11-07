@@ -5,6 +5,7 @@ import Link from "next/link";
 import ScoreHistoryTable, { type ScoreHistoryItem } from "./ScoreHistoryTable";
 import PublishedText from "@/components/admission/PublishedText";
 import { safeExternalUrl } from "@/components/admission/admission-data";
+import { ArrowLeft, BookOpen, GraduationCap, Calendar, Search, Award, CheckCircle2 } from "lucide-react";
 
 interface CourseFromDbItem {
   ma_ctdt_hoc_phan: string;
@@ -70,60 +71,338 @@ export default function ChiTietNganhClient({ major, programs, initialProgramId, 
   const [semester, setSemester] = useState("ALL");
   const [knowledge, setKnowledge] = useState("ALL");
   const [search, setSearch] = useState("");
+
   const courses = (program?.hoc_phan ?? []).filter(c => c.nam_ap_dung === selectedCohort);
   const semesters = [...new Set(courses.map(c => c.hoc_ky))].sort((a, b) => a - b);
   const blocks = [...new Set(courses.map(c => c.khoi_kien_thuc).filter((b): b is string => !!b))];
   const filteredCourses = courses.filter(c => (semester === "ALL" || String(c.hoc_ky) === semester)
     && (knowledge === "ALL" || c.khoi_kien_thuc === knowledge)
     && `${c.ma_hoc_phan} ${c.hoc_phan?.ten_hoc_phan ?? ""}`.toLocaleLowerCase("vi").includes(search.trim().toLocaleLowerCase("vi")));
+
   const years = [...new Set(scoreHistory.map(s => s.nam))].sort((a, b) => b - a);
-  // Quota belongs to program/year, not to each method row.
   const latestQuota = [...new Map(scoreHistory.filter(s => s.nam === years[0]).map(s => [s.ma_chuong_trinh, s.chi_tieu])).values()].reduce((sum, n) => sum + n, 0);
   const outlineUrl = safeExternalUrl(program?.de_cuong);
-  const card = "rounded-2xl border-[3px] border-[#111827] bg-[#fffdf7] p-5 sm:p-6 shadow-[4px_4px_0px_#111827]";
-  const input = "mt-1 w-full rounded-lg border border-slate-400 bg-white p-2 font-normal";
-  function resetCourses() { setCohort(""); setSemester("ALL"); setKnowledge("ALL"); setSearch(""); }
-  return <div className="min-w-0 max-w-full space-y-6 pb-12 text-[#0d1b4e]">
-    <header className={card}>
-      <p className="font-bold text-blue-700">{major.khoi_nganh?.ten_khoi_nganh || "Ngành đào tạo"} · {major.ma_nganh}</p>
-      <h1 className="mt-2 text-2xl sm:text-3xl font-black">{major.ten_nganh}</h1>
-      <p className="mt-3">{programs.length} chương trình · {years[0] ? `Chỉ tiêu đã công bố năm ${years[0]}: ${latestQuota}` : "Chưa công bố chỉ tiêu"}</p>
-      <nav className="mt-4 flex flex-wrap gap-4 font-bold underline"><Link href="/so-sanh-chuong-trinh">So sánh chương trình</Link><Link href="/thong-tin-tuyen-sinh">Đề án và hướng dẫn</Link><Link href="/nop-ho-so">Nộp hồ sơ xét tuyển</Link></nav>
-    </header>
 
-    <section className={card} aria-labelledby="program-heading">
-      <h2 id="program-heading" className="text-xl font-black">Chương trình đào tạo</h2>
-      {!programs.length ? <p className="mt-3">Chưa công bố chương trình đào tạo.</p> : <>
-        <label className="mt-4 block font-bold">Chọn chương trình<select className={input} value={programId} onChange={e => { setProgramId(e.target.value); resetCourses(); }}>{programs.map(p => <option key={p.ma_chuong_trinh} value={p.ma_chuong_trinh}>{p.ma_chuong_trinh} · {p.ten_chuong_trinh}</option>)}</select></label>
-        <div className="mt-4 space-y-5">
-          <div><h3 className="font-bold">Giới thiệu và định hướng</h3><PublishedText content={program?.mo_ta_ngan || "Chưa công bố giới thiệu hoặc định hướng nghề nghiệp cho chương trình này."} /></div>
-          <div><h3 className="font-bold">Đề cương chương trình</h3>{outlineUrl ? <a href={outlineUrl} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline">Xem đề cương đã công bố ↗</a> : <PublishedText content={program?.de_cuong || "Chưa công bố đề cương chương trình."} />}</div>
-          <div><h3 className="font-bold">Chuẩn đầu ra</h3>{program?.chuan_dau_ra?.length ? <ul className="list-disc pl-5">{program.chuan_dau_ra.map((item, i) => <li key={`${item}-${i}`}>{item.replace(/_/g, " ")}</li>)}</ul> : <p>Chưa công bố chuẩn đầu ra.</p>}</div>
-          <p className="text-sm text-slate-600">Thời gian đào tạo, văn bằng và cơ hội nghề nghiệp cụ thể được xác định theo đề cương và thông báo của chương trình.</p>
-        </div>
-      </>}
-    </section>
+  const cardClass = "bg-white border border-slate-200/90 rounded-xl p-6 shadow-sm";
+  const inputClass = "mt-1.5 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 transition-colors focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600";
 
-    <section className={card} aria-labelledby="courses-heading">
-      <h2 id="courses-heading" className="text-xl font-black">Học phần của chương trình {program?.ma_chuong_trinh}</h2>
-      <div className="my-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="font-bold">Năm áp dụng<select className={input} value={selectedCohort ?? ""} onChange={e => { setCohort(e.target.value); setSemester("ALL"); setKnowledge("ALL"); }}>{!cohortYears.length && <option value="">Chưa công bố</option>}{cohortYears.map(y => <option key={y} value={y}>{y}</option>)}</select></label>
-        <label className="font-bold">Học kỳ<select className={input} value={semester} onChange={e => setSemester(e.target.value)}><option value="ALL">Tất cả học kỳ</option>{semesters.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
-        <label className="font-bold">Khối kiến thức<select className={input} value={knowledge} onChange={e => setKnowledge(e.target.value)}><option value="ALL">Tất cả khối kiến thức</option>{blocks.map(b => <option key={b}>{b}</option>)}</select></label>
-        <label className="font-bold">Tìm học phần<input className={input} value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã hoặc tên học phần" /></label>
+  function resetCourses() {
+    setCohort("");
+    setSemester("ALL");
+    setKnowledge("ALL");
+    setSearch("");
+  }
+
+  return (
+    <div className="min-w-0 max-w-full space-y-6 pb-16 text-slate-900">
+      {/* Breadcrumb & Navigation */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/tra-cuu-nganh-hoc"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-700 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          <span>Quay lại danh sách chương trình</span>
+        </Link>
+        <span className="text-xs text-slate-400">Trường Đại học Giao thông Vận tải</span>
       </div>
-      {!courses.length ? <p>Chưa công bố học phần cho chương trình này.</p> : <>
-        <p aria-live="polite" className="mb-3">{filteredCourses.length} / {courses.length} học phần · {filteredCourses.reduce((sum, c) => sum + (c.hoc_phan?.so_tin_chi ?? 0), 0)} tín chỉ trong kết quả lọc.</p>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Học phần chương trình theo năm áp dụng</caption><thead><tr className="border-b-2 border-slate-400"><th className="p-2">Mã học phần</th><th className="p-2">Tên học phần</th><th className="p-2">Tín chỉ</th><th className="p-2">Học kỳ</th><th className="p-2">Loại / Khối kiến thức</th></tr></thead><tbody>{filteredCourses.map(c => <tr key={c.ma_ctdt_hoc_phan} className="border-b border-slate-200"><td className="p-2 font-mono">{c.ma_hoc_phan}</td><td className="p-2">{c.hoc_phan?.ten_hoc_phan ?? "Chưa có tên học phần"}{c.hoc_phan?.mo_ta && <details><summary className="cursor-pointer text-blue-800">Mô tả học phần</summary><p className="whitespace-pre-wrap">{c.hoc_phan.mo_ta}</p></details>}</td><td className="p-2">{c.hoc_phan?.so_tin_chi ?? "Chưa công bố"}</td><td className="p-2">{c.hoc_ky}</td><td className="p-2">{c.loai === "bat_buoc" ? "Bắt buộc" : c.loai === "tu_chon" ? "Tự chọn" : c.loai} / {c.khoi_kien_thuc || "Chưa phân loại"}</td></tr>)}</tbody></table></div>
-        {!filteredCourses.length && <p className="mt-3">Không tìm thấy học phần phù hợp với bộ lọc.</p>}
-      </>}
-    </section>
 
-    <section className={card}><h2 className="text-xl font-black">Tổ hợp xét tuyển</h2>
-      <p className="my-2 text-sm text-slate-600">Tổng hợp các tổ hợp đã lưu cho ngành; xem đề án và tra cứu theo năm để xác định tổ hợp áp dụng.</p>
-      {combinations.length ? <ul className="grid gap-2 sm:grid-cols-2">{combinations.map(c => <li key={c.ma_to_hop} className="rounded-lg border border-slate-300 p-3"><strong>{c.ma_to_hop}</strong> · {[c.ten_mon_1, c.ten_mon_2, c.ten_mon_3].filter(Boolean).join(" – ")}</li>)}</ul> : <p>Chưa công bố tổ hợp xét tuyển.</p>}
-    </section>
+      {/* Main Major Header */}
+      <header className={cardClass}>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-[#14244e] text-white font-mono text-xs font-semibold">
+            MÃ NGÀNH: {major.ma_nganh}
+          </span>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+            {major.khoi_nganh?.ten_khoi_nganh || major.khoi_kien_thuc || "Khối ngành Kỹ thuật - Công nghệ"}
+          </span>
+        </div>
 
-    <ScoreHistoryTable scoreHistory={scoreHistory} />
-  </div>;
+        <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-[#14244e] tracking-tight">
+          {major.ten_nganh}
+        </h1>
+
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+          <span className="flex items-center gap-1.5 font-medium">
+            <GraduationCap size={15} className="text-[#14244e]" />
+            {programs.length} chương trình đào tạo
+          </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <Calendar size={15} className="text-[#14244e]" />
+            {years[0] ? `Chỉ tiêu năm ${years[0]}: ${latestQuota} sinh viên` : "Chưa công bố chỉ tiêu"}
+          </span>
+        </div>
+
+        <nav className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap gap-4 text-xs font-semibold text-blue-700">
+          <Link href="/so-sanh-chuong-trinh" className="hover:underline">So sánh chương trình</Link>
+          <Link href="/thong-tin-tuyen-sinh" className="hover:underline">Đề án tuyển sinh</Link>
+          <Link href="/tinh-diem-quy-doi" className="hover:underline">Tính điểm quy đổi</Link>
+          <Link href="/nop-ho-so" className="hover:underline text-emerald-700">Nộp hồ sơ xét tuyển</Link>
+        </nav>
+      </header>
+
+      {/* Program Details Section */}
+      <section className={cardClass} aria-labelledby="program-heading">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2">
+            <BookOpen size={20} className="text-[#14244e]" />
+            <h2 id="program-heading" className="text-lg font-bold text-[#14244e]">Chương trình đào tạo chi tiết</h2>
+          </div>
+          {programs.length > 1 && (
+            <span className="text-xs text-slate-500">Chọn chương trình bên dưới để xem khung môn học tương ứng</span>
+          )}
+        </div>
+
+        {!programs.length ? (
+          <p className="mt-4 text-sm text-slate-500">Chưa có thông tin chương trình đào tạo.</p>
+        ) : (
+          <div className="mt-4 space-y-6">
+            <label className="block text-xs font-semibold text-slate-700">
+              Chương trình đào tạo đang xem:
+              <select
+                className={inputClass}
+                value={programId}
+                onChange={e => {
+                  setProgramId(e.target.value);
+                  resetCourses();
+                }}
+              >
+                {programs.map(p => (
+                  <option key={p.ma_chuong_trinh} value={p.ma_chuong_trinh}>
+                    {p.ma_chuong_trinh} · {p.ten_chuong_trinh}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="rounded-lg bg-slate-50/70 border border-slate-100 p-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Giới thiệu & Định hướng</h3>
+                <div className="text-sm text-slate-700 leading-relaxed">
+                  <PublishedText content={program?.mo_ta_ngan || "Chương trình đào tạo cử nhân / kỹ sư chất lượng cao, trang bị nền tảng chuyên môn vững chắc và kỹ năng thực hành hiện đại."} />
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-50/70 border border-slate-100 p-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Đề cương & Chuẩn đầu ra</h3>
+                {outlineUrl ? (
+                  <a
+                    href={outlineUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline mb-2"
+                  >
+                    Xem văn bản đề cương chính thức ↗
+                  </a>
+                ) : (
+                  <div className="text-sm text-slate-700 mb-2">
+                    <PublishedText content={program?.de_cuong || "Đề cương chi tiết được ban hành kèm theo quyết định đào tạo của Trường Đại học Giao thông Vận tải."} />
+                  </div>
+                )}
+
+                {program?.chuan_dau_ra?.length ? (
+                  <div className="mt-2 pt-2 border-t border-slate-200/60">
+                    <p className="text-xs font-semibold text-slate-600 mb-1">Chuẩn đầu ra chính:</p>
+                    <ul className="space-y-1">
+                      {program.chuan_dau_ra.slice(0, 4).map((item, i) => (
+                        <li key={`${item}-${i}`} className="flex items-start gap-1.5 text-xs text-slate-600">
+                          <CheckCircle2 size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{item.replace(/_/g, " ")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Curriculum Course Matrix (Học phần) */}
+      <section className={cardClass} aria-labelledby="courses-heading">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award size={20} className="text-[#14244e]" />
+              <h2 id="courses-heading" className="text-lg font-bold text-[#14244e]">
+                Khung chương trình đào tạo ({program?.ma_chuong_trinh || major.ma_nganh})
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Danh mục các học phần, số tín chỉ và khối kiến thức quy định cho sinh viên khóa tuyển sinh tương ứng.
+            </p>
+          </div>
+          {courses.length > 0 && (
+            <span className="self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800">
+              {courses.length} học phần ({courses.reduce((sum, c) => sum + (c.hoc_phan?.so_tin_chi ?? 0), 0)} tín chỉ)
+            </span>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="my-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-xs font-semibold text-slate-700">
+            Khóa áp dụng
+            <select
+              className={inputClass}
+              value={selectedCohort ?? ""}
+              onChange={e => {
+                setCohort(e.target.value);
+                setSemester("ALL");
+                setKnowledge("ALL");
+              }}
+            >
+              {!cohortYears.length && <option value="">Chưa có dữ liệu</option>}
+              {cohortYears.map(y => (
+                <option key={y} value={y}>Khóa năm {y}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold text-slate-700">
+            Học kỳ
+            <select
+              className={inputClass}
+              value={semester}
+              onChange={e => setSemester(e.target.value)}
+            >
+              <option value="ALL">Tất cả các kỳ (1-8)</option>
+              {semesters.map(s => (
+                <option key={s} value={s}>Học kỳ {s}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold text-slate-700">
+            Khối kiến thức
+            <select
+              className={inputClass}
+              value={knowledge}
+              onChange={e => setKnowledge(e.target.value)}
+            >
+              <option value="ALL">Tất cả khối kiến thức</option>
+              {blocks.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold text-slate-700">
+            Tìm kiếm môn học
+            <div className="relative">
+              <input
+                className={`${inputClass} pl-8`}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Mã hoặc tên học phần..."
+              />
+              <Search size={14} className="absolute left-2.5 top-4 text-slate-400 pointer-events-none" />
+            </div>
+          </label>
+        </div>
+
+        {!courses.length ? (
+          <p className="py-6 text-center text-sm text-slate-500">
+            Chưa có danh mục học phần được số hóa cho chương trình này. Dữ liệu chuẩn được quản lý bởi Phòng Đào tạo UTC.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <p aria-live="polite" className="text-xs text-slate-500">
+              Hiển thị <span className="font-semibold text-slate-800">{filteredCourses.length}</span> / {courses.length} học phần
+              ({filteredCourses.reduce((sum, c) => sum + (c.hoc_phan?.so_tin_chi ?? 0), 0)} tín chỉ trong bộ lọc).
+            </p>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200/80">
+              <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+                <caption className="sr-only">Học phần chương trình theo năm áp dụng</caption>
+                <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th scope="col" className="p-3 w-28 font-mono">Mã HP</th>
+                    <th scope="col" className="p-3 min-w-[200px]">Tên học phần</th>
+                    <th scope="col" className="p-3 w-24 text-center">Tín chỉ</th>
+                    <th scope="col" className="p-3 w-24 text-center">Học kỳ</th>
+                    <th scope="col" className="p-3 w-36">Loại môn</th>
+                    <th scope="col" className="p-3 min-w-[150px]">Khối kiến thức</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredCourses.map(c => (
+                    <tr key={c.ma_ctdt_hoc_phan} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="p-3 font-mono text-xs font-semibold text-[#14244e]">{c.ma_hoc_phan}</td>
+                      <td className="p-3">
+                        <div className="font-medium text-slate-900">{c.hoc_phan?.ten_hoc_phan ?? "Chưa có tên học phần"}</div>
+                        {c.hoc_phan?.mo_ta && (
+                          <details className="mt-1 text-xs text-slate-500">
+                            <summary className="cursor-pointer text-blue-700 hover:underline">Chi tiết môn</summary>
+                            <p className="mt-1 p-2 bg-slate-50 rounded border border-slate-100 whitespace-pre-wrap">{c.hoc_phan.mo_ta}</p>
+                          </details>
+                        )}
+                      </td>
+                      <td className="p-3 text-center tabular-nums">
+                        <span className="inline-block px-2 py-0.5 bg-slate-100 rounded text-xs font-semibold text-slate-700">
+                          {c.hoc_phan?.so_tin_chi ?? "—"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center tabular-nums text-xs font-medium text-slate-700">
+                        Kỳ {c.hoc_ky}
+                      </td>
+                      <td className="p-3 text-xs">
+                        {c.loai === "bat_buoc" ? (
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700">Bắt buộc</span>
+                        ) : c.loai === "tu_chon" ? (
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700">Tự chọn</span>
+                        ) : (
+                          <span className="text-slate-600">{c.loai}</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-xs text-slate-600">
+                        {c.khoi_kien_thuc || "Cơ bản"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {!filteredCourses.length && (
+              <p className="py-4 text-center text-xs text-slate-400">
+                Không tìm thấy học phần nào khớp với tiêu chí tìm kiếm.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Combinations Section */}
+      <section className={cardClass}>
+        <div className="border-b border-slate-100 pb-3 mb-4">
+          <h2 className="text-lg font-bold text-[#14244e]">Tổ hợp môn xét tuyển áp dụng</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Các tổ hợp môn truyền thống và quy đổi áp dụng cho đợt tuyển sinh chính quy tại Cơ sở Hà Nội (GHA).
+          </p>
+        </div>
+
+        {combinations.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {combinations.map(c => (
+              <div key={c.ma_to_hop} className="rounded-lg border border-slate-200/90 bg-slate-50/50 p-3.5 hover:bg-white hover:shadow-xs transition-all">
+                <span className="inline-block px-2 py-0.5 rounded bg-[#14244e] text-white font-mono text-xs font-bold mb-1.5">
+                  {c.ma_to_hop}
+                </span>
+                <p className="text-xs text-slate-700 font-medium">
+                  {[c.ten_mon_1, c.ten_mon_2, c.ten_mon_3].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Chưa có thông tin tổ hợp được cập nhật.</p>
+        )}
+      </section>
+
+      {/* Historical Score Table */}
+      <ScoreHistoryTable scoreHistory={scoreHistory} />
+    </div>
+  );
 }

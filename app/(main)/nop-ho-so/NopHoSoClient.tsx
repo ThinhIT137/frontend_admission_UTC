@@ -690,7 +690,7 @@ export default function NopHoSoClient({
                     <DisclaimerBanner />
 
                     {/* 2. Thanh Tiến Trình 4 Bước Neo-Brutalism */}
-                    <div className="bg-white p-4 sm:p-6 border-[3px] border-[#111827] shadow-[5px_5px_0px_#111827] rounded-2xl">
+                    <div className="bg-white p-4 sm:p-5 border border-slate-200/90 shadow-sm rounded-xl">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {[
                                 {
@@ -725,19 +725,19 @@ export default function NopHoSoClient({
                                         }
                                         className={`p-3 rounded-xl border-[2px] transition-all flex items-center gap-2.5 ${
                                             isCurrent
-                                                ? "bg-[#0d1b4e] text-white border-[#111827] shadow-[3px_3px_0px_#111827]"
+                                                ? "bg-[#14244e] text-white border-[#14244e] shadow-xs"
                                                 : isPassed
-                                                  ? "bg-[#dcfce7] text-[#166534] border-[#16a34a]"
-                                                  : "bg-[#faf3e6] text-[#6b7280] border-[#d1d5db]"
+                                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                                  : "bg-slate-50 text-slate-500 border-slate-200"
                                         }`}
                                     >
                                         <span
                                             className={`w-7 h-7 rounded-lg font-black text-[12px] flex items-center justify-center shrink-0 border ${
                                                 isCurrent
-                                                    ? "bg-[#fdb712] text-[#0d1b4e] border-[#111827]"
+                                                    ? "bg-amber-400 text-[#14244e] border-amber-500"
                                                     : isPassed
-                                                      ? "bg-[#16a34a] text-white border-[#16a34a]"
-                                                      : "bg-white text-[#9ca3af] border-[#d1d5db]"
+                                                      ? "bg-emerald-600 text-white border-emerald-600"
+                                                      : "bg-white text-slate-400 border-slate-200"
                                             }`}
                                         >
                                             {isPassed ? "✓" : s.step}
@@ -755,7 +755,7 @@ export default function NopHoSoClient({
                     <div
                         ref={formPanel}
                         tabIndex={-1}
-                        className="scroll-mt-24 bg-white p-6 lg:p-8 border-[3px] border-[#111827] shadow-[6px_6px_0px_#111827] rounded-2xl space-y-6"
+                        className="scroll-mt-24 bg-white p-6 lg:p-8 border border-slate-200/90 shadow-sm rounded-xl space-y-6"
                     >
                         {/* ===================== BƯỚC 1 ===================== */}
                         {currentStep === 1 && (
@@ -834,11 +834,11 @@ export default function NopHoSoClient({
                                                         m.ma_phuong_thuc,
                                                     )
                                                 }
-                                                className={`p-4 rounded-xl border-[2.5px] text-left transition-all flex flex-col justify-between ${
+                                                className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${
                                                     selectedMethod ===
                                                     m.ma_phuong_thuc
-                                                        ? "bg-[#e0f2fe] border-[#0284c7] shadow-[3px_3px_0px_#111827]"
-                                                        : "bg-[#fffdf7] border-[#111827] hover:bg-[#faf3e6]"
+                                                        ? "bg-blue-50/70 border-blue-600 ring-1 ring-blue-600/30"
+                                                        : "bg-white border-slate-200 hover:bg-slate-50/70"
                                                 }`}
                                             >
                                                 <span className="px-2 py-0.5 bg-[#0d1b4e] text-white font-stamp text-[10.5px] font-bold rounded w-fit mb-2">
@@ -928,7 +928,7 @@ export default function NopHoSoClient({
                                     <button
                                         type="button"
                                         onClick={() => showStep(2)}
-                                        className="px-6 py-3 bg-[#0d1b4e] hover:bg-[#1e293b] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
+                                        className="px-6 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2"
                                     >
                                         <span>
                                             Tiếp tục: Điền thông tin cá nhân
@@ -1098,7 +1098,7 @@ export default function NopHoSoClient({
                                     <button
                                         type="button"
                                         onClick={() => showStep(1)}
-                                        className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
+                                        className="px-4 py-2 bg-white text-slate-700 font-medium text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                                     >
                                         ← Quay lại bước 1
                                     </button>
@@ -1111,12 +1111,12 @@ export default function NopHoSoClient({
                                             !soDienThoai.trim()
                                         }
                                         onClick={() => showStep(3)}
-                                        className={`px-6 py-3 font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2 ${
+                                        className={`px-6 py-2.5 font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2 ${
                                             hoTen.trim() &&
                                             cccd.trim() &&
                                             soDienThoai.trim()
-                                                ? "bg-[#0d1b4e] hover:bg-[#1e293b] text-white cursor-pointer"
-                                                : "bg-[#e5e7eb] text-[#9ca3af] cursor-not-allowed shadow-none"
+                                                ? "bg-[#14244e] hover:bg-blue-800 text-white cursor-pointer"
+                                                : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
                                         }`}
                                     >
                                         <span>
@@ -1244,17 +1244,17 @@ export default function NopHoSoClient({
                                         return (
                                             <div
                                                 key={idx}
-                                                className={`p-4 rounded-xl border-[2px] border-[#111827] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                                                className={`p-4 rounded-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${
                                                     uploaded
-                                                        ? "bg-[#f0fdf4] shadow-[2px_2px_0px_#16a34a]"
-                                                        : "bg-[#fffdf7] shadow-[2px_2px_0px_#111827]"
+                                                        ? "bg-emerald-50/70 border-emerald-300"
+                                                        : "bg-white border-slate-200"
                                                 }`}
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <span
                                                         className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 mt-0.5 border ${
                                                             uploaded
-                                                                ? "bg-[#16a34a] text-white border-[#16a34a]"
+                                                                ? "bg-emerald-600 text-white border-emerald-600"
                                                                 : "bg-[#faf3e6] text-[#0d1b4e] border-[#111827]"
                                                         }`}
                                                     >
@@ -1422,7 +1422,7 @@ export default function NopHoSoClient({
                                     <button
                                         type="button"
                                         onClick={() => showStep(2)}
-                                        className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
+                                        className="px-4 py-2 bg-white text-slate-700 font-medium text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                                     >
                                         ← Quay lại bước 2
                                     </button>
@@ -1430,7 +1430,7 @@ export default function NopHoSoClient({
                                     <button
                                         type="button"
                                         onClick={() => showStep(4)}
-                                        className="px-6 py-3 bg-[#0d1b4e] hover:bg-[#1e293b] text-white font-display font-black text-[14px] uppercase tracking-wider rounded-xl border-[2px] border-[#111827] shadow-[3px_3px_0px_#111827] flex items-center gap-2"
+                                        className="px-6 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2"
                                     >
                                         <span>
                                             Tiếp tục: Rà soát & Xác nhận nộp
@@ -1449,9 +1449,9 @@ export default function NopHoSoClient({
                             <div className="space-y-6 animate-in fade-in duration-200">
                                 {submitSuccess ? (
                                     /* Màn hình thông báo NỘP THÀNH CÔNG */
-                                    <div className="p-6 bg-[#f0fdf4] border-[3px] border-[#16a34a] rounded-2xl shadow-[6px_6px_0px_#16a34a] space-y-5 text-center sm:text-left print:border-none print:shadow-none print:p-0">
+                                    <div className="p-6 bg-emerald-50/70 border border-emerald-300 rounded-xl shadow-sm space-y-5 text-center sm:text-left print:border-none print:shadow-none print:p-0">
                                         <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-[#bbf7d0] pb-4">
-                                            <div className="w-16 h-16 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0 border-[3px] border-[#111827] shadow-[2px_2px_0px_#111827] print:hidden">
+                                            <div className="w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm print:hidden">
                                                 <AdmissionIcon
                                                     className="text-[36px]"
                                                     name="check"
@@ -1792,7 +1792,7 @@ export default function NopHoSoClient({
                                             <button
                                                 type="button"
                                                 onClick={() => showStep(3)}
-                                                className="px-5 py-2.5 bg-white text-[#111827] font-bold text-[13.5px] border-[2px] border-[#111827] rounded-xl hover:bg-[#f3f4f6]"
+                                                className="px-4 py-2 bg-white text-slate-700 font-medium text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                                             >
                                                 ← Quay lại bước 3
                                             </button>

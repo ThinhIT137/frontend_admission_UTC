@@ -1,4 +1,4 @@
-import { Search, ArrowRight, GraduationCap, RotateCcw, Check, Building2, SlidersHorizontal, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import type { MajorFromApi } from "@/app/(main)/tra-cuu-nganh-hoc/MajorLookupClient";
 
@@ -32,80 +32,90 @@ export default function MajorCard({ major, idx, selectedYear, selectedMethod = "
         if (ct.ma_to_hop) combosSet.add(ct.ma_to_hop);
     });
     const combinationsList = Array.from(combosSet);
-    // Removed fake fallback combinations
-
 
     // Clean authentic label
-    const categoryLabel = major.nganh?.khoi_kien_thuc || "ĐẠI HỌC CHÍNH QUY";
+    const categoryLabel = major.nganh?.khoi_kien_thuc || "Đại học chính quy";
+    const targetProgramId = major.ma_chuong_trinh || major.ma_nganh;
 
     return (
-        <div className="bg-white border border-slate-200 shadow-sm rounded-[16px] p-5 flex flex-col relative hover:-translate-y-1 hover:shadow-md transition-all">
-            {/* Header: Code & Faculty */}
-            <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="bg-[#14244e] text-white px-2 py-0.5 rounded-[4px] font-stamp text-[11px] font-bold shrink-0">
-                    MÃ: {major.ma_chuong_trinh}
-                </div>
-                <div className="text-[11px] text-[#0284c7] font-bold uppercase text-right leading-tight max-w-[65%] truncate">
+        <article className="group flex flex-col bg-white border border-slate-200/90 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 relative">
+            {/* Header: Code & Category */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-[#14244e] text-white font-mono text-[11px] font-semibold tracking-wide">
+                    {major.ma_chuong_trinh}
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate max-w-[60%]">
                     {categoryLabel}
-                </div>
+                </span>
             </div>
 
             {/* Title */}
-            <h3 className="font-display font-extrabold text-[18px] text-[#14244e] leading-tight mb-3 min-h-[44px] ">
+            <h3 className="font-sans font-bold text-[17px] text-[#14244e] group-hover:text-blue-700 leading-snug mb-2 min-h-[44px] transition-colors">
                 {major.ten_chuong_trinh}
             </h3>
 
             {/* Description */}
-            <p className="text-[12px] text-[#4b5563] leading-relaxed line-clamp-3 mb-5 flex-1">
-                {major.de_cuong || "Chưa có mô tả chương trình trong hệ thống."}
+            <p className="text-[13px] text-slate-600 leading-relaxed line-clamp-3 mb-4 flex-1">
+                {major.de_cuong || "Chương trình đào tạo chính quy theo chuẩn kiểm định chất lượng giáo dục quốc gia và quốc tế."}
             </p>
 
             {/* Stats Box */}
-            <div className="flex border border-slate-200 rounded-[8px] overflow-hidden mb-5">
-                <div className="flex-1 p-2.5 bg-white border-r border-slate-200">
-                    <div className="text-[9px] font-bold text-[#6b7280] uppercase mb-0.5">
-                        {scoreRecord ? "ĐIỂM CHUẨN" : prediction ? "ĐIỂM DỰ ĐOÁN" : "ĐIỂM CHUẨN"} {displayYear}{scoreRecord || !prediction ? ` · ${methodLabel}` : ""}
-                    </div>
-                    <div className="font-display font-black text-[22px] text-[#dc2626] leading-none">
+            <div className="grid grid-cols-2 divide-x divide-slate-100 bg-slate-50/80 border border-slate-100 rounded-lg p-3 mb-4">
+                <div className="pr-3">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                        {scoreRecord ? `Điểm chuẩn ${displayYear}` : prediction ? `Dự đoán ${displayYear}` : `Điểm chuẩn ${displayYear}`}
+                    </p>
+                    <div className="text-[20px] font-extrabold text-[#dc2626] leading-none tabular-nums">
                         {formattedScore}
                     </div>
-                    {!scoreRecord && prediction && <p className="mt-2 text-[11px] leading-5 text-slate-500">Tham khảo · chưa xác định phương thức/thang điểm</p>}
+                    {scoreRecord ? (
+                        <p className="mt-1 text-[10px] text-slate-500 truncate">{methodLabel}</p>
+                    ) : prediction ? (
+                        <p className="mt-1 text-[10px] text-amber-700">Dự báo tham khảo</p>
+                    ) : (
+                        <p className="mt-1 text-[10px] text-slate-400">Đợi công bố Đề án</p>
+                    )}
                 </div>
-                <div className="flex-1 p-2.5 bg-white">
-                    <div className="text-[9px] font-bold text-[#6b7280] uppercase mb-0.5">
-                        CHỈ TIÊU {currentYear}
-                    </div>
-                    <div className="font-display font-black text-[18px] text-[#14244e] leading-none mt-1">
+                <div className="pl-3">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                        Chỉ tiêu {currentYear}
+                    </p>
+                    <div className="text-[18px] font-bold text-[#14244e] leading-none mt-0.5 tabular-nums">
                         {latestQuota}{typeof latestQuota === "number" ? " SV" : ""}
                     </div>
+                    <p className="mt-1 text-[10px] text-slate-500">Mã ngành: {major.ma_nganh}</p>
                 </div>
             </div>
 
             {/* Combinations */}
-            <div className="flex items-center gap-2 mb-6 text-[12px]">
-                <span className="text-[#6b7280] font-medium shrink-0">Tổ hợp:</span>
+            <div className="flex items-center gap-1.5 mb-5 text-[12px]">
+                <span className="text-slate-500 font-medium text-[11px] shrink-0">Tổ hợp:</span>
                 <div className="flex gap-1.5 flex-wrap">
-                    {combinationsList.map((c, i) => (
-                        <span
-                            key={i}
-                            className="px-1.5 py-0.5 bg-white text-[#14244e] font-bold text-[10px] border border-slate-200 rounded-[4px]"
-                        >
-                            {c}
-                        </span>
-                    ))}
+                    {combinationsList.length > 0 ? (
+                        combinationsList.map((c) => (
+                            <span
+                                key={c}
+                                className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[11px] font-medium rounded transition-colors"
+                            >
+                                {c}
+                            </span>
+                        ))
+                    ) : (
+                        <span className="text-[11px] text-slate-400">Theo thông báo tuyển sinh</span>
+                    )}
                 </div>
             </div>
 
-            {/* Footer Button: Xem Khung CTĐT & Chi Tiết */}
-            <div className="mt-auto pt-2">
+            {/* Action Link */}
+            <div className="mt-auto">
                 <Link
-                    href={`/tra-cuu-nganh-hoc/${major.ma_nganh}`}
-                    className="w-full flex justify-center items-center gap-2 px-4 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-[13px] border border-slate-200 shadow-sm rounded-[10px] hover:translate-y-[1px] hover:shadow-md transition-all"
+                    href={`/tra-cuu-nganh-hoc/${targetProgramId}`}
+                    className="w-full inline-flex justify-center items-center gap-2 px-4 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-[13px] rounded-lg shadow-sm hover:shadow transition-all"
                 >
-                    <span>Xem Chi Tiết & Khung CTĐT</span>
-                    <ArrowRight size={16} aria-hidden="true" />
+                    <span>Xem khung CTĐT & chi tiết</span>
+                    <ArrowRight size={15} aria-hidden="true" />
                 </Link>
             </div>
-        </div>
+        </article>
     );
 }

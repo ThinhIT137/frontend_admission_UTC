@@ -293,13 +293,13 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
         <div className="absolute top-0 right-0 w-48 h-48 bg-[#fdb712]/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="px-3 py-1 bg-[#0d1b4e] text-white font-stamp text-[12px] font-black border border-slate-200 rounded-lg shadow-[2px_2px_0px_#111827]">
+          <span className="px-2.5 py-1 bg-white/10 text-white font-mono text-[11px] font-semibold rounded-md border border-white/20">
             CÔNG CỤ TUYỂN SINH K66
           </span>
-          <span className="px-3 py-1 bg-[#fdb712] text-[#0d1b4e] font-stamp text-[12px] font-black border border-slate-200 rounded-lg shadow-[2px_2px_0px_#111827]">
+          <span className="px-2.5 py-1 bg-amber-400 text-[#14244e] font-mono text-[11px] font-bold rounded-md">
             MÃ TRƯỜNG: GHA
           </span>
-          <span className="px-3 py-1 bg-[#e0f2fe] text-[#0369a1] font-bold text-[12px] border-[1.5px] border-[#111827] rounded-lg">
+          <span className="px-2.5 py-1 bg-blue-500/20 text-blue-100 font-medium text-[11px] rounded-md border border-blue-400/30">
             Công cụ tham khảo · Kiểm tra đề án theo năm
           </span>
         </div>
@@ -350,7 +350,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 onClick={() => setMethodTab("THPT")}
                 className={`py-2.5 px-3 rounded-xl border border-slate-200 text-[12px] font-black uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                   methodTab === "THPT"
-                    ? "bg-[#0284c7] text-white shadow-[3px_3px_0px_#111827] translate-x-[-1px] translate-y-[-1px]"
+                    ? "bg-[#14244e] text-white border-[#14244e] shadow-sm"
                     : "bg-white text-[#1f2937] hover:bg-slate-50"
                 }`}
               >
@@ -363,7 +363,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 onClick={() => setMethodTab("HOC_BA")}
                 className={`py-2.5 px-3 rounded-xl border border-slate-200 text-[12px] font-black uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                   methodTab === "HOC_BA"
-                    ? "bg-[#0284c7] text-white shadow-[3px_3px_0px_#111827] translate-x-[-1px] translate-y-[-1px]"
+                    ? "bg-[#14244e] text-white border-[#14244e] shadow-sm"
                     : "bg-white text-[#1f2937] hover:bg-slate-50"
                 }`}
               >
@@ -378,7 +378,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
                 onClick={() => setMethodTab("DGNL")}
                 className={`py-2.5 px-3 rounded-xl border border-slate-200 text-[12px] font-black uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                   methodTab === "DGNL"
-                    ? "bg-[#0284c7] text-white shadow-[3px_3px_0px_#111827] translate-x-[-1px] translate-y-[-1px]"
+                    ? "bg-[#14244e] text-white border-[#14244e] shadow-sm"
                     : "bg-white text-[#1f2937] hover:bg-slate-50"
                 }`}
               >
@@ -486,7 +486,7 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
             {calculationResult ? (
               <div className="space-y-4 animate-in fade-in duration-200">
                 {/* Thẻ điểm to nổi bật */}
-                <div className="bg-[#0d1b4e] text-white p-5 rounded-2xl border border-slate-200 shadow-[4px_4px_0px_#fdb712] text-center space-y-1">
+                <div className="bg-gradient-to-br from-[#14244e] to-[#1e3a8a] text-white p-6 rounded-xl border border-blue-900/40 shadow-sm text-center space-y-1.5">
                   <span className="text-[11.5px] font-stamp text-[#fdb712] uppercase tracking-wider block">
                     ĐIỂM XÉT TUYỂN THAM KHẢO (THANG 30)
                   </span>
