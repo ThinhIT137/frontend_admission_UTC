@@ -31,6 +31,8 @@ import {
   Upload,
   Globe,
   FileImage,
+  LayoutGrid,
+  Columns,
 } from "lucide-react";
 
 interface TiptapToolbarProps {
@@ -78,6 +80,7 @@ function ToolbarBtn({
 
 export function TiptapToolbar({ editor }: TiptapToolbarProps) {
   const [showTableMenu, setShowTableMenu] = useState(false);
+  const [showCardMenu, setShowCardMenu] = useState(false);
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
 
@@ -481,6 +484,120 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-red-100 text-red-700 text-left font-bold"
                   >
                     <Trash2 size={14} /> Xóa toàn bộ bảng
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Nút quản lý Bố cục Thẻ Card (Grid & Tiles) */}
+        <div className="relative">
+          <ToolbarBtn
+            onClick={() => {
+              setShowCardMenu(!showCardMenu);
+              setShowTableMenu(false);
+            }}
+            active={editor.isActive("cmsCard") || editor.isActive("cmsGrid") || showCardMenu}
+            title="Bố cục Thẻ & Lưới (Cards Grid)"
+            ariaLabel="Thẻ Card"
+          >
+            <LayoutGrid size={iconSize} />
+            <ChevronDown size={12} className="ml-0.5 opacity-70" />
+          </ToolbarBtn>
+
+          {showCardMenu && (
+            <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 z-50 text-xs flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100">
+              {editor.isActive("cmsCard") ? (
+                <>
+                  <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Thao tác thẻ hiện tại
+                  </div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).addCardToCurrentGrid().run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <Plus size={14} className="text-emerald-600" /> Thêm thẻ mới vào lưới này
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).toggleGridColumns().run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <Columns size={14} className="text-blue-600" /> Đổi bố cục 2 cột ↔ 3 cột
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).insertParagraphAfterGrid().run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <AlignLeft size={14} className="text-slate-600" /> Xuống dòng ngoài lưới thẻ
+                  </button>
+                  <div className="my-1 border-t border-slate-200" />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      if (window.confirm("Bạn có chắc muốn xóa thẻ này?")) {
+                        editor.chain().focus(null, { scrollIntoView: false }).deleteCurrentCard().run();
+                        setShowCardMenu(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-red-50 text-red-600 text-left font-medium"
+                  >
+                    <Trash2 size={14} /> Xóa thẻ này
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Tạo cụm thẻ thông tin
+                  </div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).insertCmsGrid({ cols: 2 }).run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <LayoutGrid size={14} className="text-blue-600" /> Lưới 2 Cột (2 Cards)
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).insertCmsGrid({ cols: 3 }).run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <Columns size={14} className="text-blue-600" /> Lưới 3 Cột (3 Cards)
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      editor.chain().focus(null, { scrollIntoView: false }).insertCmsCard().run();
+                      setShowCardMenu(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 text-slate-800 text-left font-medium"
+                  >
+                    <Plus size={14} className="text-emerald-600" /> Thẻ Card Đơn (1 Card)
                   </button>
                 </>
               )}

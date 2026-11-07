@@ -110,6 +110,8 @@ export default function ThongTinTuyenSinhClient({
       <UtcAdmissionReference
         history={admissionHistory}
         loadFailed={loadFailures.includes("điểm chuẩn")}
+        cmsArticles={cmsArticles}
+        canEditCms={canEditCms}
       />
     </PageMotion>
   );

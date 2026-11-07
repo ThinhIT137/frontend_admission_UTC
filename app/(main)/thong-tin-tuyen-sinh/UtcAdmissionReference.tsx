@@ -1,88 +1,276 @@
-import Link from "next/link";
-import { ArrowLeftRight, ExternalLink, MessageCircle, Radio } from "lucide-react";
+import { ArrowLeftRight, MessageCircle, Radio } from "lucide-react";
 import type { AdmissionHistory } from "./AdmissionHistoryTable";
+import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 
-const conversionSource = "https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/quy-t%E1%BA%AFc-quy-%C4%91%E1%BB%95i-%C4%91i%E1%BB%83m-tr%C3%BAng-tuy%E1%BB%83n-gi%E1%BB%AFa-c%C3%A1c-ph%C6%B0%C6%A1ng-th%E1%BB%A9c-x%C3%A9t-tuy%E1%BB%83n-%C4%91%E1%BA%A1i-h%E1%BB%8Dc-ch%C3%ADnh-quy-n-0";
-const floorSource = "https://tuyensinh.utc.edu.vn/?q=node/27447";
-const guideSource = "https://tuyensinh.utc.edu.vn/?q=node/23059";
+const conversionSource =
+  "https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/quy-t%E1%BA%AFc-quy-%C4%91%E1%BB%95i-%C4%91i%E1%BB%83m-tr%C3%BAng-tuy%E1%BB%83n-gi%E1%BB%AFa-c%C3%A1c-ph%C6%B0%C6%A1ng-th%E1%BB%A9c-x%C3%A9t-tuy%E1%BB%83n-%C4%91%E1%BA%A1i-h%E1%BB%8Dc-ch%C3%ADnh-quy-n-0";
 const faqSource = "https://tuyensinh.utc.edu.vn/danh-sach-cau-hoi";
-const resultSource = "https://tuyensinh.utc.edu.vn/?q=node/33061";
-const infoSource = "https://tuyensinh.utc.edu.vn/?q=thong-tin-tuyen-sinh";
-// Bảng công bố 07/07/2026. Mỗi phương thức có các mốc THPT riêng;
-// không đặt chung các hàng như thể HSA, TSA và học bạ có cùng khoảng.
-const scales = [
-  { name: "Học bạ THPT", range: "Thang 30", rows: [
-    ["28,20–30,00", "29,80–30,00"], ["27,50–28,20", "29,37–29,80"],
-    ["26,00–27,50", "28,63–29,37"], ["24,75–26,00", "27,63–28,63"],
-    ["21,75–24,75", "26,07–27,63"], ["18,75–21,75", "23,67–26,07"], ["16,00–18,75", "21,00–23,67"],
-  ] },
-  { name: "HSA · ĐHQG Hà Nội", range: "Thang 150", rows: [
-    ["29,75–30,00", "127–150"], ["28,98–29,75", "119–127"], ["26,52–28,98", "104–119"],
-    ["23,77–26,52", "86–104"], ["21,73–23,77", "75–86"], ["17,77–21,73", "62–75"], ["16,00–17,77", "56,74–62"],
-  ] },
-  { name: "TSA · ĐH Bách khoa Hà Nội", range: "Thang 100", rows: [
-    ["29,50–30,00", "82,76–100"], ["28,25–29,50", "71,85–82,76"], ["26,75–28,25", "64,40–71,85"],
-    ["25,10–26,75", "58,72–64,40"], ["23,50–25,10", "53,68–58,72"], ["21,10–23,50", "48,47–53,68"],
-    ["18,75–21,10", "44,16–48,47"], ["17,25–18,75", "41,77–44,16"], ["16,00–17,25", "39,63–41,77"],
-  ] },
-];
-function Source({ href, label }: { href: string; label: string }) {
-  return <a href={href} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 underline underline-offset-2">{label}<ExternalLink size={12} aria-hidden="true" /></a>;
+
+interface UtcAdmissionReferenceProps {
+  history: AdmissionHistory[];
+  loadFailed: boolean;
+  cmsArticles?: CmsArticleItem[];
+  canEditCms?: boolean;
 }
 
-export default function UtcAdmissionReference({ history, loadFailed }: { history: AdmissionHistory[]; loadFailed: boolean }) {
-  const annual = history.filter(row => row.year === 2026);
-  const quotas = [...new Map(annual.map(row => [row.programCode, row.quota])).values()];
-  const quota = quotas.some(value => value !== null) ? quotas.reduce<number>((sum, value) => sum + (value ?? 0), 0).toLocaleString("vi-VN") : "chưa có dữ liệu";
-  const published = new Set(annual.filter(row => row.scores.some(score => Number.isFinite(score.score) && score.score > 0)).map(row => row.programCode)).size;
-  const card = "rounded-2xl border border-slate-300 bg-white p-4 sm:p-6";
-  const questions = [
-    { q: "IELTS có được thay điểm tiếng Anh THPT năm 2026 không?", a: "Không. Hỏi đáp chính thức UTC xác nhận năm 2026 dùng IELTS để cộng điểm. Không áp dụng bảng quy đổi IELTS/TOEFL/TOEIC của NEU hay bảng UTC năm 2024–2025.", source: faqSource },
-    { q: "Xét học bạ có cần thi lại Toán nếu đã tốt nghiệp năm trước?", a: "Theo trả lời của trường cho mùa 2026, PT2 vẫn yêu cầu điểm thi Toán THPT năm 2026 từ 5; Toán ứng dụng có điều kiện riêng. Học bạ cũ không tự thay thế điều kiện này.", source: faqSource },
-    { q: "Có IELTS, giải thưởng hoặc điểm Vẽ thì nộp ở đâu?", a: "Thực hiện hướng dẫn nộp minh chứng trên cổng của trường, tại Hà Nội (GHA). Trang này cũng hướng dẫn thí sinh tốt nghiệp trước năm 2026 đăng ký PT2. Việc khai minh chứng không thay cho đăng ký nguyện vọng trên hệ thống Bộ.", source: guideSource },
-    { q: "Điểm sàn có phải điểm chuẩn không?", a: "Không. Điểm sàn là ngưỡng được nhận đăng ký; điểm chuẩn xác định trúng tuyển. UTC công bố ngưỡng theo từng mã và phương thức, không dùng mức sàn 22 của NEU cho UTC.", source: floorSource },
-    { q: "Điểm được tính về thang 30 như thế nào?", a: "Theo thông báo ngưỡng đầu vào 07/07/2026: thông thường (Toán × 2 + hai môn còn lại) × 3/4, rồi cộng ưu tiên và điểm cộng hợp lệ. Ngôn ngữ Anh dùng tổng ba môn theo quy định riêng của thông báo. HSA/TSA/ĐGNL cần quy đổi trước.", source: floorSource },
-    { q: "Tra điểm chuẩn năm 2026 ở đâu?", a: loadFailed ? "Chưa tải được bảng điểm của app. Có thể xem thông báo điểm chuẩn chính thức bên dưới." : `Database app hiện có ${annual.length} bản ghi chương trình năm 2026, ${published} chương trình có điểm đã nhập. Xem bảng theo phương thức bên dưới và đối chiếu thông báo UTC.`, source: resultSource },
-    { q: "App có bao nhiêu chỉ tiêu năm 2026?", a: loadFailed ? "Chưa tải được dữ liệu chỉ tiêu." : `Dữ liệu năm 2026 đang có trong app: ${annual.length} chương trình, tổng chỉ tiêu ${quota}. Đây là phạm vi dữ liệu đã nhập, không tự coi là tổng của cả hai cơ sở UTC.`, source: null },
-    { q: "Mã chương trình năm trước khác năm nay thì tra thế nào?", a: "Chọn đúng năm trong bảng. Danh sách lấy từ lịch sử tuyển sinh của năm đó; tên chương trình giúp đối chiếu mã đổi. Không mặc định chương trình năm trước vẫn tuyển năm sau.", source: null },
-    { q: "Dự đoán AI có phải kết quả trúng tuyển chính thức?", a: "Không. Điểm dự đoán và phần so sánh của app chỉ để tham khảo. Kết quả xét tuyển thực tế phải xem thông báo trường và hệ thống tuyển sinh.", source: resultSource },
-    { q: "Điểm nằm giữa hai mốc trong bảng quy đổi thì làm sao?", a: "UTC dùng nội suy tuyến tính trong đúng khoảng của phương thức. Không quy đổi theo tỷ lệ cố định và không lấy các mốc HSA/TSA của trường khác.", source: conversionSource },
-    { q: "Chọn chương trình, học phần và định hướng nghề nghiệp ở đâu?", a: "Dùng Tra cứu chương trình đào tạo để xem thông tin đã nhập; trang So sánh chương trình đối chiếu lịch sử điểm. Khung học phần chỉ hiển thị khi hệ thống đã có dữ liệu liên kết, không suy diễn từ tên ngành.", source: null },
-    { q: "Sai hồ sơ, thanh toán chưa ghi nhận hoặc không nhận email thì làm gì?", a: "Giữ mã hồ sơ, ảnh thông báo lỗi và chứng từ giao dịch; liên hệ đầu mối tuyển sinh đúng cơ sở qua kênh chính thức. Không gửi mật khẩu hay OTP. Việc mở khóa hồ sơ và xử lý lệ phí theo hướng dẫn trường, không tự áp dụng quy trình NEU.", source: "https://tuyensinh.utc.edu.vn/?q=lien-he" },
-    { q: "Chưa trúng tuyển đợt đầu có còn đợt bổ sung không?", a: "Thông tin tuyển sinh UTC nêu đợt tiếp theo sẽ được thông báo nếu còn chỉ tiêu. Cần theo dõi thông báo thực tế; không kết luận UTC không xét bổ sung dựa vào thông tin NEU.", source: infoSource },
-  ];
-  return <div className="space-y-6">
-    <section id="quy-doi-utc" className={card}>
-      <h2 className="flex items-center gap-2 text-lg font-bold"><ArrowLeftRight size={20} />Chứng chỉ và quy đổi điểm UTC 2026</h2>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-950"><strong>IELTS 2026 là điểm cộng, không thay điểm tiếng Anh.</strong> Không dùng bảng TOEFL/TOEIC/SAT của NEU. Bảng điểm cộng IELTS UTC nằm trong phần điều kiện xét tuyển phía trên.<br /><Source href={faqSource} label="Hỏi đáp chính thức UTC về IELTS" /></div>
-      <div className="mt-4 max-w-xl"><h3 className="mb-2 font-semibold">Điểm cộng IELTS · thang điểm 30</h3><table className="w-full border-collapse text-center text-sm [&_th]:border [&_td]:border [&_th]:border-slate-400 [&_td]:border-slate-300 [&_th]:p-2 [&_td]:p-2"><thead className="bg-blue-950 text-white"><tr><th scope="col">IELTS</th><th scope="col">Điểm cộng</th></tr></thead><tbody>{[["5,0", "0,50"], ["5,5", "0,75"], ["6,0", "1,00"], ["6,5", "1,25"], ["Từ 7,0", "1,50"]].map(([ielts, bonus]) => <tr key={ielts} className="even:bg-blue-50"><td>{ielts}</td><td>{bonus}</td></tr>)}</tbody></table><p className="mt-2 text-xs leading-6 text-slate-500">Chứng chỉ cấp sau 30/6/2024; áp dụng điều kiện trong thông báo, không tự cộng dồn mọi loại điểm thưởng.</p><Source href={infoSource} label="Bảng điểm cộng trong thông tin tuyển sinh UTC 2026" /></div>
-      <p className="mt-4 text-sm leading-7 text-slate-600">Dành cho xét tuyển tại Hà Nội — mã trường GHA. Ba bảng học bạ, HSA và TSA lấy từ thông báo ngày 07/07/2026, quy đổi về điểm THPT. Đây không phải điểm chuẩn của từng chương trình.</p>
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">{scales.map(scale => <details key={scale.name} className="self-start rounded-xl border border-slate-300 bg-slate-50" open>
-        <summary className="cursor-pointer p-4 font-semibold text-blue-950">{scale.name}<span className="ml-2 text-xs font-normal text-slate-500">{scale.range}</span></summary>
-        <div className="px-3 pb-4"><table className="w-full table-fixed border-collapse text-center text-sm tabular-nums [&_th]:border [&_td]:border [&_th]:border-slate-400 [&_td]:border-slate-300 [&_th]:p-2 [&_td]:p-2"><caption className="sr-only">Quy đổi tương đương {scale.name} và THPT năm 2026</caption><thead className="bg-blue-950 text-white"><tr><th scope="col">THPT · thang 30</th><th scope="col">{scale.name}</th></tr></thead><tbody>{scale.rows.map(([thpt, value]) => <tr key={thpt} className="odd:bg-white even:bg-blue-50"><td>{thpt}</td><td>{value}</td></tr>)}</tbody></table></div>
-      </details>)}</div>
-      <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm leading-7">Nội suy: y = y₁ + (x − x₁) × (y₂ − y₁) / (x₂ − x₁). Chỉ áp dụng trong khoảng được công bố, đúng phương thức và điều kiện.</p>
-      <Source href={conversionSource} label="Quy đổi chính thức UTC dành cho GHA · 07/07/2026" />
-      <Link href="/tinh-diem-quy-doi" className="ml-4 inline-block text-sm font-semibold text-blue-700 underline">Mở công cụ tính điểm</Link>
-    </section>
-    <section id="kenh-tuyen-sinh" className={card}>
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold"><Radio size={20} />Các kênh thông tin tuyển sinh chính thức</h2>
-      <div className="grid gap-3 md:grid-cols-2">
-        {[
-          ["Website trường", "Thông báo và văn bản của UTC", "https://www.utc.edu.vn/ttts"],
-          ["Tuyển sinh tại Hà Nội · GHA", "Hướng dẫn hồ sơ, minh chứng và thông báo", "https://tuyensinh.utc.edu.vn"],
-          ["Điểm chuẩn 2026", "Thông báo kết quả theo mã và phương thức", resultSource],
-          ["Ngưỡng đầu vào 2026", "Điểm sàn theo chương trình và phương thức", floorSource],
-          ["Hướng dẫn nộp minh chứng", "IELTS, giải thưởng, học bạ và năng khiếu", guideSource],
-        ].map(([title, description, href]) => <a key={title} href={href} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-slate-300 p-4 transition-colors hover:border-blue-400 hover:bg-blue-50"><span className="flex items-center justify-between gap-2 font-semibold text-blue-900">{title}<ExternalLink size={15} aria-hidden="true" /></span><span className="mt-2 block text-sm leading-6 text-slate-600">{description}</span></a>)}
-      </div>
-      <p className="mt-4 text-sm leading-7">Hà Nội: <a className="font-semibold text-blue-700 underline" href="tel:+842437663311">(024) 3766 3311</a> · <a className="text-blue-700 underline" href="mailto:dhgtvt@utc.edu.vn">dhgtvt@utc.edu.vn</a>.</p>
-      <Source href="https://www.utc.edu.vn" label="Thông tin liên hệ trên website UTC" />
-    </section>
-    <section id="giai-dap-nhanh" className={card}>
-      <h2 className="flex items-center gap-2 text-lg font-bold"><MessageCircle size={20} />Giải đáp nhanh cho thí sinh UTC</h2>
-      <p className="mt-2 text-sm leading-7 text-slate-500">Bấm câu hỏi để đọc. Thông tin tham khảo cần đối chiếu văn bản và thông báo cập nhật của trường.</p>
-      <div className="mt-4 divide-y divide-slate-200">{questions.map(item => <details key={item.q} className="group py-3"><summary className="cursor-pointer rounded py-2 text-sm font-semibold leading-6 text-blue-950 focus-visible:outline-2 focus-visible:outline-blue-500">{item.q}</summary><div className="mt-2 rounded-lg bg-slate-50 p-4 text-sm leading-7 text-slate-700"><p>{item.a}</p>{item.source ? <Source href={item.source} label="Đối chiếu nguồn UTC" /> : <span className="mt-2 block text-xs font-medium text-slate-500">Nguồn: dữ liệu và chức năng hiện có của ứng dụng</span>}</div></details>)}</div>
-    </section>
-  </div>;
+export default function UtcAdmissionReference({
+  history,
+  loadFailed,
+  cmsArticles = [],
+  canEditCms = false,
+}: UtcAdmissionReferenceProps) {
+  // Tìm kiếm bài viết tùy biến CMS từ DB nếu có
+  const quyDoiArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes("quy-doi-utc") ||
+        a.title.toLowerCase().includes("quy đổi điểm") ||
+        a.title.includes("Chứng chỉ và quy đổi điểm UTC 2026")
+    ) || null;
+
+  const kenhTuyenSinhArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes("kenh-tuyen-sinh") ||
+        a.title.toLowerCase().includes("kênh thông tin tuyển sinh") ||
+        a.title.includes("Các kênh thông tin tuyển sinh chính thức")
+    ) || null;
+
+  const giaiDapArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes("giai-dap-nhanh") ||
+        a.title.toLowerCase().includes("giải đáp nhanh") ||
+        a.title.includes("Giải đáp nhanh cho thí sinh UTC")
+    ) || null;
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Chứng chỉ và quy đổi điểm UTC 2026 - TÍCH HỢP CMS TIPTAP */}
+      <CmsEditableSection
+        sectionId="quy-doi-utc"
+        title="Chứng chỉ và quy đổi điểm UTC 2026"
+        icon={<ArrowLeftRight size={20} className="text-amber-600" />}
+        variant="amber"
+        category="QUY CHẾ"
+        initialArticle={quyDoiArticle}
+        defaultContentHtml={`
+          <div class="cms-tile" style="background-color: #fffbeb; border-color: #fde68a; margin-bottom: 1rem;">
+            <p><strong>IELTS năm 2026 là điểm cộng, không thay điểm tiếng Anh THPT.</strong> Không áp dụng bảng TOEFL/TOEIC/SAT của NEU. Bảng điểm cộng IELTS UTC nằm trong phần điều kiện xét tuyển phía trên.</p>
+          </div>
+
+          <h3>Điểm cộng IELTS · Thang điểm 30</h3>
+          <table class="cms-table">
+            <thead>
+              <tr>
+                <th>Chứng chỉ IELTS</th>
+                <th>Mức điểm cộng</th>
+                <th>Ghi chú điều kiện</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>IELTS 5,0</td><td>+0,50 điểm</td><td>Chứng chỉ cấp sau 30/6/2024; không tự cộng dồn</td></tr>
+              <tr><td>IELTS 5,5</td><td>+0,75 điểm</td><td>Chứng chỉ cấp sau 30/6/2024; không tự cộng dồn</td></tr>
+              <tr><td>IELTS 6,0</td><td>+1,00 điểm</td><td>Chứng chỉ cấp sau 30/6/2024; không tự cộng dồn</td></tr>
+              <tr><td>IELTS 6,5</td><td>+1,25 điểm</td><td>Chứng chỉ cấp sau 30/6/2024; không tự cộng dồn</td></tr>
+              <tr><td>Từ 7,0 trở lên</td><td>+1,50 điểm</td><td>Chứng chỉ cấp sau 30/6/2024; không tự cộng dồn</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size: 0.8125rem; color: #64748b; margin-top: 0.5rem;">Chứng chỉ cấp sau 30/6/2024; áp dụng điều kiện trong thông báo, không tự cộng dồn mọi loại điểm thưởng.</p>
+
+          <h3>Bảng quy đổi tương đương các phương thức tuyển sinh về điểm THPT (Mã trường GHA)</h3>
+          <p style="font-size: 0.875rem; color: #475569;">Dành cho xét tuyển tại Hà Nội — mã trường GHA. Ba bảng học bạ, HSA và TSA lấy từ thông báo ngày 07/07/2026, quy đổi về điểm THPT. Đây không phải điểm chuẩn của từng chương trình.</p>
+
+          <div class="cms-grid-3">
+            <div class="cms-tile">
+              <h3>Học bạ THPT (Thang 30)</h3>
+              <table class="cms-table">
+                <thead>
+                  <tr><th>THPT · 30</th><th>Học bạ</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>28,20–30,00</td><td>29,80–30,00</td></tr>
+                  <tr><td>27,50–28,20</td><td>29,37–29,80</td></tr>
+                  <tr><td>26,00–27,50</td><td>28,63–29,37</td></tr>
+                  <tr><td>24,75–26,00</td><td>27,63–28,63</td></tr>
+                  <tr><td>21,75–24,75</td><td>26,07–27,63</td></tr>
+                  <tr><td>18,75–21,75</td><td>23,67–26,07</td></tr>
+                  <tr><td>16,00–18,75</td><td>21,00–23,67</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="cms-tile">
+              <h3>HSA · ĐHQG Hà Nội (Thang 150)</h3>
+              <table class="cms-table">
+                <thead>
+                  <tr><th>THPT · 30</th><th>HSA</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>29,75–30,00</td><td>127–150</td></tr>
+                  <tr><td>28,98–29,75</td><td>119–127</td></tr>
+                  <tr><td>26,52–28,98</td><td>104–119</td></tr>
+                  <tr><td>23,77–26,52</td><td>86–104</td></tr>
+                  <tr><td>21,73–23,77</td><td>75–86</td></tr>
+                  <tr><td>17,77–21,73</td><td>62–75</td></tr>
+                  <tr><td>16,00–17,77</td><td>56,74–62</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="cms-tile">
+              <h3>TSA · ĐHBK Hà Nội (Thang 100)</h3>
+              <table class="cms-table">
+                <thead>
+                  <tr><th>THPT · 30</th><th>TSA</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>29,50–30,00</td><td>82,76–100</td></tr>
+                  <tr><td>28,25–29,50</td><td>71,85–82,76</td></tr>
+                  <tr><td>26,75–28,25</td><td>64,40–71,85</td></tr>
+                  <tr><td>25,10–26,75</td><td>58,72–64,40</td></tr>
+                  <tr><td>23,50–25,10</td><td>53,68–58,72</td></tr>
+                  <tr><td>21,10–23,50</td><td>48,47–53,68</td></tr>
+                  <tr><td>18,75–21,10</td><td>44,16–48,47</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p style="background-color: #eff6ff; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem;"><strong>Nội suy tuyến tính:</strong> y = y₁ + (x − x₁) × (y₂ − y₁) / (x₂ − x₁). Chỉ áp dụng trong khoảng được công bố, đúng phương thức và điều kiện.</p>
+          <p><a href="/tinh-diem-quy-doi">Mở công cụ tính điểm quy đổi trực tuyến</a></p>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl={conversionSource}
+        sourceLabel="Quy đổi chính thức UTC dành cho GHA · 07/07/2026"
+      />
+
+      {/* 2. Các kênh thông tin tuyển sinh chính thức - TÍCH HỢP CMS TIPTAP */}
+      <CmsEditableSection
+        sectionId="kenh-tuyen-sinh"
+        title="Các kênh thông tin tuyển sinh chính thức"
+        icon={<Radio size={20} className="text-blue-700" />}
+        variant="slate"
+        category="HƯỚNG DẪN"
+        initialArticle={kenhTuyenSinhArticle}
+        defaultContentHtml={`
+          <div class="cms-grid-2">
+            <div class="cms-tile">
+              <h3>Website trường Đại học Giao thông vận tải</h3>
+              <p>Thông báo và các văn bản điều hành chính thức của UTC.</p>
+              <p class="cms-tile-source"><a href="https://www.utc.edu.vn/ttts" target="_blank" rel="noopener noreferrer">Truy cập utc.edu.vn/ttts ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>Cổng thông tin tuyển sinh tại Hà Nội (GHA)</h3>
+              <p>Hướng dẫn nộp hồ sơ, minh chứng và thông báo cập nhật tuyển sinh.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn" target="_blank" rel="noopener noreferrer">Truy cập tuyensinh.utc.edu.vn ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>Thông báo Điểm chuẩn trúng tuyển</h3>
+              <p>Thông báo kết quả theo từng mã chương trình và phương thức xét tuyển.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/33061" target="_blank" rel="noopener noreferrer">Xem thông báo điểm chuẩn ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>Ngưỡng đảm bảo chất lượng đầu vào (Điểm sàn)</h3>
+              <p>Mức điểm sàn nhận hồ sơ theo từng chương trình và phương thức.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/27447" target="_blank" rel="noopener noreferrer">Xem ngưỡng đầu vào ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>Hướng dẫn nộp minh chứng xét tuyển</h3>
+              <p>Quy trình tải minh chứng IELTS, giải thưởng học sinh giỏi, học bạ và năng khiếu.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/23059" target="_blank" rel="noopener noreferrer">Xem hướng dẫn nộp minh chứng ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>Thông tin liên hệ tuyển sinh UTC</h3>
+              <p>Hà Nội: <a href="tel:+842437663311">(024) 3766 3311</a> · Email: <a href="mailto:dhgtvt@utc.edu.vn">dhgtvt@utc.edu.vn</a></p>
+              <p class="cms-tile-source"><a href="https://www.utc.edu.vn" target="_blank" rel="noopener noreferrer">Website trường utc.edu.vn ↗</a></p>
+            </div>
+          </div>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl="https://www.utc.edu.vn"
+        sourceLabel="Thông tin liên hệ trên website UTC"
+      />
+
+      {/* 3. Giải đáp nhanh cho thí sinh UTC (FAQ) - TÍCH HỢP CMS TIPTAP */}
+      <CmsEditableSection
+        sectionId="giai-dap-nhanh"
+        title="Giải đáp nhanh cho thí sinh UTC"
+        icon={<MessageCircle size={20} className="text-[#14244e]" />}
+        variant="blue"
+        category="HƯỚNG DẪN"
+        initialArticle={giaiDapArticle}
+        defaultContentHtml={`
+          <p style="font-size: 0.875rem; color: #475569; margin-bottom: 1rem;">Dưới đây là các giải đáp chính thức từ Hội đồng Tuyển sinh UTC cho những câu hỏi thường gặp nhất của thí sinh:</p>
+
+          <div class="cms-grid-2">
+            <div class="cms-tile">
+              <h3>IELTS có được thay điểm tiếng Anh THPT năm 2026 không?</h3>
+              <p>Không. Hỏi đáp chính thức UTC xác nhận năm 2026 dùng IELTS để cộng điểm. Không áp dụng bảng quy đổi IELTS/TOEFL/TOEIC của NEU hay bảng UTC năm 2024–2025.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/danh-sach-cau-hoi" target="_blank" rel="noopener noreferrer">Hỏi đáp chính thức UTC về IELTS ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Xét học bạ có cần thi lại Toán nếu đã tốt nghiệp năm trước?</h3>
+              <p>Theo trả lời của trường cho mùa 2026, PT2 vẫn yêu cầu điểm thi Toán THPT năm 2026 từ 5; Toán ứng dụng có điều kiện riêng. Học bạ cũ không tự thay thế điều kiện này.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/danh-sach-cau-hoi" target="_blank" rel="noopener noreferrer">Hỏi đáp chính thức UTC về PT2 ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Có IELTS, giải thưởng hoặc điểm Vẽ thì nộp ở đâu?</h3>
+              <p>Thực hiện hướng dẫn nộp minh chứng trên cổng của trường, tại Hà Nội (GHA). Trang này cũng hướng dẫn thí sinh tốt nghiệp trước năm 2026 đăng ký PT2. Việc khai minh chứng không thay cho đăng ký nguyện vọng trên hệ thống Bộ.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/23059" target="_blank" rel="noopener noreferrer">Hướng dẫn nộp minh chứng UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Điểm sàn có phải điểm chuẩn không?</h3>
+              <p>Không. Điểm sàn là ngưỡng được nhận đăng ký; điểm chuẩn xác định trúng tuyển. UTC công bố ngưỡng theo từng mã và phương thức, không dùng mức sàn của trường khác cho UTC.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/27447" target="_blank" rel="noopener noreferrer">Thông báo ngưỡng đầu vào UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Điểm được tính về thang 30 như thế nào?</h3>
+              <p>Theo thông báo ngưỡng đầu vào: thông thường (Toán × 2 + hai môn còn lại) × 3/4, rồi cộng ưu tiên và điểm cộng hợp lệ. Ngôn ngữ Anh dùng tổng ba môn theo quy định riêng của thông báo. HSA/TSA/ĐGNL cần quy đổi trước.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/27447" target="_blank" rel="noopener noreferrer">Thông báo ngưỡng đầu vào UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Tra điểm chuẩn năm 2026 ở đâu?</h3>
+              <p>Thí sinh đối chiếu bảng điểm chuẩn theo từng năm và phương thức ngay tại cổng này, đồng thời theo dõi văn bản quyết định trúng tuyển được công bố chính thức tại website tuyển sinh trường.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=node/33061" target="_blank" rel="noopener noreferrer">Thông báo điểm chuẩn UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Dự đoán AI có phải kết quả trúng tuyển chính thức?</h3>
+              <p>Không. Điểm dự đoán và phần so sánh của ứng dụng chỉ để tham khảo định hướng sắp xếp nguyện vọng. Kết quả xét tuyển thực tế phải xem thông báo trường và hệ thống tuyển sinh của Bộ GD&ĐT.</p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Điểm nằm giữa hai mốc trong bảng quy đổi thì làm sao?</h3>
+              <p>UTC dùng nội suy tuyến tính trong đúng khoảng của phương thức: y = y₁ + (x − x₁) × (y₂ − y₁) / (x₂ − x₁). Không quy đổi theo tỷ lệ cố định và không lấy các mốc HSA/TSA của trường khác.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/quy-t%E1%BA%AFc-quy-%C4%91%E1%BB%95i-%C4%91i%E1%BB%83m-tr%C3%BAng-tuy%E1%BB%83n-gi%E1%BB%AFa-c%C3%A1c-ph%C6%B0%C6%A1ng-th%E1%BB%A9c-x%C3%A9t-tuy%E1%BB%83n-%C4%91%E1%BA%A1i-h%E1%BB%8Dc-ch%C3%ADnh-quy-n-0" target="_blank" rel="noopener noreferrer">Quy tắc quy đổi điểm UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Chọn chương trình, học phần và định hướng nghề nghiệp ở đâu?</h3>
+              <p>Dùng công cụ Tra cứu chương trình đào tạo để xem thông tin đã nhập; trang So sánh chương trình đối chiếu lịch sử điểm. Khung học phần chỉ hiển thị khi hệ thống đã có dữ liệu liên kết.</p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Sai hồ sơ, thanh toán chưa ghi nhận hoặc không nhận email thì làm gì?</h3>
+              <p>Giữ mã hồ sơ, ảnh thông báo lỗi và chứng từ giao dịch; liên hệ đầu mối tuyển sinh đúng cơ sở qua kênh chính thức. Không gửi mật khẩu hay OTP. Việc mở khóa hồ sơ và xử lý lệ phí theo hướng dẫn trường.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=lien-he" target="_blank" rel="noopener noreferrer">Liên hệ ban tuyển sinh UTC ↗</a></p>
+            </div>
+
+            <div class="cms-tile">
+              <h3>Chưa trúng tuyển đợt đầu có còn đợt bổ sung không?</h3>
+              <p>Thông tin tuyển sinh UTC nêu đợt tiếp theo sẽ được thông báo nếu còn chỉ tiêu. Cần theo dõi thông báo thực tế tại website trường; không kết luận trường không xét bổ sung.</p>
+              <p class="cms-tile-source"><a href="https://tuyensinh.utc.edu.vn/?q=thong-tin-tuyen-sinh" target="_blank" rel="noopener noreferrer">Thông tin tuyển sinh UTC ↗</a></p>
+            </div>
+          </div>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl={faqSource}
+        sourceLabel="Hỏi đáp tuyển sinh UTC"
+      />
+    </div>
+  );
 }

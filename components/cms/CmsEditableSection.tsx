@@ -6,7 +6,6 @@ import { Edit3, ExternalLink, ShieldCheck } from "lucide-react";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { TiptapEditor } from "./TiptapEditor";
 import { ContentRenderer } from "./ContentRenderer";
-import { extractCmsSummary } from "./cms.service";
 import { saveArticle } from "@/actions/content.action";
 import { toast } from "@/libs/admin-toast";
 import { publicError } from "@/libs/client-error";
@@ -21,6 +20,7 @@ export interface CmsArticleItem {
 interface CmsEditableSectionProps {
   sectionId: string;
   title: string;
+  badgeText?: string;
   icon?: ReactNode;
   initialArticle?: CmsArticleItem | null;
   defaultContentHtml: string;
@@ -35,6 +35,7 @@ interface CmsEditableSectionProps {
 export function CmsEditableSection({
   sectionId,
   title,
+  badgeText,
   icon,
   initialArticle = null,
   defaultContentHtml,
@@ -54,6 +55,7 @@ export function CmsEditableSection({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editorContent, setEditorContent] = useState("");
   const [editorTab, setEditorTab] = useState<"edit" | "preview">("edit");
+  const [editorKey, setEditorKey] = useState(0);
   const [saving, setSaving] = useState(false);
 
   // Mở modal chỉnh sửa nội dung
@@ -106,6 +108,7 @@ export function CmsEditableSection({
   const handleResetToDefault = () => {
     if (window.confirm("Bạn có chắc muốn khôi phục về nội dung mặc định ban đầu của trường?")) {
       setEditorContent(defaultContentHtml);
+      setEditorKey((k) => k + 1);
       toast.info("Đã nạp lại nội dung mặc định. Nhấn Lưu Thay Đổi để áp dụng.");
     }
   };
@@ -123,14 +126,27 @@ export function CmsEditableSection({
     slate: "text-slate-900 font-bold",
   };
 
+  const footerBorderStyles = {
+    amber: "border-amber-200/60",
+    blue: "border-blue-200/60",
+    slate: "border-slate-300/60",
+  };
+
   return (
     <section id={sectionId} className={`${variantStyles[variant]} ${className} relative group transition-all`}>
       {/* Header của Section */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h2 className={`flex items-center gap-2 text-lg ${titleStyles[variant]}`}>
-          {icon}
-          {title}
-        </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h2 className={`flex items-center gap-2 text-lg ${titleStyles[variant]}`}>
+            {icon}
+            {title}
+          </h2>
+          {badgeText && (
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+              {badgeText}
+            </span>
+          )}
+        </div>
 
         {/* Nút bấm Quản trị: CHỈ HIỂN THỊ KHI canEdit === true */}
         {canEdit && (
@@ -146,7 +162,7 @@ export function CmsEditableSection({
               title="Chỉnh sửa nội dung section này bằng TipTap Rich-Text CMS"
             >
               <Edit3 size={13} />
-              Sửa Nhanh (TipTap)
+              Sửa Nội Dung
             </button>
           </div>
         )}
@@ -159,7 +175,7 @@ export function CmsEditableSection({
 
       {/* Đường dẫn nguồn đối chiếu nếu có */}
       {sourceUrl && (
-        <div className="mt-4 pt-3 border-t border-amber-200/60 flex items-center justify-between text-xs">
+        <div className={`mt-4 pt-3 border-t ${footerBorderStyles[variant]} flex items-center justify-between text-xs`}>
           <a
             href={sourceUrl}
             target="_blank"
@@ -171,7 +187,7 @@ export function CmsEditableSection({
           </a>
           {currentArticle && (
             <span className="text-slate-400 italic text-[11px]">
-              Đã được tùy biến qua CMS TipTap
+              Đã được tùy biến qua CMS
             </span>
           )}
         </div>
@@ -238,7 +254,7 @@ export function CmsEditableSection({
 
               {editorTab === "edit" ? (
                 <TiptapEditor
-                  key={currentArticle ? `edit-${currentArticle.id}` : `default-${sectionId}`}
+                  key={`editor-${sectionId}-${currentArticle?.id || "def"}-${editorKey}`}
                   initialContent={editorContent}
                   onChange={(html) => setEditorContent(html)}
                   draftKey={`section_${sectionId}`}

@@ -100,10 +100,21 @@
   margin-bottom: 0.5rem;
 }
 
+.prose-utc h4,
+.tiptap h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
 /* Paragraphs */
 .prose-utc p,
 .tiptap p {
-  margin-bottom: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
 }
 
 /* Lists */
@@ -111,27 +122,32 @@
 .tiptap ul {
   list-style-type: disc;
   padding-left: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .prose-utc ol,
 .tiptap ol {
   list-style-type: decimal;
   padding-left: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .prose-utc li,
 .tiptap li {
-  margin-bottom: 0.35rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
 }
 
-/* Task list (Checklist) */
+/* Task list (checklist) */
 .prose-utc ul[data-type="taskList"],
 .tiptap ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;
-  margin-bottom: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .prose-utc ul[data-type="taskList"] li,
@@ -139,13 +155,8 @@
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.prose-utc ul[data-type="taskList"] li > label,
-.tiptap ul[data-type="taskList"] li > label {
-  user-select: none;
-  margin-top: 0.2rem;
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
 }
 
 .prose-utc ul[data-type="taskList"] li input[type="checkbox"],
@@ -338,4 +349,136 @@
   height: 1.125rem;
   background-color: rgba(255, 255, 255, 0.2);
   margin: 0 0.2rem;
+}
+
+/* CMS Content Grid & Tile Layouts */
+.prose-utc .cms-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0.75rem 0;
+}
+
+@media (min-width: 1024px) {
+  .prose-utc .cms-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.prose-utc .cms-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0.75rem 0;
+}
+
+@media (min-width: 1024px) {
+  .prose-utc .cms-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.prose-utc .cms-tile {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.prose-utc .cms-tile h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #183d77;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.prose-utc .cms-tile-source {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: block;
+}
+
+.prose-utc .cms-tile-source a {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* TipTap Editor Mode: Visual Guides for Grids and Cards */
+.tiptap .cms-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0.875rem 0;
+  padding: 0.625rem;
+  background-color: rgba(248, 250, 252, 0.75);
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 0.875rem;
+}
+
+@media (min-width: 1024px) {
+  .tiptap .cms-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tiptap .cms-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0.875rem 0;
+  padding: 0.625rem;
+  background-color: rgba(248, 250, 252, 0.75);
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 0.875rem;
+}
+
+@media (min-width: 1024px) {
+  .tiptap .cms-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tiptap .cms-tile {
+  background-color: #ffffff;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.tiptap .cms-tile:hover {
+  border-color: #475569;
+}
+
+.tiptap .cms-tile:focus-within {
+  border-color: #14244e;
+  border-style: solid;
+  box-shadow: 0 0 0 2px rgba(20, 36, 78, 0.12);
+}
+
+.tiptap .cms-tile h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #183d77;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.tiptap .cms-tile-source {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: block;
+}
+
+.tiptap .cms-tile-source a {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

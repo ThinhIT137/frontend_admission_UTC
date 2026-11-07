@@ -9,3 +9,4 @@ export * from "./TiptapToolbar";
 export * from "./TiptapEditor";
 export * from "./ContentRenderer";
 export * from "./CmsEditableSection";
+export * from "./extensions/cms-layout.extension";

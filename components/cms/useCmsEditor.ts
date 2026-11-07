@@ -18,6 +18,7 @@ import { Highlight } from "@tiptap/extension-highlight";
 import { useEffect, useRef, useState } from "react";
 import { countWordsAndChars, getLocalDraft, saveLocalDraft } from "./cms.service";
 import type { CmsEditorProps } from "./cms.types";
+import { CmsCard, CmsGrid, CustomParagraph } from "./extensions/cms-layout.extension";
 
 export function useCmsEditor({
   initialContent = "",
@@ -108,6 +109,7 @@ export function useCmsEditor({
     },
     extensions: [
       StarterKit.configure({
+        paragraph: false, // Replace with CustomParagraph to preserve classes like cms-tile-source
         heading: {
           levels: [1, 2, 3],
         },
@@ -122,6 +124,9 @@ export function useCmsEditor({
           },
         },
       }),
+      CustomParagraph,
+      CmsGrid,
+      CmsCard,
       Underline,
       Highlight.configure({
         multicolor: true,
@@ -199,6 +204,16 @@ export function useCmsEditor({
       setStats(countWordsAndChars(editor.getText()));
     }
   }, [editor]);
+
+  // Sync editor content if initialContent changes externally (e.g. restore default or switch item)
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && initialContent !== undefined) {
+      const currentHtml = editor.getHTML();
+      if (initialContent !== currentHtml && !editor.isFocused) {
+        editor.commands.setContent(initialContent, { emitUpdate: false });
+      }
+    }
+  }, [editor, initialContent]);
 
   // Clean up timer on unmount
   useEffect(() => {
