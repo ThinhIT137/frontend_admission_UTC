@@ -11,6 +11,7 @@ import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import AdmissionLikelihood from "./AdmissionLikelihood";
 import { ScoreInput } from "@/components/admission/ScoreInput";
 import { parseScoreInput } from "@/libs/score-input";
+import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 
 
 export interface ProgramScoreItem {
@@ -67,9 +68,26 @@ interface Props {
   initialPrograms: ProgramScoreItem[];
   initialToHops: ToHopItem[];
   referenceYear?: number;
+  cmsArticles?: CmsArticleItem[];
+  canEditCms?: boolean;
 }
 
-export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, referenceYear = new Date().getFullYear() }: Props) {
+export default function TinhDiemQuyDoiClient({
+  initialPrograms,
+  initialToHops,
+  referenceYear = new Date().getFullYear(),
+  cmsArticles = [],
+  canEditCms = false,
+}: Props) {
+  // Tìm bài viết CMS tùy biến cho mục disclaimer tính điểm nếu có
+  const disclaimerArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes("disclaimer-tinh-diem") ||
+        a.title.toLowerCase().includes("lưu ý quan trọng") ||
+        a.title.toLowerCase().includes("kết quả quy đổi và đối soát")
+    ) || null;
+
   // Phương thức xét tuyển đang chọn
   // THPT: PT1; học bạ kết hợp điều kiện thi THPT: PT2.
   // IELTS là điểm cộng vào phương thức nền, không phải phương thức thay môn riêng.
@@ -314,26 +332,23 @@ export default function TinhDiemQuyDoiClient({ initialPrograms, initialToHops, r
         <p className="mt-3 text-xs text-blue-100">Năm tính và quy đổi điểm: {calculationYear}. Năm đối soát trong bảng được chọn riêng.</p>
       </div>
 
-      {/* 2. DISCLAIMER LỚN – BẮT BUỘC & RÕ RÀNG */}
-      <div className="bg-[#fffbeb] p-5 sm:p-6 border border-slate-200 shadow-sm rounded-2xl space-y-2">
-        <div className="flex items-center gap-2 text-[#b45309]">
-          <span className="material-symbols-outlined text-[26px] font-black">gavel</span>
-          <h2 className="font-display font-black text-[16px] sm:text-[18px] uppercase tracking-wide">
-            LƯU Ý QUAN TRỌNG: KẾT QUẢ QUY ĐỔI VÀ ĐỐI SOÁT CHỈ MANG TÍNH THAM KHẢO
-          </h2>
-        </div>
-        <p className="text-[13px] text-[#78350f] leading-relaxed">
-          Mọi kết quả điểm số và phân loại cơ hội trúng tuyển tại công cụ này được tính toán dựa trên đề án tuyển sinh và dữ liệu điểm chuẩn trúng tuyển của các năm tuyển sinh trước nhằm giúp thí sinh định hướng việc sắp xếp nguyện vọng. Điểm chuẩn chính thức năm 2026 sẽ phụ thuộc vào số lượng thí sinh đăng ký, phổ điểm thi thực tế của Bộ GD&ĐT và chỉ tiêu do Hội đồng Tuyển sinh Trường Đại học Giao thông Vận tải phê duyệt. Nguồn thông tin pháp lý chính thức và duy nhất được công bố tại website:{" "}
-          <a
-            href="https://tuyensinh.utc.edu.vn"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-bold underline text-[#92400e] hover:text-[#b45309]"
-          >
-            tuyensinh.utc.edu.vn
-          </a>.
-        </p>
-      </div>
+      {/* 2. DISCLAIMER LỚN – TÍCH HỢP CMS TIPTAP */}
+      <CmsEditableSection
+        sectionId="disclaimer-tinh-diem"
+        title="LƯU Ý QUAN TRỌNG: KẾT QUẢ QUY ĐỔI VÀ ĐỐI SOÁT CHỈ MANG TÍNH THAM KHẢO"
+        badgeText="Khuyến cáo pháp lý"
+        icon={<span className="material-symbols-outlined text-[24px] text-amber-700">gavel</span>}
+        variant="amber"
+        category="QUY CHẾ"
+        initialArticle={disclaimerArticle}
+        defaultContentHtml={`
+          <p>Mọi kết quả điểm số và phân loại cơ hội trúng tuyển tại công cụ này được tính toán dựa trên đề án tuyển sinh và dữ liệu điểm chuẩn trúng tuyển của các năm tuyển sinh trước nhằm giúp thí sinh định hướng việc sắp xếp nguyện vọng.</p>
+          <p>Điểm chuẩn chính thức năm 2026 sẽ phụ thuộc vào số lượng thí sinh đăng ký, phổ điểm thi thực tế của Bộ GD&ĐT và chỉ tiêu do Hội đồng Tuyển sinh Trường Đại học Giao thông Vận tải phê duyệt. Nguồn thông tin pháp lý chính thức và duy nhất được công bố tại website: <a href="https://tuyensinh.utc.edu.vn" target="_blank" rel="noopener noreferrer">tuyensinh.utc.edu.vn</a>.</p>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl="https://tuyensinh.utc.edu.vn"
+        sourceLabel="Website Tuyển sinh UTC chính thức"
+      />
 
       {/* 3. BỐ CỤC CHÍNH: FORM NHẬP ĐIỂM (7 CỘT) + KẾT QUẢ QUY ĐỔI (5 CỘT) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

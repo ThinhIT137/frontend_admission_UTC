@@ -12,6 +12,7 @@ import { useState } from "react";
 import { ArrowRight, CalendarDays, Clock3, Search, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { CandidatePage, CandidatePageHeader } from "@/components/admission/CandidatePage";
 import styles from "@/components/admission/candidate.module.css";
+import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 
 interface Milestone {
     ma_su_kien: string;
@@ -25,11 +26,24 @@ export default function LoTrinhTuyenSinhClient({
     dbMilestones,
     referenceTime,
     loadError = false,
+    cmsArticles = [],
+    canEditCms = false,
 }: {
     dbMilestones: Milestone[];
     referenceTime: string;
     loadError?: boolean;
+    cmsArticles?: CmsArticleItem[];
+    canEditCms?: boolean;
 }) {
+    // Tìm bài viết CMS tùy biến cho mục hướng dẫn lộ trình nếu có
+    const loTrinhArticle =
+        cmsArticles.find(
+            (a) =>
+                a.title.includes("huong-dan-lo-trinh") ||
+                a.title.toLowerCase().includes("lộ trình") ||
+                a.title.toLowerCase().includes("hướng dẫn thí sinh")
+        ) || null;
+
     const [year, setYear] = useState("ALL");
     const [status, setStatus] = useState<MilestoneStatus | "ALL">("ALL");
     const [search, setSearch] = useState("");
@@ -89,5 +103,41 @@ export default function LoTrinhTuyenSinhClient({
             })}
         </div>
         <p className={styles.notice}>Mốc không có ngày kết thúc được hiển thị theo ngày bắt đầu. Hãy đọc ghi chú của từng sự kiện để biết thời hạn và hướng dẫn cụ thể.</p>
+
+        {/* Hướng dẫn thủ tục theo mốc - CMS TipTap Động */}
+        <div className="mt-8">
+            <CmsEditableSection
+                sectionId="huong-dan-lo-trinh"
+                title="Lưu ý & Hướng dẫn thí sinh theo các mốc tuyển sinh UTC"
+                badgeText="Hướng dẫn thực hiện"
+                icon={<CalendarDays size={20} className="text-[#14244e]" />}
+                category="HƯỚNG DẪN"
+                variant="slate"
+                initialArticle={loTrinhArticle}
+                defaultContentHtml={`
+                    <div class="cms-grid-3">
+                        <div class="cms-tile">
+                            <h3>1. Đăng ký & Điều chỉnh nguyện vọng</h3>
+                            <p>Thực hiện trực tuyến hoàn toàn trên Cổng thông tin tuyển sinh của Bộ GD&ĐT theo đúng thời hạn quy định.</p>
+                            <p>Mã trường Đại học Giao thông Vận tải (Cơ sở Hà Nội): <strong>GHA</strong>.</p>
+                        </div>
+                        <div class="cms-tile">
+                            <h3>2. Xác nhận nhập học trực tuyến</h3>
+                            <p>Sau khi có thông báo trúng tuyển, thí sinh bắt buộc phải xác nhận nhập học trực tuyến trên Cổng của Bộ GD&ĐT.</p>
+                            <p>Thí sinh không xác nhận trong thời hạn quy định coi như từ chối cơ hội trúng tuyển.</p>
+                        </div>
+                        <div class="cms-tile">
+                            <h3>3. Làm thủ tục nhập học tại trường</h3>
+                            <p>Chuẩn bị đầy đủ hồ sơ bản chính (Học bạ, Giấy chứng nhận tốt nghiệp THPT tạm thời, CCCD, Giấy báo trúng tuyển).</p>
+                            <p>Đến trường hoàn tất thủ tục và đóng học phí tạm thu theo lịch thông báo của Hội đồng Tuyển sinh.</p>
+                        </div>
+                    </div>
+                    <p class="cms-tile-source"><em>Nguồn thông tin chính thức: Thường xuyên theo dõi lịch cập nhật tại website tuyển sinh UTC hoặc liên hệ hotline phòng Đào tạo để được hỗ trợ kịp thời.</em></p>
+                `.trim()}
+                canEdit={canEditCms}
+                sourceUrl="https://tuyensinh.utc.edu.vn"
+                sourceLabel="Cổng Tuyển sinh UTC chính thức"
+            />
+        </div>
     </CandidatePage>;
 }

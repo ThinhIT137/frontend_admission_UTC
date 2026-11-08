@@ -1,5 +1,7 @@
 import { prismaPublic } from "@/libs/prisma";
+import { adminService } from "@/services/user.service";
 import NopHoSoClient, { MethodOption, ProgramOption } from "./NopHoSoClient";
+import type { CmsArticleItem } from "@/components/cms";
 
 export const metadata = {
     title: "Nộp Hồ Sơ Xét Tuyển Trực Tuyến K66 | Tuyển Sinh UTC 2026",
@@ -12,6 +14,37 @@ export const revalidate = 60; // 1 minute ISR
 export default async function NopHoSoPage() {
     let methods: MethodOption[] = [];
     let programs: ProgramOption[] = [];
+    let cmsArticles: CmsArticleItem[] = [];
+
+    // Kiểm tra quyền quản trị CMS (super_admin hoặc chuyen_vien)
+    const currentUser = await adminService.getCurrentUser().catch(() => null);
+    const canEditCms =
+        !!currentUser &&
+        ["super_admin", "chuyen_vien"].includes(currentUser.vai_tro?.ten_vai_tro);
+
+    try {
+        // Lấy các bài viết CMS để hiển thị hướng dẫn nộp hồ sơ / minh chứng động
+        const dbArticles = await prismaPublic.trangNoiDung.findMany({
+            where: { ngay_dang: { not: null } },
+            select: {
+                ma_bai_viet: true,
+                tieu_de: true,
+                noi_dung_html: true,
+                chuyen_muc: true,
+            },
+            orderBy: { ngay_dang: "desc" },
+        });
+        cmsArticles = dbArticles.map((a) => ({
+            id: a.ma_bai_viet,
+            title: a.tieu_de,
+            content: a.noi_dung_html,
+            category: (["ĐỀ ÁN", "QUY CHẾ", "TIN TỨC", "HƯỚNG DẪN"].includes(a.chuyen_muc)
+                ? a.chuyen_muc
+                : "HƯỚNG DẪN") as any,
+        }));
+    } catch (e) {
+        console.error("Lỗi lấy bài viết CMS cho trang nộp hồ sơ:", e);
+    }
 
     try {
         // 1. Lấy danh sách phương thức xét tuyển thực tế từ DB
@@ -70,11 +103,14 @@ export default async function NopHoSoPage() {
     const subjects = await prismaPublic.danhMucMonHoc.findMany({
         select: { ma_mon: true, ten_mon: true },
     });
+
     return (
         <NopHoSoClient
             methods={methods}
             programs={programs}
             subjects={subjects}
+            cmsArticles={cmsArticles}
+            canEditCms={canEditCms}
         />
     );
 }

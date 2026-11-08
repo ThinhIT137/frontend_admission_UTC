@@ -1,5 +1,7 @@
 import { prismaPublic } from "@/libs/prisma";
+import { adminService } from "@/services/user.service";
 import TinhDiemQuyDoiClient, { ProgramScoreItem, ToHopItem } from "./TinhDiemQuyDoiClient";
+import type { CmsArticleItem } from "@/components/cms";
 
 export const metadata = {
   title: "Tính Điểm Quy Đổi & So Sánh Cơ Hội Xét Tuyển UTC 2026",
@@ -12,6 +14,38 @@ export const revalidate = 60; // 1 minute ISR
 export default async function ScoreCalculatorPage() {
   let programs: ProgramScoreItem[] = [];
   let toHops: ToHopItem[] = [];
+  let cmsArticles: CmsArticleItem[] = [];
+
+  // Kiểm tra quyền quản trị CMS (super_admin hoặc chuyen_vien)
+  const currentUser = await adminService.getCurrentUser().catch(() => null);
+  const canEditCms =
+    !!currentUser &&
+    ["super_admin", "chuyen_vien"].includes(currentUser.vai_tro?.ten_vai_tro);
+
+  try {
+    // Tải các bài viết CMS để hiển thị disclaimer hoặc hướng dẫn động
+    const dbArticles = await prismaPublic.trangNoiDung.findMany({
+      where: { ngay_dang: { not: null } },
+      select: {
+        ma_bai_viet: true,
+        tieu_de: true,
+        noi_dung_html: true,
+        chuyen_muc: true,
+      },
+      orderBy: { ngay_dang: "desc" },
+    });
+
+    cmsArticles = dbArticles.map((a) => ({
+      id: a.ma_bai_viet,
+      title: a.tieu_de,
+      content: a.noi_dung_html,
+      category: (["ĐỀ ÁN", "QUY CHẾ", "TIN TỨC", "HƯỚNG DẪN"].includes(a.chuyen_muc)
+        ? a.chuyen_muc
+        : "QUY CHẾ") as any,
+    }));
+  } catch (error) {
+    console.error("Lỗi truy vấn bài viết CMS cho trang tính điểm quy đổi:", error);
+  }
 
   try {
     // Lịch sử theo năm là nguồn gốc; chương trình chỉ cung cấp thông tin mô tả.
@@ -106,6 +140,8 @@ export default async function ScoreCalculatorPage() {
       initialPrograms={programs}
       initialToHops={toHops}
       referenceYear={Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()))}
+      cmsArticles={cmsArticles}
+      canEditCms={canEditCms}
     />
   );
 }

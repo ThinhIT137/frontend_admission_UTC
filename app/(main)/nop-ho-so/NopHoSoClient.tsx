@@ -12,6 +12,7 @@ import { ArrowRight, FileUp } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 import AcademicEvidenceFields, {
     AcademicDraft,
     AcademicFileBindings,
@@ -36,13 +37,26 @@ interface Props {
     methods: MethodOption[];
     programs: ProgramOption[];
     subjects?: Array<{ ma_mon: string; ten_mon: string }>;
+    cmsArticles?: CmsArticleItem[];
+    canEditCms?: boolean;
 }
 
 export default function NopHoSoClient({
     methods,
     programs,
     subjects = [],
+    cmsArticles = [],
+    canEditCms = false,
 }: Props) {
+    // Tìm bài viết CMS tùy biến cho mục hướng dẫn nộp hồ sơ nếu có
+    const nopHoSoArticle =
+        cmsArticles.find(
+            (a) =>
+                a.title.includes("huong-dan-nop-ho-so") ||
+                a.title.toLowerCase().includes("hướng dẫn nộp hồ sơ") ||
+                a.title.toLowerCase().includes("chuẩn bị minh chứng")
+        ) || null;
+
     // 4 Bước nộp hồ sơ chuẩn:
     // Bước 1: Chọn Phương thức & Nguyện vọng ngành
     // Bước 2: Thông tin cá nhân & Đối tượng ưu tiên
@@ -553,79 +567,40 @@ export default function NopHoSoClient({
                     <ArrowRight size={15} aria-hidden="true" />
                 </Link>
             </CandidatePageHeader>
-            <section
-                aria-labelledby="submission-guide-title"
-                className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6"
-            >
-                <h2
-                    id="submission-guide-title"
-                    className="text-lg font-bold text-[#192b59]"
-                >
-                    Hướng dẫn nộp hồ sơ
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Chuẩn bị thông tin cá nhân và ảnh minh chứng rõ nét trước
-                    khi bắt đầu. Không tự chỉnh sửa nội dung giấy tờ.
-                </p>
-                <ol className="mt-4 grid list-none gap-3 sm:grid-cols-2">
-                    {[
-                        [
-                            "Đăng nhập tài khoản thí sinh",
-                            "Sử dụng CCCD và mật khẩu. Nếu chưa có tài khoản, chọn đăng ký; nếu CCCD đã có hồ sơ cũ, sử dụng chức năng kích hoạt.",
-                        ],
-                        [
-                            "Chọn phương thức và chương trình",
-                            "Kiểm tra năm tuyển sinh, chọn chương trình và tổ hợp phù hợp. Đối chiếu điều kiện trong thông báo tuyển sinh trước khi tiếp tục.",
-                        ],
-                        [
-                            "Điền thông tin và chuẩn bị minh chứng",
-                            "Kiểm tra họ tên, CCCD và thông tin liên hệ; nhập dữ liệu học tập, chứng chỉ hoặc giải thưởng theo hồ sơ. Chọn ảnh/tệp đúng loại giấy tờ được yêu cầu.",
-                        ],
-                        [
-                            "Kiểm tra và xác nhận nộp",
-                            "Rà lại toàn bộ thông tin ở bước cuối rồi xác nhận. Chờ thông báo thành công, lưu mã hồ sơ và theo dõi tại Nguyện vọng của tôi.",
-                        ],
-                    ].map(([title, text], index) => (
-                        <li
-                            key={title}
-                            className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-                        >
-                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-blue-100 text-xs font-bold text-blue-900">
-                                {index + 1}
-                            </span>
-                            <div>
-                                <h3 className="text-sm font-semibold text-[#192b59]">
-                                    {title}
-                                </h3>
-                                <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    {text}
-                                </p>
-                            </div>
-                        </li>
-                    ))}
-                </ol>
-                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-                    Thao tác trên website này không thay thế đăng ký nguyện vọng
-                    hoặc xác nhận nhập học trên hệ thống chính thức. Theo dõi
-                    hướng dẫn và thời hạn tại{" "}
-                    <a
-                        href="https://tuyensinh.utc.edu.vn"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold underline"
-                    >
-                        cổng tuyển sinh UTC
-                    </a>
-                    ; xem lịch đang lưu tại{" "}
-                    <Link
-                        href="/lo-trinh-tuyen-sinh"
-                        className="font-semibold underline"
-                    >
-                        lộ trình tuyển sinh
-                    </Link>
-                    .
-                </p>
-            </section>
+            <CmsEditableSection
+                sectionId="huong-dan-nop-ho-so"
+                title="Hướng dẫn nộp hồ sơ xét tuyển & Chuẩn bị minh chứng"
+                badgeText="Quy trình trực tuyến"
+                icon={<FileUp size={20} className="text-[#14244e]" />}
+                category="HƯỚNG DẪN"
+                variant="blue"
+                initialArticle={nopHoSoArticle}
+                defaultContentHtml={`
+                    <p>Chuẩn bị thông tin cá nhân và ảnh minh chứng rõ nét trước khi bắt đầu. Không tự chỉnh sửa nội dung giấy tờ.</p>
+                    <div class="cms-grid-2">
+                        <div class="cms-tile">
+                            <h3>1. Đăng nhập tài khoản thí sinh</h3>
+                            <p>Sử dụng CCCD và mật khẩu. Nếu chưa có tài khoản, chọn đăng ký; nếu CCCD đã có hồ sơ cũ, sử dụng chức năng kích hoạt.</p>
+                        </div>
+                        <div class="cms-tile">
+                            <h3>2. Chọn phương thức và chương trình</h3>
+                            <p>Kiểm tra năm tuyển sinh, chọn chương trình và tổ hợp phù hợp. Đối chiếu điều kiện trong thông báo tuyển sinh trước khi tiếp tục.</p>
+                        </div>
+                        <div class="cms-tile">
+                            <h3>3. Điền thông tin và chuẩn bị minh chứng</h3>
+                            <p>Kiểm tra họ tên, CCCD và thông tin liên hệ; nhập dữ liệu học tập, chứng chỉ hoặc giải thưởng theo hồ sơ. Chọn ảnh/tệp đúng loại giấy tờ được yêu cầu.</p>
+                        </div>
+                        <div class="cms-tile">
+                            <h3>4. Kiểm tra và xác nhận nộp</h3>
+                            <p>Rà lại toàn bộ thông tin ở bước cuối rồi xác nhận. Chờ thông báo thành công, lưu mã hồ sơ và theo dõi tại Nguyện vọng của tôi.</p>
+                        </div>
+                    </div>
+                    <p><em>Lưu ý: Thao tác trên website này không thay thế đăng ký nguyện vọng hoặc xác nhận nhập học trên hệ thống chính thức của Bộ GD&ĐT. Theo dõi hướng dẫn và thời hạn tại <a href="https://tuyensinh.utc.edu.vn" target="_blank" rel="noopener noreferrer">cổng tuyển sinh UTC</a>; xem lịch tuyển sinh tại <a href="/lo-trinh-tuyen-sinh">lộ trình tuyển sinh</a>.</em></p>
+                `.trim()}
+                canEdit={canEditCms}
+                sourceUrl="https://tuyensinh.utc.edu.vn"
+                sourceLabel="Cổng Tuyển sinh UTC chính thức"
+            />
             <CandidateSession
                 onAuthenticated={(user) => {
                     if (activeOwner.current !== user.cccd) {
