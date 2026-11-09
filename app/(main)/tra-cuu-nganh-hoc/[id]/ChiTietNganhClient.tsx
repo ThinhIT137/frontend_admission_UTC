@@ -6,6 +6,7 @@ import ScoreHistoryTable, { type ScoreHistoryItem } from "./ScoreHistoryTable";
 import PublishedText from "@/components/admission/PublishedText";
 import { safeExternalUrl } from "@/components/admission/admission-data";
 import { ArrowLeft, BookOpen, GraduationCap, Calendar, Search, Award, CheckCircle2 } from "lucide-react";
+import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 
 interface CourseFromDbItem {
   ma_ctdt_hoc_phan: string;
@@ -58,9 +59,38 @@ interface Props {
   initialProgramId?: string;
   combinations: CombinationItem[];
   scoreHistory: ScoreHistoryItem[];
+  cmsArticles?: CmsArticleItem[];
+  canEditCms?: boolean;
 }
 
-export default function ChiTietNganhClient({ major, programs, initialProgramId, combinations, scoreHistory }: Props) {
+export default function ChiTietNganhClient({
+  major,
+  programs,
+  initialProgramId,
+  combinations,
+  scoreHistory,
+  cmsArticles = [],
+  canEditCms = false,
+}: Props) {
+  // Tìm bài viết giới thiệu chuyên sâu ngành theo mã ngành
+  const introArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes(`gioi-thieu-${major.ma_nganh}`) ||
+        (a.title.toLowerCase().includes("giới thiệu") && a.title.includes(major.ma_nganh)) ||
+        (a.title.toLowerCase().includes("giới thiệu") && a.title.toLowerCase().includes(major.ten_nganh.toLowerCase()))
+    ) || null;
+
+  // Tìm bài viết lưu ý tuyển sinh & học bổng theo mã ngành
+  const admissionNotesArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes(`luu-y-tuyen-sinh-${major.ma_nganh}`) ||
+        (a.title.toLowerCase().includes("lưu ý") && a.title.includes(major.ma_nganh)) ||
+        (a.title.toLowerCase().includes("học bổng") && a.title.includes(major.ma_nganh)) ||
+        (a.title.toLowerCase().includes("lưu ý") && a.title.toLowerCase().includes(major.ten_nganh.toLowerCase()))
+    ) || null;
+
   const [programId, setProgramId] = useState(() => programs.some(p => p.ma_chuong_trinh === initialProgramId)
     ? initialProgramId!
     : programs[0]?.ma_chuong_trinh ?? "");
@@ -218,6 +248,56 @@ export default function ChiTietNganhClient({ major, programs, initialProgramId, 
           </div>
         )}
       </section>
+
+      {/* 1. GIỚI THIỆU CHUYÊN SÂU & ĐỊNH HƯỚNG NGHỀ NGHIỆP - TÍCH HỢP TIPTAP CMS */}
+      <CmsEditableSection
+        sectionId={`gioi-thieu-${major.ma_nganh}`}
+        title={`Giới thiệu & Định hướng nghề nghiệp ngành ${major.ten_nganh} (${major.ma_nganh})`}
+        badgeText="Thông tin đào tạo & Nghề nghiệp"
+        icon={<GraduationCap size={20} className="text-[#14244e]" />}
+        category="TIN TỨC"
+        variant="blue"
+        initialArticle={introArticle}
+        defaultContentHtml={`
+          <p>Ngành <strong>${major.ten_nganh}</strong> (Mã ngành: <strong>${major.ma_nganh}</strong>) thuộc ${major.khoi_nganh?.ten_khoi_nganh || "khối ngành đào tạo trọng điểm"} của Trường Đại học Giao thông Vận tải. Chương trình đào tạo được xây dựng theo định hướng ứng dụng thực tiễn, gắn liền với nhu cầu nguồn nhân lực chất lượng cao của cuộc Cách mạng Công nghiệp 4.0 và chuyển đổi số.</p>
+          <div class="cms-grid-2">
+            <div class="cms-tile">
+              <h3>1. Mục tiêu đào tạo & Năng lực cốt lõi</h3>
+              <ul>
+                <li>Trang bị hệ thống kiến thức nền tảng vững chắc và chuyên sâu trong lĩnh vực ${major.ten_nganh}.</li>
+                <li>Phát triển kỹ năng thực hành, tư duy giải quyết vấn đề kỹ thuật và nghiên cứu công nghệ hiện đại.</li>
+                <li>Nâng cao năng lực ngoại ngữ chuyên ngành, làm việc nhóm và thích ứng nhanh trong môi trường quốc tế.</li>
+              </ul>
+            </div>
+            <div class="cms-tile">
+              <h3>2. Vị trí việc làm sau tốt nghiệp</h3>
+              <ul>
+                <li>Chuyên viên kỹ thuật, kỹ sư phân tích, thiết kế và triển khai tại các doanh nghiệp, tập đoàn đa quốc gia.</li>
+                <li>Cán bộ nghiên cứu, quản lý dự án tại các viện nghiên cứu, trường đại học hoặc cơ quan nhà nước.</li>
+                <li>Khởi nghiệp công nghệ hoặc đảm nhận các vai trò cố vấn chuyên môn, tư vấn giải pháp kỹ thuật.</li>
+              </ul>
+            </div>
+            <div class="cms-tile">
+              <h3>3. Cơ hội thực tập & Hợp tác doanh nghiệp</h3>
+              <ul>
+                <li>Mạng lưới liên kết với hơn 200 tập đoàn, tổng công ty hàng đầu trong và ngoài nước.</li>
+                <li>Sinh viên được tham gia các kỳ thực tập nghề nghiệp, ngày hội việc làm (Job Fair) ngay từ năm thứ 3.</li>
+                <li>Cơ hội nhận học bổng tài trợ và tuyển dụng trực tiếp trước khi nhận bằng tốt nghiệp.</li>
+              </ul>
+            </div>
+            <div class="cms-tile">
+              <h3>4. Khả năng phát triển sau đại học</h3>
+              <ul>
+                <li>Đủ điều kiện xét tuyển học chuyển tiếp bậc Thạc sĩ, Tiến sĩ tại UTC hoặc các trường đối tác quốc tế.</li>
+                <li>Chuyển tiếp tín chỉ và nhận các học bổng sau đại học uy tín tại Pháp, Nhật Bản, Hàn Quốc, Đài Loan...</li>
+              </ul>
+            </div>
+          </div>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl="https://tuyensinh.utc.edu.vn"
+        sourceLabel="Website Tuyển sinh UTC chính thức"
+      />
 
       {/* Curriculum Course Matrix (Học phần) */}
       <section className={cardClass} aria-labelledby="courses-heading">
@@ -400,6 +480,37 @@ export default function ChiTietNganhClient({ major, programs, initialProgramId, 
           <p className="text-xs text-slate-500">Chưa có thông tin tổ hợp được cập nhật.</p>
         )}
       </section>
+
+      {/* 2. LƯU Ý TUYỂN SINH & HỌC BỔNG NGÀNH HỌC - TÍCH HỢP TIPTAP CMS */}
+      <CmsEditableSection
+        sectionId={`luu-y-tuyen-sinh-${major.ma_nganh}`}
+        title={`Lưu ý tuyển sinh & Cơ hội học bổng ngành ${major.ten_nganh}`}
+        badgeText="Quy chế & Học bổng"
+        icon={<Award size={20} className="text-amber-700" />}
+        category="QUY CHẾ"
+        variant="amber"
+        initialArticle={admissionNotesArticle}
+        defaultContentHtml={`
+          <div class="cms-grid-3">
+            <div class="cms-tile">
+              <h3>1. Tiêu chí phụ xét tuyển</h3>
+              <p>Trong trường hợp các thí sinh có cùng mức điểm trúng tuyển ở cuối danh sách, hội đồng tuyển sinh xét ưu tiên thứ tự nguyện vọng và điểm môn học chính của tổ hợp môn đã đăng ký.</p>
+            </div>
+            <div class="cms-tile">
+              <h3>2. Điểm cộng chứng chỉ ngoại ngữ</h3>
+              <p>Thí sinh sở hữu chứng chỉ IELTS từ 5.0 trở lên (hoặc tương đương) được cộng điểm ưu tiên theo thang điểm quy đổi của UTC khi xét tuyển theo phương thức phù hợp.</p>
+            </div>
+            <div class="cms-tile">
+              <h3>3. Học bổng & Hỗ trợ sinh viên</h3>
+              <p>Nhà trường dành 8% quỹ học phí trao học bổng khuyến khích học tập; học bổng doanh nghiệp tài trợ riêng dành cho thủ khoa đầu vào và sinh viên có thành tích xuất sắc của ngành.</p>
+            </div>
+          </div>
+          <p class="cms-tile-source"><em>Thí sinh cần đối chiếu kỹ Đề án tuyển sinh chính thức và ngưỡng đảm bảo chất lượng đầu vào (điểm sàn) trước khi đăng ký nguyện vọng.</em></p>
+        `.trim()}
+        canEdit={canEditCms}
+        sourceUrl="https://tuyensinh.utc.edu.vn"
+        sourceLabel="Thông báo Tuyển sinh UTC 2026"
+      />
 
       {/* Historical Score Table */}
       <ScoreHistoryTable scoreHistory={scoreHistory} />

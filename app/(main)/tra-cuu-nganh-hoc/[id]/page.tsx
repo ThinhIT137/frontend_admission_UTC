@@ -1,8 +1,10 @@
 import { prismaPublic } from "@/libs/prisma";
+import { adminService } from "@/services/user.service";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 import ChiTietNganhClient from "./ChiTietNganhClient";
+import type { CmsArticleItem } from "@/components/cms";
 
 export const revalidate = 60; // 1 minute ISR
 
@@ -48,6 +50,38 @@ export default async function MajorDetailPage({ params }: PageProps) {
   let allRelatedPrograms: any[] = [];
   let combinations: { ma_to_hop: string; ten_mon_1?: string; ten_mon_2?: string; ten_mon_3?: string }[] = [];
   let scoreHistory: any[] = [];
+  let cmsArticles: CmsArticleItem[] = [];
+
+  // Kiểm tra quyền quản trị CMS (super_admin hoặc chuyen_vien)
+  const currentUser = await adminService.getCurrentUser().catch(() => null);
+  const canEditCms =
+    !!currentUser &&
+    ["super_admin", "chuyen_vien"].includes(currentUser.vai_tro?.ten_vai_tro);
+
+  try {
+    // Tải các bài viết CMS để hiển thị giới thiệu và lưu ý tuyển sinh động theo ngành
+    const dbArticles = await prismaPublic.trangNoiDung.findMany({
+      where: { ngay_dang: { not: null } },
+      select: {
+        ma_bai_viet: true,
+        tieu_de: true,
+        noi_dung_html: true,
+        chuyen_muc: true,
+      },
+      orderBy: { ngay_dang: "desc" },
+    });
+
+    cmsArticles = dbArticles.map((a) => ({
+      id: a.ma_bai_viet,
+      title: a.tieu_de,
+      content: a.noi_dung_html,
+      category: (["ĐỀ ÁN", "QUY CHẾ", "TIN TỨC", "HƯỚNG DẪN"].includes(a.chuyen_muc)
+        ? a.chuyen_muc
+        : "QUY CHẾ") as any,
+    }));
+  } catch (err) {
+    console.error("Lỗi nạp bài viết CMS cho chi tiết ngành học:", err);
+  }
 
   try {
     // 1. Tìm thông tin ngành (hỗ trợ cả mã ngành và mã chương trình)
@@ -274,6 +308,8 @@ export default async function MajorDetailPage({ params }: PageProps) {
           : allRelatedPrograms[0]?.ma_chuong_trinh}
         combinations={combinations}
         scoreHistory={scoreHistory}
+        cmsArticles={cmsArticles}
+        canEditCms={canEditCms}
       />
     </div>
   );
