@@ -187,7 +187,7 @@ export function CmsEditableSection({
           </a>
           {currentArticle && (
             <span className="text-slate-400 italic text-[11px]">
-              Đã được tùy biến qua CMS
+              CMS
             </span>
           )}
         </div>
