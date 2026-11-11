@@ -113,23 +113,29 @@ export function CmsEditableSection({
     }
   };
 
-  // Cấu hình màu sắc theo variant UTC
+  // Cấu hình màu sắc theo chuẩn Minimalist & Editorial UI
   const variantStyles = {
-    amber: "rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6 shadow-xs",
-    blue: "rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6 shadow-xs",
-    slate: "rounded-2xl border border-slate-300 bg-slate-50 p-5 sm:p-6 shadow-xs",
+    amber: "rounded-2xl border border-amber-200/60 bg-white p-5 sm:p-6 shadow-xs hover:border-amber-300/80 transition-all",
+    blue: "rounded-2xl border border-blue-200/60 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300/80 transition-all",
+    slate: "rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all",
+  };
+
+  const iconBadgeStyles = {
+    amber: "w-8 h-8 rounded-lg bg-amber-50/90 border border-amber-200/70 text-amber-600 flex items-center justify-center shrink-0",
+    blue: "w-8 h-8 rounded-lg bg-blue-50/90 border border-blue-200/70 text-[#14244e] flex items-center justify-center shrink-0",
+    slate: "w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0",
   };
 
   const titleStyles = {
-    amber: "text-amber-950 font-bold",
+    amber: "text-[#14244e] font-bold",
     blue: "text-[#14244e] font-bold",
     slate: "text-slate-900 font-bold",
   };
 
   const footerBorderStyles = {
-    amber: "border-amber-200/60",
-    blue: "border-blue-200/60",
-    slate: "border-slate-300/60",
+    amber: "border-slate-100",
+    blue: "border-slate-100",
+    slate: "border-slate-100",
   };
 
   return (
@@ -137,8 +143,8 @@ export function CmsEditableSection({
       {/* Header của Section */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h2 className={`flex items-center gap-2 text-lg ${titleStyles[variant]}`}>
-            {icon}
+          <h2 className={`flex items-center gap-2.5 text-lg ${titleStyles[variant]}`}>
+            {icon && <span className={iconBadgeStyles[variant]}>{icon}</span>}
             {title}
           </h2>
           {badgeText && (

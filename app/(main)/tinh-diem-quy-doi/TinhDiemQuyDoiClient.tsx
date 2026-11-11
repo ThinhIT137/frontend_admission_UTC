@@ -537,9 +537,9 @@ export default function TinhDiemQuyDoiClient({
 
                 {/* Đánh giá điều kiện sàn */}
                 {calculationResult.preliminaryNotes.length > 0 && (
-                  <div className="p-3 bg-[#fffbeb] border-[1.5px] border-[#f59e0b] rounded-xl text-[12px] text-[#92400e] space-y-1">
-                    <span className="font-bold block flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px]">warning</span>
+                  <div className="p-3 bg-[#fffdf5] border border-[#fde68a] border-l-[3.5px] border-l-[#d97706] rounded-xl text-[12px] text-[#78350f] space-y-1">
+                    <span className="font-bold block flex items-center gap-1 text-[#451a03]">
+                      <span className="material-symbols-outlined text-[16px] text-[#d97706]">warning</span>
                       Lưu ý điều kiện sơ bộ UTC:
                     </span>
                     <ul className="list-disc pl-4 space-y-0.5 text-[11.5px]">

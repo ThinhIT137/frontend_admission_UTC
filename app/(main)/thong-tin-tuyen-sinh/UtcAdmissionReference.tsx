@@ -55,8 +55,8 @@ export default function UtcAdmissionReference({
         category="QUY CHẾ"
         initialArticle={quyDoiArticle}
         defaultContentHtml={`
-          <div class="cms-tile" style="background-color: #fffbeb; border-color: #fde68a; margin-bottom: 1rem;">
-            <p><strong>IELTS năm 2026 là điểm cộng, không thay điểm tiếng Anh THPT.</strong> Không áp dụng bảng TOEFL/TOEIC/SAT của NEU. Bảng điểm cộng IELTS UTC nằm trong phần điều kiện xét tuyển phía trên.</p>
+          <div class="cms-callout-amber" style="background-color: #fffdf5; border: 1px solid #fef08a; border-left: 3.5px solid #d97706; border-radius: 0.75rem; padding: 0.875rem 1.125rem; margin-bottom: 1rem; color: #78350f;">
+            <p style="margin: 0; line-height: 1.6; color: #78350f;"><strong style="color: #451a03;">IELTS năm 2026 là điểm cộng, không thay điểm tiếng Anh THPT.</strong> Không áp dụng bảng TOEFL/TOEIC/SAT của NEU. Bảng điểm cộng IELTS UTC nằm trong phần điều kiện xét tuyển phía trên.</p>
           </div>
 
           <h3>Điểm cộng IELTS · Thang điểm 30</h3>

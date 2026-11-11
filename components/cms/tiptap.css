@@ -177,13 +177,94 @@
 /* Blockquote */
 .prose-utc blockquote,
 .tiptap blockquote {
-  border-left: 4px solid #f59e0b;
-  background-color: #fffbeb;
+  border-left: 3.5px solid #d97706;
+  background-color: #fffdf5;
+  border-top: 1px solid #fef08a;
+  border-right: 1px solid #fef08a;
+  border-bottom: 1px solid #fef08a;
   padding: 0.75rem 1rem;
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0.5rem;
   color: #78350f;
   margin: 1rem 0;
   font-style: normal;
+}
+
+/* Callout Box Variants (Minimalist & Editorial UI) */
+.prose-utc .cms-callout-amber,
+.tiptap .cms-callout-amber {
+  background-color: #fffdf5;
+  border: 1px solid #fef08a;
+  border-left: 3.5px solid #d97706;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  margin: 0.75rem 0 1rem 0;
+  color: #78350f;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+}
+
+.prose-utc .cms-callout-amber p,
+.tiptap .cms-callout-amber p {
+  margin: 0;
+  line-height: 1.6;
+  color: #78350f;
+}
+
+.prose-utc .cms-callout-amber strong,
+.tiptap .cms-callout-amber strong {
+  color: #451a03;
+}
+
+.prose-utc .cms-callout-blue,
+.tiptap .cms-callout-blue {
+  background-color: #f8fafc;
+  border: 1px solid #bfdbfe;
+  border-left: 3.5px solid #14244e;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  margin: 0.75rem 0 1rem 0;
+  color: #1e3a8a;
+}
+
+.prose-utc .cms-callout-slate,
+.tiptap .cms-callout-slate {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3.5px solid #475569;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  margin: 0.75rem 0 1rem 0;
+  color: #334155;
+}
+
+/* Bullet list */
+.prose-utc ul.cms-bullet-list,
+.tiptap ul.cms-bullet-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prose-utc ul.cms-bullet-list li,
+.tiptap ul.cms-bullet-list li {
+  position: relative;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.prose-utc ul.cms-bullet-list li::before,
+.tiptap ul.cms-bullet-list li::before {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #f59e0b;
 }
 
 /* Links */
@@ -380,10 +461,16 @@
 
 .prose-utc .cms-tile {
   background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prose-utc .cms-tile:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
 .prose-utc .cms-tile h3 {
