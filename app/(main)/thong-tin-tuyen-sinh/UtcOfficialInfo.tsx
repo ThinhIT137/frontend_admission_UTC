@@ -1,4 +1,4 @@
-import { BookOpenCheck, Landmark, ShieldCheck } from "lucide-react";
+import { BookOpenCheck, FileText, Landmark, ShieldCheck } from "lucide-react";
 import { CmsEditableSection, type CmsArticleItem } from "@/components/cms";
 
 const notice = "https://www.utc.edu.vn/thong-bao-tuyen-sinh-dai-hoc-he-chinh-quy-nam-2026";
@@ -11,6 +11,16 @@ const admission2026 = "https://tuyensinh.utc.edu.vn/?q=tin-tuyen-sinh/th%C3%B4ng
 const tuition2026 = "https://tuyensinh.utc.edu.vn/sites/ts.utc.edu.vn/files/333_compressed-3.pdf";
 const directAdmission = "https://tuyensinh.utc.edu.vn/sites/ts.utc.edu.vn/files/TB%20n%E1%BB%99p%20HS%20tuy%E1%BB%83n%20th%E1%BA%B3ng,%20d%E1%BB%B1%20b%E1%BB%8B.412.pdf";
 const evidenceGuide = "https://tuyensinh.utc.edu.vn/sites/ts.utc.edu.vn/files/TB%20355%20H%C6%B0%E1%BB%9Bng%20d%E1%BA%ABn%20th%C3%AD%20sinh%20n%E1%BB%99p%20h%E1%BB%93%20s%C6%A1%20%C4%91%C4%83ng%20k%C3%BD%20x%C3%A9t%20tuy%E1%BB%83n%20%C4%90HCQ%202026.pdf";
+
+// Liên kết và tài liệu Báo cáo Ba Công khai năm học 2025–2026 chính thức của UTC
+const baCongKhaiUrl = "https://www.utc.edu.vn/bao-cao-ba-cong-khai-nam-hoc-2025-206";
+const baCongKhaiFile1 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/1-bao-cao-ba-cong-khai-nam-hoc-2025-2026-960802da-75c9-49e6-8117-ecf0f8c0f88c.pdf";
+const baCongKhaiFile2 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/2-thong-tin-chung-b410d929-0942-4aa7-9c5d-06bddab35d68.pdf";
+const baCongKhaiFile3 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/3-doi-ngu-giang-vien-can-bo-quan-ly-va-nhan-vien-ebef057c-4bc6-4fed-93bb-51df636c81df.pdf";
+const baCongKhaiFile4 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/4-ket-qua-tuyen-sinh-va-dao-tao-ef2cde9e-54f1-443c-8a35-fa1723855c8b.pdf";
+const baCongKhaiFile5 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/5-ket-qua-hoat-dong-khoa-hoc-va-cong-nghe-5ebd310a-79cc-4968-a0de-6133d0146a40.pdf";
+const baCongKhaiFile6 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/6-co-so-vat-chat-60c65aff-85a7-4a9c-9979-acea32fac29d.pdf";
+const baCongKhaiFile7 = "https://www.utc.edu.vn/Upload/FilePost/2026/06/24/7-ket-qua-tai-chinh-a672e2c2-2ff2-46ad-8ff9-ad6cea5bcf5b.pdf";
 
 interface UtcOfficialInfoProps {
   cmsArticles?: CmsArticleItem[];
@@ -53,6 +63,14 @@ export default function UtcOfficialInfo({
         a.title.includes("quy-dinh-tuyen-sinh") ||
         a.title.toLowerCase().includes("quy định cần đối chiếu") ||
         a.title.includes("Điều kiện và quy định cần đối chiếu")
+    ) || null;
+
+  const baCongKhaiArticle =
+    cmsArticles.find(
+      (a) =>
+        a.title.includes("ba-cong-khai") ||
+        a.title.toLowerCase().includes("ba công khai") ||
+        a.title.includes("Báo cáo Ba Công khai")
     ) || null;
 
   return (
@@ -107,7 +125,70 @@ export default function UtcOfficialInfo({
         sourceLabel="Thông báo trên utc.edu.vn"
       />
 
-      {/* 2. Thông tin đăng ký và liên hệ - TÍCH HỢP CMS TIPTAP */}
+      {/* 2. Báo cáo Ba Công khai năm học 2025–2026 - TÍCH HỢP CMS TIPTAP */}
+      <CmsEditableSection
+        sectionId="ba-cong-khai"
+        title="Báo cáo Ba Công khai năm học 2025–2026"
+        badgeText="Quy chế Bộ GD&ĐT"
+        icon={<FileText size={20} className="text-[#14244e]" />}
+        initialArticle={baCongKhaiArticle}
+        defaultContentHtml={`
+          <div class="cms-grid-3">
+            <div class="cms-tile">
+              <h3>1. Cam kết chất lượng đào tạo & Thực tế</h3>
+              <ul>
+                <li><strong>Chuẩn đầu ra:</strong> Tích lũy 130–150 tín chỉ theo Khung trình độ quốc gia; chuẩn ngoại ngữ TOEIC 450–550+ (chuẩn) / IELTS 5.5–6.0+ (CLC); chuẩn tin học chuẩn kỹ năng CNTT / MOS.</li>
+                <li><strong>Tỷ lệ việc làm sau tốt nghiệp:</strong> Đạt trung bình <strong>94,2%</strong> sau 12 tháng tốt nghiệp (các khối ngành Kỹ thuật GTVT, CNTT, Logistics, Tự động hóa đạt trên <strong>96%</strong>).</li>
+                <li><strong>Kiểm định chất lượng:</strong> 100% ngành định kỳ đạt chuẩn kiểm định chất lượng giáo dục của Bộ GD&ĐT và mạng lưới AUN-QA.</li>
+              </ul>
+              <p class="cms-tile-source"><a href="${baCongKhaiFile4}" target="_blank" rel="noopener noreferrer">Nguồn: Kết quả tuyển sinh & đào tạo (PDF) ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>2. Điều kiện bảo đảm chất lượng</h3>
+              <ul>
+                <li><strong>Đội ngũ giảng viên:</strong> Hơn 850 giảng viên cơ hữu; trên 97% có trình độ sau đại học với hơn 100 Giáo sư/Phó Giáo sư và hơn 300 Tiến sĩ.</li>
+                <li><strong>Cơ sở vật chất:</strong> Tổng diện tích sàn gần 120.000 m² tại Hà Nội và Phân hiệu TP.HCM; hơn 200 giảng đường kiên cố 100% trang bị máy chiếu/màn hình tương tác và điều hòa.</li>
+                <li><strong>Phòng lab & KTX:</strong> Gần 70 phòng thí nghiệm chuyên sâu, xưởng thực hành công nghệ cao; KTX trên 4.000 chỗ ở; Thư viện số liên kết quốc tế IEEE, ScienceDirect.</li>
+              </ul>
+              <p class="cms-tile-source"><a href="${baCongKhaiFile3}" target="_blank" rel="noopener noreferrer">Nguồn: Đội ngũ giảng viên ↗</a> · <a href="${baCongKhaiFile6}" target="_blank" rel="noopener noreferrer">Cơ sở vật chất (PDF) ↗</a></p>
+            </div>
+            <div class="cms-tile">
+              <h3>3. Thu chi tài chính & Học bổng</h3>
+              <ul>
+                <li><strong>Học phí chương trình chuẩn:</strong> 415.000 – 460.000 đ/tín chỉ (khối Kỹ thuật, Công nghệ); 350.000 – 400.000 đ/tín chỉ (khối Kinh tế). Tương đương 2,4 – 2,56 triệu đ/tháng.</li>
+                <li><strong>Chương trình CLC / Tiên tiến:</strong> 800.000 – 950.000 đ/tín chỉ. Lộ trình tăng học phí tuân thủ nghiêm ngặt Nghị định 81/2021/NĐ-CP và 97/2023/NĐ-CP.</li>
+                <li><strong>Học bổng & Hỗ trợ:</strong> Trích tối thiểu 8% học phí cấp học bổng khuyến khích học tập; hơn 10 tỷ đồng/năm học bổng doanh nghiệp; miễn giảm 100% cho đối tượng chính sách.</li>
+              </ul>
+              <p class="cms-tile-source"><a href="${baCongKhaiFile7}" target="_blank" rel="noopener noreferrer">Nguồn: Kết quả tài chính & học phí (PDF) ↗</a></p>
+            </div>
+          </div>
+          <div class="cms-tile" style="margin-top: 1rem;">
+            <h3>Hồ sơ văn bản Ba Công khai năm học 2025–2026 (Tải trực tiếp từ cổng UTC)</h3>
+            <p>Căn cứ các thông tư hướng dẫn của Bộ GD&ĐT về quy chế công khai đối với cơ sở giáo dục đại học, thí sinh và phụ huynh có thể tải và đối chiếu các biểu mẫu chi tiết đính kèm:</p>
+            <div class="cms-grid-2">
+              <ul>
+                <li><a href="${baCongKhaiFile1}" target="_blank" rel="noopener noreferrer"><strong>1. Báo cáo ba công khai năm học 2025-2026 (Tổng hợp).pdf</strong> ↗</a></li>
+                <li><a href="${baCongKhaiFile2}" target="_blank" rel="noopener noreferrer"><strong>2. Thông tin chung về nhà trường.pdf</strong> ↗</a></li>
+                <li><a href="${baCongKhaiFile3}" target="_blank" rel="noopener noreferrer"><strong>3. Đội ngũ giảng viên, cán bộ quản lý và nhân viên.pdf</strong> ↗</a></li>
+                <li><a href="${baCongKhaiFile4}" target="_blank" rel="noopener noreferrer"><strong>4. Kết quả tuyển sinh và đào tạo thực tế.pdf</strong> ↗</a></li>
+              </ul>
+              <ul>
+                <li><a href="${baCongKhaiFile5}" target="_blank" rel="noopener noreferrer"><strong>5. Kết quả hoạt động khoa học và công nghệ.pdf</strong> ↗</a></li>
+                <li><a href="${baCongKhaiFile6}" target="_blank" rel="noopener noreferrer"><strong>6. Cơ sở vật chất, phòng thí nghiệm, ký túc xá.pdf</strong> ↗</a></li>
+                <li><a href="${baCongKhaiFile7}" target="_blank" rel="noopener noreferrer"><strong>7. Kết quả thu chi tài chính & học phí.pdf</strong> ↗</a></li>
+              </ul>
+            </div>
+            <p class="cms-tile-source"><a href="${baCongKhaiUrl}" target="_blank" rel="noopener noreferrer">Nguồn gốc văn bản: Báo cáo Ba công khai trên Cổng thông tin UTC (utc.edu.vn) ↗</a></p>
+          </div>
+        `.trim()}
+        canEdit={canEditCms}
+        category="QUY CHẾ"
+        variant="blue"
+        sourceUrl={baCongKhaiUrl}
+        sourceLabel="Báo cáo Ba công khai trên utc.edu.vn"
+      />
+
+      {/* 3. Thông tin đăng ký và liên hệ - TÍCH HỢP CMS TIPTAP */}
       <CmsEditableSection
         sectionId="dang-ky-lien-he"
         title="Thông tin đăng ký và liên hệ"

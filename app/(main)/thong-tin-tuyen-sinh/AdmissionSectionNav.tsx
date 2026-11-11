@@ -5,6 +5,7 @@ import { List } from "lucide-react";
 
 const sections = [
   ["lo-trinh", "Mốc thời gian"], ["nguon-chinh-thuc", "Giới thiệu UTC"],
+  ["ba-cong-khai", "Ba công khai"],
   ["dang-ky-lien-he", "Đăng ký & liên hệ"], ["luu-y-2026", "Lưu ý 2026"],
   ["quy-dinh-tuyen-sinh", "Điều kiện xét tuyển"], ["chi-tieu-diem-chuan", "Chỉ tiêu & điểm chuẩn"],
   ["quy-doi-utc", "Quy đổi điểm"], ["kenh-tuyen-sinh", "Kênh chính thức"],
