@@ -16,6 +16,7 @@ import {
   lockScoreYearAction,
 } from "@/actions/chi_tieu.action";
 import { useLoading } from "@/contexts/loadingContext";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 interface ChiTieuClientProps {
   initialData: any[];
@@ -26,6 +27,8 @@ interface ChiTieuClientProps {
 }
 
 export default function ChiTieuClient({ initialData, programs, methods, currentYear, yearLocked = false }: ChiTieuClientProps) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("QUOTA_MANAGE");
   const [lockModal, setLockModal] = useState(false);
   const [lockConfirmation, setLockConfirmation] = useState("");
   const [lockError, setLockError] = useState("");
@@ -250,10 +253,12 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
           <YearPicker value={Number(yearFilter)} onChange={handleYearChange}
             years={[...new Set([currentYear, ...Array.from({ length: new Date().getFullYear() - 2000 + 2 }, (_, index) => new Date().getFullYear() + 1 - index)])].sort((a, b) => b - a)} />
 
-          {!yearLocked && <button onClick={() => { setLockConfirmation(""); setLockError(""); setLockModal(true); }} className="rounded-xl border border-blue-900 px-4 py-2.5 font-bold text-blue-900">Khóa điểm năm {currentYear}</button>}
-          <button disabled={yearLocked} onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a] disabled:opacity-50">
-            <AdminIcon name="add_circle" className="text-[18px]" /> Thiết Lập Chỉ Tiêu
-          </button>
+          {!yearLocked && canEdit && <button onClick={() => { setLockConfirmation(""); setLockError(""); setLockModal(true); }} className="rounded-xl border border-blue-900 px-4 py-2.5 font-bold text-blue-900">Khóa điểm năm {currentYear}</button>}
+          {canEdit && (
+            <button disabled={yearLocked} onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a] disabled:opacity-50">
+              <AdminIcon name="add_circle" className="text-[18px]" /> Thiết Lập Chỉ Tiêu
+            </button>
+          )}
         </div>
       </div>
 
@@ -276,7 +281,7 @@ export default function ChiTieuClient({ initialData, programs, methods, currentY
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] overflow-hidden">
-        <DataTable columns={columns} data={filteredData} onEdit={openEdit} onDelete={yearLocked ? undefined : (row) => setDeletingRow(row)} />
+        <DataTable columns={columns} data={filteredData} onEdit={canEdit ? openEdit : undefined} onDelete={yearLocked || !canEdit ? undefined : (row) => setDeletingRow(row)} />
       </div>
 
       {/* CREATE MODAL */}

@@ -9,6 +9,7 @@ import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { saveKnowledge, deleteKnowledge } from "@/actions/content.action";
 import { toast } from "@/libs/admin-toast";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 export interface TriThucAiItem {
   ma_tri_thuc: string;
@@ -23,6 +24,8 @@ export interface TriThucAiItem {
 }
 
 export default function ChatbotKbClient({ initialData }: { initialData: TriThucAiItem[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("AI_CHAT_MANAGE");
   const [data, setData] = useState<TriThucAiItem[]>(initialData);
   const [search, setSearch] = useState("");
   const [selectedTopic, setSelectedTopic] = useState<string>("ALL");
@@ -209,13 +212,15 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
             {isSimulatorOpen ? "Đóng Giả Lập Prompt" : "Thử Nghiệm Prompt AI"}
           </button>
 
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-4 py-2.5 rounded-xl font-black text-[13px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
-          >
-            <AdminIcon name="add_circle" className="text-[18px]" />
-            Thêm Tri Thức
-          </button>
+          {canEdit && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-4 py-2.5 rounded-xl font-black text-[13px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+            >
+              <AdminIcon name="add_circle" className="text-[18px]" />
+              Thêm Tri Thức
+            </button>
+          )}
         </div>
       </div>
 
@@ -353,8 +358,8 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
           actionClassName="w-[104px]"
           columns={columns}
           data={filteredData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
         />
       </div>
       <div className="space-y-3 lg:hidden">
@@ -364,8 +369,12 @@ export default function ChatbotKbClient({ initialData }: { initialData: TriThucA
             <span className="rounded-lg bg-emerald-50 p-2 text-emerald-900">{row.trang_thai === "active" ? "ĐÃ HUẤN LUYỆN" : "ĐANG CẬP NHẬT"}</span></div>
           <button type="button" onClick={() => setViewingRow(row)} className="block w-full text-left font-bold text-blue-950"><span className="line-clamp-3 [overflow-wrap:anywhere]">{row.cau_hoi_mau || "Nội dung kiến thức chung"}</span></button>
           <p className="line-clamp-3 text-sm text-slate-600 [overflow-wrap:anywhere]">{row.noi_dung}</p>
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" disabled={saving} onClick={() => openEdit(row)} className="min-h-11 rounded-lg border border-blue-200 px-4 font-semibold text-blue-950">Sửa</button>
-            <button type="button" disabled={saving} onClick={() => setDeletingRow(row)} className="min-h-11 rounded-lg border border-red-200 px-4 font-semibold text-red-700">Xóa</button></div>
+          {canEdit && (
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <button type="button" disabled={saving} onClick={() => openEdit(row)} className="min-h-11 rounded-lg border border-blue-200 px-4 font-semibold text-blue-950">Sửa</button>
+              <button type="button" disabled={saving} onClick={() => setDeletingRow(row)} className="min-h-11 rounded-lg border border-red-200 px-4 font-semibold text-red-700">Xóa</button>
+            </div>
+          )}
         </article>)}
       </div>
 

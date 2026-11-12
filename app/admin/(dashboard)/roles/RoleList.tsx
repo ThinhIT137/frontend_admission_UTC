@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { deleteRoleAction } from "@/actions/role.action";
 import { toast } from "@/libs/admin-toast";
 import { RoleModal, PERMISSION_GROUPS } from "./RoleModal";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 interface Role {
   ma_vai_tro: string;
@@ -22,6 +23,8 @@ interface RoleListProps {
 }
 
 export function RoleList({ initialData, totalPages, currentPage }: RoleListProps) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("ROLE_MANAGE");
   const { pending: taskPending, run: runTask } = useAdminTask();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -105,13 +108,15 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
             Cấu hình ma trận phân quyền truy cập theo từng phân hệ cho các nhóm cán bộ tuyển sinh UTC.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
-        >
-          <AdminIcon name="add_moderator" className="text-[20px]" />
-          Thêm Vai Trò Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+          >
+            <AdminIcon name="add_moderator" className="text-[20px]" />
+            Thêm Vai Trò Mới
+          </button>
+        )}
       </div>
 
       {/* Main Container */}
@@ -214,28 +219,30 @@ export function RoleList({ initialData, totalPages, currentPage }: RoleListProps
                       </td>
 
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenModal(role)}
-                            className="px-3 py-1.5 bg-[#f8fafc] hover:bg-[#192b59] hover:text-white text-[#192b59] border border-[#cbd5e1] rounded-lg text-[12px] font-bold transition-all flex items-center gap-1"
-                            title="Chỉnh sửa & Cấp quyền"
-                          >
-                            <AdminIcon name="tune" className="text-[16px]" />
-                            Phân quyền
-                          </button>
-                          <button
-                            onClick={() => void runTask(() => handleDelete(role))}
-                            disabled={isSys || taskPending}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                              isSys
-                                ? "text-gray-300 cursor-not-allowed"
-                                : "text-[#ba1a1a] hover:bg-red-50 border border-transparent hover:border-red-200"
-                            }`}
-                            title={isSys ? "Không thể xóa vai trò mặc định" : "Xóa vai trò"}
-                          >
-                            <AdminIcon name="delete" className="text-[18px]" />
-                          </button>
-                        </div>
+                        {canEdit && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenModal(role)}
+                              className="px-3 py-1.5 bg-[#f8fafc] hover:bg-[#192b59] hover:text-white text-[#192b59] border border-[#cbd5e1] rounded-lg text-[12px] font-bold transition-all flex items-center gap-1"
+                              title="Chỉnh sửa & Cấp quyền"
+                            >
+                              <AdminIcon name="tune" className="text-[16px]" />
+                              Phân quyền
+                            </button>
+                            <button
+                              onClick={() => void runTask(() => handleDelete(role))}
+                              disabled={isSys || taskPending}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                isSys
+                                  ? "text-gray-300 cursor-not-allowed"
+                                  : "text-[#ba1a1a] hover:bg-red-50 border border-transparent hover:border-red-200"
+                              }`}
+                              title={isSys ? "Không thể xóa vai trò mặc định" : "Xóa vai trò"}
+                            >
+                              <AdminIcon name="delete" className="text-[18px]" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

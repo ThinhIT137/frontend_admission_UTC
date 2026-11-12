@@ -44,11 +44,42 @@ export default function HoSoClient() {
   useEffect(() => { void load(); }, [year, status]);
   async function review(row: Row, approve: boolean) {
     if (!rowsAreCurrent || busy) return;
-    const reason = approve ? undefined : window.prompt("Lý do từ chối hồ sơ:");
-    if (!approve && !reason?.trim()) return;
+    let reason: string | undefined = undefined;
+    if (approve) {
+      const confirmApprove = window.confirm(
+        `Xác nhận duyệt hợp lệ hồ sơ ${row.ma_ho_so} (CCCD: ${row.cccd})?\n\nHệ thống sẽ cập nhật trạng thái hồ sơ và gửi email thông báo kết quả duyệt tới thí sinh.`
+      );
+      if (!confirmApprove) return;
+    } else {
+      const inputReason = window.prompt(
+        `Lý do từ chối hồ sơ ${row.ma_ho_so} (lý do này sẽ được gửi trong email thông báo tới thí sinh):`
+      );
+      if (!inputReason?.trim()) return;
+      reason = inputReason.trim();
+    }
     setBusy(true); setError("");
-    try { await api("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}/${approve ? "duyet" : "tu-choi"}`, approve ? {} : { ly_do: reason }, "PATCH"); setDetail(null); if (await load()) toast.success("Đã cập nhật hồ sơ"); else toast.warning("Đã cập nhật hồ sơ, nhưng chưa tải lại được danh sách."); }
-    catch (e) { setError(e instanceof Error ? e.message : "Không thể xử lý hồ sơ"); } finally { setBusy(false); }
+    try {
+      await api(
+        "score",
+        `/ho-so/${encodeURIComponent(row.ma_ho_so)}/${approve ? "duyet" : "tu-choi"}`,
+        approve ? {} : { ly_do: reason },
+        "PATCH"
+      );
+      setDetail(null);
+      if (await load()) {
+        toast.success(
+          approve
+            ? `Đã duyệt hồ sơ ${row.ma_ho_so}! Email thông báo đã được gửi tới thí sinh.`
+            : `Đã từ chối hồ sơ ${row.ma_ho_so}! Email thông báo kèm lý do đã được gửi tới thí sinh.`
+        );
+      } else {
+        toast.warning("Đã cập nhật hồ sơ, nhưng chưa tải lại được danh sách.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không thể xử lý hồ sơ");
+    } finally {
+      setBusy(false);
+    }
   }
   async function progress(row: Row, action: "start" | "score" | "do" | "truot") {
     if (!rowsAreCurrent || busy) return;
@@ -101,7 +132,11 @@ export default function HoSoClient() {
         </td></tr>)}
       {!busy && !rows.length && <tr><td colSpan={6} className="p-5 text-center">Không có hồ sơ phù hợp.</td></tr>}
     </tbody></table></div>
-    {rowsAreCurrent && detail && <section className="border border-slate-200 rounded-2xl bg-white p-5 space-y-3"><button className="float-right underline" onClick={() => setDetail(null)}>Đóng</button><h2 className="font-bold">{detail.ma_ho_so}</h2><p>Tổng điểm: {detail.tong_diem_xet_tuyen ?? "Chưa tính"}</p><p>{detail.ket_qua}</p>
+    {rowsAreCurrent && detail && <section className="border border-slate-200 rounded-2xl bg-white p-5 space-y-3"><button className="float-right underline" onClick={() => setDetail(null)}>Đóng</button><h2 className="font-bold">{detail.ma_ho_so}</h2>
+      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-900 flex items-center justify-between">
+        <span>📧 <strong>Thông báo email:</strong> Khi duyệt hoặc từ chối, hệ thống tự động gửi thông báo trực tiếp tới hòm thư của thí sinh (CCCD: <strong>{detail.cccd}</strong>).</span>
+      </div>
+      <p>Tổng điểm: {detail.tong_diem_xet_tuyen ?? "Chưa tính"}</p><p>{detail.ket_qua}</p>
       {detail.bang_diem?.map((b, i) => <div key={i}>{b.loai_diem} · {b.nam_hoc} · {b.hoc_ky ? `Học kỳ ${b.hoc_ky}` : "Cả năm"}<ul>{b.chi_tiet.map(d => <li key={d.ma_mon}>{d.ma_mon}: {d.diem_so}</li>)}</ul></div>)}
       <h3 className="font-bold">Chứng chỉ và tài liệu</h3>{detail.chung_chi?.map(d => <div key={d.ma_chung_chi}>{d.loai_chung_chi} · {d.diem_hoac_hang} {d.ngay_cap && <> · Cấp: {d.ngay_cap.slice(0,10)}</>} {d.ngay_het_han && <> · Hết hạn: {d.ngay_het_han.slice(0,10)}</>} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={d.loai_chung_chi} />}</div>)}
       <h3 className="font-bold">Giải thưởng</h3>{detail.giai_thuong?.map(d=><div key={d.ma_giai_thuong}>{d.giai_thuong} · {d.loai_giai_thuong} · {d.mon_hoc} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={`${d.giai_thuong} · ${d.mon_hoc}`} />}</div>)}

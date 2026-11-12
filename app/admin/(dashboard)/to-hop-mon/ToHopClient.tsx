@@ -12,8 +12,11 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { createToHopAction, updateToHopAction, deleteToHopAction, getProgramsByToHopAction, addProgramToToHopAction, removeProgramFromToHopAction } from "@/actions/to_hop_xet_tuyen.action";
 import { toast } from "@/libs/admin-toast";
 import { combinationKey } from "@/libs/admission-catalog";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 export default function ToHopClient({ initialData, subjects, allPrograms }: { initialData: any[]; subjects: any[]; allPrograms: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("COMBINATION_MANAGE");
   const { pending: programPending, run: runProgram } = useAdminTask();
   const programsRequest = useRef(0);
   const [search, setSearch] = useState("");
@@ -261,9 +264,11 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
           <h1 className="text-[24px] font-bold text-[#192b59]">Quản Lý Tổ Hợp Xét Tuyển</h1>
           <p className="text-[13px] text-[#475569] mt-1">Quản lý các tổ hợp môn xét tuyển THPT Quốc gia (A00, A01, D01...).</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
-          <AdminIcon name="add_circle" className="text-[18px]" /> Thêm Tổ Hợp
-        </button>
+        {canEdit && (
+          <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
+            <AdminIcon name="add_circle" className="text-[18px]" /> Thêm Tổ Hợp
+          </button>
+        )}
       </div>
 
       <div className="flex items-center justify-between mb-4">
@@ -287,8 +292,8 @@ export default function ToHopClient({ initialData, subjects, allPrograms }: { in
           columns={columns}
           data={paginatedData}
           keyExtractor={(row) => row.ma_to_hop}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
           onClickRow={openProgramsModal}
         />
 

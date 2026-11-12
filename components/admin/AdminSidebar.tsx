@@ -3,11 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 interface AdminNavItem {
   label: string;
   href?: string;
   icon: string;
+  perm?: string;
   subItems?: AdminNavItem[];
 }
 
@@ -31,24 +34,25 @@ const adminNavGroups: AdminNavGroup[] = [
         label: "Đào Tạo & Tuyển Sinh",
         icon: "school",
         subItems: [
-          { label: "Khoa / Viện", href: "/admin/quan-ly-khoi-nganh", icon: "account_balance" },
-          { label: "Ngành Học", href: "/admin/quan-ly-nganh-hoc", icon: "menu_book" },
-          { label: "Chương Trình Đào Tạo", href: "/admin/quan-ly-ctdt", icon: "local_library" },
+          { label: "Khoa / Viện", href: "/admin/quan-ly-khoi-nganh", icon: "account_balance", perm: "FACULTY_MANAGE" },
+          { label: "Ngành Học", href: "/admin/quan-ly-nganh-hoc", icon: "menu_book", perm: "MAJOR_MANAGE" },
+          { label: "Chương Trình Đào Tạo", href: "/admin/quan-ly-ctdt", icon: "local_library", perm: "MAJOR_MANAGE" },
         ]
       },
       {
         label: "Tổ Hợp & Môn Xét Tuyển",
         icon: "category",
         subItems: [
-          { label: "Tổ Hợp Xét Tuyển", href: "/admin/to-hop-mon", icon: "dashboard_customize" },
-          { label: "Môn Xét Tuyển", href: "/admin/mon-xet-tuyen", icon: "book" },
-          { label: "Phương Thức Xét Tuyển", href: "/admin/phuong-thuc-xet-tuyen", icon: "how_to_reg" },
+          { label: "Tổ Hợp Xét Tuyển", href: "/admin/to-hop-mon", icon: "dashboard_customize", perm: "COMBINATION_MANAGE" },
+          { label: "Môn Xét Tuyển", href: "/admin/mon-xet-tuyen", icon: "book", perm: "COMBINATION_MANAGE" },
+          { label: "Phương Thức Xét Tuyển", href: "/admin/phuong-thuc-xet-tuyen", icon: "how_to_reg", perm: "METHOD_MANAGE" },
         ]
       },
       {
         label: "Chỉ Tiêu & Điểm Chuẩn",
         href: "/admin/chi-tieu-diem-chuan",
         icon: "fact_check",
+        perm: "QUOTA_MANAGE",
       },
     ],
   },
@@ -62,14 +66,14 @@ const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: "Nội Dung & Tiến Độ",
     items: [
-      { label: "Mốc Thời Gian Lộ Trình", href: "/admin/moc-thoi-gian", icon: "calendar_month" },
-      { label: "Tin Tức & Đề Án", href: "/admin/tin-tuc-de-an", icon: "feed" },
+      { label: "Mốc Thời Gian Lộ Trình", href: "/admin/moc-thoi-gian", icon: "calendar_month", perm: "TIMELINE_MANAGE" },
+      { label: "Tin Tức & Đề Án", href: "/admin/tin-tuc-de-an", icon: "feed", perm: "ARTICLE_MANAGE" },
     ],
   },
   {
     groupName: "Hệ Thống AI",
     items: [
-      { label: "Dữ Liệu Chatbot AI", href: "/admin/du-lieu-chatbot-ai", icon: "smart_toy" },
+      { label: "Dữ Liệu Chatbot AI", href: "/admin/du-lieu-chatbot-ai", icon: "smart_toy", perm: "AI_CHAT_MANAGE" },
     ],
   },
 ];
@@ -80,7 +84,6 @@ interface AdminSidebarProps {
   onToggle?: () => void;
 }
 
-import { useState } from "react";
 import { ArrowUpRight, BookOpen, Bot, CalendarDays, ChartNoAxesCombined, ChevronDown, ChevronLeft, ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard, Layers, ShieldCheck, UsersRound, type LucideIcon } from "lucide-react";
 
 const navIcons: Record<string, LucideIcon> = {
@@ -93,11 +96,45 @@ const navIcons: Record<string, LucideIcon> = {
 export function AdminSidebar({ role, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const navGroups = [...adminNavGroups];
-  if (role === "super_admin") navGroups.push({ groupName: "Hệ thống", items: [
-    { label: "Quản lý tài khoản", href: "/admin/accounts", icon: "manage_accounts" },
-    { label: "Quản lý vai trò", href: "/admin/roles", icon: "admin_panel_settings" },
-  ] });
+  const { hasPermission, isSuperAdmin } = useAdminPermissions();
+
+  const navGroups: AdminNavGroup[] = adminNavGroups
+    .map((group) => {
+      const filteredItems = group.items
+        .map((item) => {
+          if (item.subItems) {
+            const visibleSubItems = item.subItems.filter(
+              (sub) => !sub.perm || hasPermission(sub.perm)
+            );
+            if (visibleSubItems.length === 0) return null;
+            return { ...item, subItems: visibleSubItems };
+          }
+          if (item.perm && !hasPermission(item.perm)) {
+            return null;
+          }
+          return item;
+        })
+        .filter(Boolean) as AdminNavItem[];
+
+      return {
+        ...group,
+        items: filteredItems,
+      };
+    })
+    .filter((group) => group.items.length > 0);
+
+  if (isSuperAdmin || hasPermission("USER_MANAGE") || hasPermission("ROLE_MANAGE")) {
+    const sysItems: AdminNavItem[] = [];
+    if (isSuperAdmin || hasPermission("USER_MANAGE")) {
+      sysItems.push({ label: "Quản lý tài khoản", href: "/admin/accounts", icon: "manage_accounts" });
+    }
+    if (isSuperAdmin || hasPermission("ROLE_MANAGE")) {
+      sysItems.push({ label: "Quản lý vai trò", href: "/admin/roles", icon: "admin_panel_settings" });
+    }
+    if (sysItems.length > 0) {
+      navGroups.push({ groupName: "Hệ thống", items: sysItems });
+    }
+  }
   return <aside className="admin-sidebar flex h-full w-72 flex-col border-r border-blue-950 bg-[#172653] text-blue-100">
     <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
       <Link href="/admin" className="flex items-center gap-2.5" aria-label="Trang chủ quản trị UTC">

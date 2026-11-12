@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "@/libs/admin-toast";
 import { AccountModal } from "./AccountModal";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 interface AdminAccount {
   ma_admin: string;
@@ -31,6 +32,8 @@ interface AccountListProps {
 }
 
 export function AccountList({ initialData, currentUserId, totalPages, currentPage, roles }: AccountListProps) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("USER_MANAGE");
   const { pending: taskPending, run: runTask } = useAdminTask();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,13 +114,15 @@ export function AccountList({ initialData, currentUserId, totalPages, currentPag
           </select>
         </div>
 
-        <button
-          onClick={() => handleOpenModal()}
-          className="w-full sm:w-auto px-4 py-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] font-extrabold text-[13px] rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
-        >
-          <AdminIcon name="add" className="text-[18px]" />
-          THÊM TÀI KHOẢN
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="w-full sm:w-auto px-4 py-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] font-extrabold text-[13px] rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+          >
+            <AdminIcon name="add" className="text-[18px]" />
+            THÊM TÀI KHOẢN
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -174,25 +179,27 @@ export function AccountList({ initialData, currentUserId, totalPages, currentPag
                     {new Date(account.create_at).toLocaleDateString("vi-VN")}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleOpenModal(account)}
-                        className="w-8 h-8 rounded flex items-center justify-center text-[#192b59] hover:bg-[#192b59]/10 transition-colors"
-                        title="Chỉnh sửa"
-                      >
-                        <AdminIcon name="edit" className="text-[18px]" />
-                      </button>
-
-                      {account.ma_admin !== currentUserId && (
+                    {canEdit && (
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          disabled={taskPending} onClick={() => void runTask(() => handleDelete(account.ma_admin, account.ho_ten))}
-                          className="w-8 h-8 rounded flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors"
-                          title="Xóa"
+                          onClick={() => handleOpenModal(account)}
+                          className="w-8 h-8 rounded flex items-center justify-center text-[#192b59] hover:bg-[#192b59]/10 transition-colors"
+                          title="Chỉnh sửa"
                         >
-                          <AdminIcon name="delete" className="text-[18px]" />
+                          <AdminIcon name="edit" className="text-[18px]" />
                         </button>
-                      )}
-                    </div>
+
+                        {account.ma_admin !== currentUserId && (
+                          <button
+                            disabled={taskPending} onClick={() => void runTask(() => handleDelete(account.ma_admin, account.ho_ten))}
+                            className="w-8 h-8 rounded flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors"
+                            title="Xóa"
+                          >
+                            <AdminIcon name="delete" className="text-[18px]" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))

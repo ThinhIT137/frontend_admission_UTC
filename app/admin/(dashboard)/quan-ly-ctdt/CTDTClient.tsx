@@ -10,6 +10,7 @@ import { createCTDTAction, updateCTDTAction, deleteCTDTAction } from "@/actions/
 import { toast } from "@/libs/admin-toast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { saveProgramCombinationsAction } from "@/actions/program-combinations.action";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 const CHUAN_DAU_RA_LABELS: Record<string, string> = {
   CU_NHAN: "Cử nhân",
@@ -25,6 +26,8 @@ const CHUAN_DAU_RA_OPTIONS = Object.keys(CHUAN_DAU_RA_LABELS).map(key => ({
 }));
 
 export default function CTDTClient({ initialData, majors, combinations = [] }: { initialData: any[]; majors: any[]; combinations?: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("MAJOR_MANAGE");
   const [mappingProgram, setMappingProgram] = useState<any>(null);
   const [mappingYear, setMappingYear] = useState(new Date().getFullYear());
   const [mappingCodes, setMappingCodes] = useState<string[]>([]);
@@ -240,13 +243,15 @@ export default function CTDTClient({ initialData, majors, combinations = [] }: {
             Quản lý {initialData.length} chương trình đào tạo chuẩn & chất lượng cao trực thuộc các ngành học UTC
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#192b59] hover:bg-[#243c78] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
-        >
-          <AdminIcon name="add" className="text-[18px]" />
-          Thêm CTĐT Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-[#192b59] hover:bg-[#243c78] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
+          >
+            <AdminIcon name="add" className="text-[18px]" />
+            Thêm CTĐT Mới
+          </button>
+        )}
       </div>
 
       {/* Toolbar with Major filter and Search */}
@@ -286,8 +291,8 @@ export default function CTDTClient({ initialData, majors, combinations = [] }: {
         <DataTable
           columns={columns}
           data={paginatedData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
         />
 
         {totalPages > 1 && (

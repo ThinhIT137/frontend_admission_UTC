@@ -13,8 +13,11 @@ import {
   updateLoTrinhTuyenSinhAction,
   deleteLoTrinhTuyenSinhAction,
 } from "@/actions/lo_trinh_tuyen_sinh.action";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 export default function MocThoiGianClient({ initialData }: { initialData: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("TIMELINE_MANAGE");
   const [data, setData] = useState(initialData);
   const router = useRouter();
   const saving = useRef(false);
@@ -227,13 +230,15 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
             </button>
           </div>
 
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a] shadow-xs"
-          >
-            <AdminIcon name="add_circle" className="text-[18px]" />
-            Thêm Mốc Mới
-          </button>
+          {canEdit && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] transition-colors hover:bg-[#e2a20a] shadow-xs"
+            >
+              <AdminIcon name="add_circle" className="text-[18px]" />
+              Thêm Mốc Mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -299,22 +304,24 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100">
-                      <button
-                        onClick={() => openEdit(item)}
-                        className="px-2.5 py-1 text-[12px] font-bold text-[#192b59] hover:bg-[#f8fafc] rounded-md transition-colors flex items-center gap-1"
-                      >
-                        <AdminIcon name="edit" className="text-[15px]" />
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => setDeletingRow(item)}
-                        className="px-2.5 py-1 text-[12px] font-bold text-[#ba1a1a] hover:bg-rose-50 rounded-md transition-colors flex items-center gap-1"
-                      >
-                        <AdminIcon name="delete" className="text-[15px]" />
-                        Xóa
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100">
+                        <button
+                          onClick={() => openEdit(item)}
+                          className="px-2.5 py-1 text-[12px] font-bold text-[#192b59] hover:bg-[#f8fafc] rounded-md transition-colors flex items-center gap-1"
+                        >
+                          <AdminIcon name="edit" className="text-[15px]" />
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => setDeletingRow(item)}
+                          className="px-2.5 py-1 text-[12px] font-bold text-[#ba1a1a] hover:bg-rose-50 rounded-md transition-colors flex items-center gap-1"
+                        >
+                          <AdminIcon name="delete" className="text-[15px]" />
+                          Xóa
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <h3 className="font-display font-bold text-[16px] text-[#192b59] mt-2.5">
@@ -335,8 +342,8 @@ export default function MocThoiGianClient({ initialData }: { initialData: any[] 
           <DataTable
             columns={columns}
             data={filteredData}
-            onEdit={openEdit}
-            onDelete={(row) => setDeletingRow(row)}
+            onEdit={canEdit ? openEdit : undefined}
+            onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
           />
         </div>
       )}

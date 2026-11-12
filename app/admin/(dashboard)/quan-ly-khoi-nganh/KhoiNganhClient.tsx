@@ -8,10 +8,13 @@ import { DataTable, Column } from "@/components/admin/DataTable";
 import { ModalForm } from "@/components/admin/ModalForm";
 import { createKhoiNganh, updateKhoiNganh, deleteKhoiNganh } from "@/actions/khoi_nganh.action";
 import { toast } from "@/libs/admin-toast";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 import Link from "next/link";
 
 export default function KhoiNganhClient({ initialData }: { initialData: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("FACULTY_MANAGE");
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -156,13 +159,15 @@ export default function KhoiNganhClient({ initialData }: { initialData: any[] })
             Quản Lý Danh Mục Khoa / Viện
           </h1>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#192b59] hover:bg-[#243c78] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
-        >
-          <AdminIcon name="add" className="text-[18px]" />
-          Thêm Khoa / Viện Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-[#192b59] hover:bg-[#243c78] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors shadow-sm"
+          >
+            <AdminIcon name="add" className="text-[18px]" />
+            Thêm Khoa / Viện Mới
+          </button>
+        )}
       </div>
 
       {/* Toolbar */}
@@ -187,8 +192,8 @@ export default function KhoiNganhClient({ initialData }: { initialData: any[] })
         <DataTable
           columns={columns}
           data={paginatedData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
         />
 
         {/* Pagination Controls */}

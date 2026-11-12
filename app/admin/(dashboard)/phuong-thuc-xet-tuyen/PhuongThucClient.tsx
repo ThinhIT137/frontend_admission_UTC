@@ -13,6 +13,7 @@ import {
   updatePhuongThucXetTuyenAction,
   deletePhuongThucXetTuyenAction,
 } from "@/actions/phuong_thuc_xet_tuyen.action";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 interface PhuongThucItem {
   ma_phuong_thuc: string;
@@ -22,6 +23,8 @@ interface PhuongThucItem {
 }
 
 export default function PhuongThucClient({ initialData }: { initialData: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("METHOD_MANAGE");
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -147,13 +150,15 @@ export default function PhuongThucClient({ initialData }: { initialData: any[] }
             Danh mục các phương thức tuyển sinh Đại học chính quy Trường Đại học Giao thông Vận tải.
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
-        >
-          <AdminIcon name="add_circle" className="text-[20px]" />
-          Thêm Phương Thức Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+          >
+            <AdminIcon name="add_circle" className="text-[20px]" />
+            Thêm Phương Thức Mới
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -175,8 +180,8 @@ export default function PhuongThucClient({ initialData }: { initialData: any[] }
         <DataTable
           columns={columns}
           data={filteredData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
         />
       </div>
 

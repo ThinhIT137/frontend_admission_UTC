@@ -9,8 +9,11 @@ import { ModalForm } from "@/components/admin/ModalForm";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { createDanhMucMonAction, updateDanhMucMonAction, deleteDanhMucMonAction } from "@/actions/danh_muc_mon.action";
 import { toast } from "@/libs/admin-toast";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 export default function MonXetTuyenClient({ initialData }: { initialData: any[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("COMBINATION_MANAGE");
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -129,9 +132,11 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
           <h1 className="text-[24px] font-bold text-[#192b59]">Quản Lý Môn Xét Tuyển</h1>
           <p className="text-[13px] text-[#475569] mt-1">Quản lý danh mục các môn học tham gia xét tuyển (Toán, Lý, Hóa...).</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
-          <AdminIcon name="add_circle" className="text-[18px]" /> Thêm Môn Học
-        </button>
+        {canEdit && (
+          <button onClick={openCreate} className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow-sm transition-colors hover:bg-[#e5a610]">
+            <AdminIcon name="add_circle" className="text-[18px]" /> Thêm Môn Học
+          </button>
+        )}
       </div>
 
       <div className="flex items-center justify-between mb-4">
@@ -151,7 +156,7 @@ export default function MonXetTuyenClient({ initialData }: { initialData: any[] 
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] overflow-hidden">
-        <DataTable columns={columns} data={paginatedData} onEdit={openEdit} onDelete={(row) => setDeletingRow(row)} />
+        <DataTable columns={columns} data={paginatedData} onEdit={canEdit ? openEdit : undefined} onDelete={canEdit ? (row) => setDeletingRow(row) : undefined} />
 
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white">

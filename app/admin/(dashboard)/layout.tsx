@@ -16,6 +16,7 @@ export default async function AdminLayout({
   return (
     <AdminShell
       role={user.vai_tro?.ten_vai_tro as any}
+      roleMoTa={user.vai_tro?.mo_ta}
       userName={user.ho_ten}
       email={user.email}
     >

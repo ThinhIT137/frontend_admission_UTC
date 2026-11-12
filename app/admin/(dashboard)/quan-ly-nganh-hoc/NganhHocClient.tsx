@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { createNganhHoc, updateNganhHoc, deleteNganhHoc } from "@/actions/nganh_hoc.action";
 import { reassignProgramsToMajorAction, deleteCTDTAction, createCTDTAction } from "@/actions/chuong_trinh_dao_tao.action";
 import { toast } from "@/libs/admin-toast";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 const CHUAN_DAU_RA_LABELS: Record<string, string> = {
   CU_NHAN: "Cử nhân",
@@ -34,6 +35,8 @@ export default function NganhHocClient({
   initialData: any[],
   faculties: { ma_khoi_nganh: string; ten_khoi_nganh: string }[]
 }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("MAJOR_MANAGE");
   const { pending: programPending, run: runProgram } = useAdminTask();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -339,13 +342,15 @@ export default function NganhHocClient({
           </p>
         </div>
 
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] hover:bg-[#e2a20a] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow transition-all shrink-0"
-        >
-          <AdminIcon name="add_circle" className="text-[18px]" />
-          Thêm Ngành Học Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 bg-[#fdb712] text-[#192b59] hover:bg-[#e2a20a] px-4 py-2.5 rounded-xl font-bold text-[13px] shadow transition-all shrink-0"
+          >
+            <AdminIcon name="add_circle" className="text-[18px]" />
+            Thêm Ngành Học Mới
+          </button>
+        )}
       </div>
 
       {/* Filter & Search Bar */}
@@ -426,13 +431,13 @@ export default function NganhHocClient({
           actionClassName="w-[12%]"
           columns={columns}
           data={paginatedData}
-          onEdit={(row) => {
+          onEdit={canEdit ? (row) => {
              // Ngăn chặn nổi bọt sự kiện click row
              openEdit(row);
-          }}
-          onDelete={(row) => {
+          } : undefined}
+          onDelete={canEdit ? (row) => {
              setDeletingRow(row);
-          }}
+          } : undefined}
           onClickRow={(row) => {
             setViewingPrograms(row);
             setSearchNewProgram("");

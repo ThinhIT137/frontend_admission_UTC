@@ -28,9 +28,43 @@ export default function AcademicEvidenceFields({ value, onChange, subjects, file
       <label>Lớp <select aria-label={`Lớp bảng điểm ${i + 1}`} className={inputClass} value={t.loai_diem} onChange={e => transcripts(i, { loai_diem: e.target.value })}>{[10,11,12].map(n => <option key={n} value={`lop_${n}`}>Lớp {n}</option>)}</select></label>
       <label>Năm kết thúc <input aria-label={`Năm học bảng điểm ${i + 1}`} className={inputClass} type="number" min={1900} max={2100} value={t.nam_hoc} onChange={e => transcripts(i, { nam_hoc: Number(e.target.value) })} /></label>
       <label>Học kỳ <select aria-label={`Học kỳ bảng điểm ${i + 1}`} className={inputClass} value={t.hoc_ky} onChange={e => transcripts(i, { hoc_ky: Number(e.target.value) })}><option value={0}>Cả năm</option><option value={1}>Học kỳ 1</option><option value={2}>Học kỳ 2</option></select></label>
-      {t.diem_mon.map((g, j) => <div key={j} className="flex flex-wrap gap-2"><select aria-label={i === 0 ? `Môn ${j+1}` : `Bảng ${i+1} môn ${j+1}`} className={inputClass} value={g.ma_mon} onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,ma_mon:e.target.value} : v) })}><option value="">Chọn môn</option>{subjects.map(s => <option key={s.ma_mon} value={s.ma_mon}>{s.ten_mon}</option>)}</select>
-        <input aria-label={i === 0 ? `Điểm môn ${j+1}` : `Điểm bảng ${i+1} môn ${j+1}`} className={inputClass} placeholder="Điểm 0–10" type="number" min={0} max={10} step={0.01} value={g.diem_so} onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,diem_so:e.target.value} : v) })} />
-        <button type="button" onClick={() => transcripts(i, { diem_mon: t.diem_mon.filter((_,k) => k!==j) })}>Bỏ môn</button></div>)}
+      {t.diem_mon.map((g, j) => {
+        const chosenInOtherRows = new Set(
+          t.diem_mon.filter((_, k) => k !== j && Boolean(_.ma_mon)).map(v => v.ma_mon)
+        );
+        return (
+          <div key={j} className="flex flex-wrap gap-2">
+            <select
+              aria-label={i === 0 ? `Môn ${j+1}` : `Bảng ${i+1} môn ${j+1}`}
+              className={inputClass}
+              value={g.ma_mon}
+              onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,ma_mon:e.target.value} : v) })}
+            >
+              <option value="">Chọn môn</option>
+              {subjects.map(s => {
+                const isSelectedElsewhere = chosenInOtherRows.has(s.ma_mon);
+                return (
+                  <option key={s.ma_mon} value={s.ma_mon} disabled={isSelectedElsewhere}>
+                    {s.ten_mon}{isSelectedElsewhere ? " (Đã chọn)" : ""}
+                  </option>
+                );
+              })}
+            </select>
+            <input
+              aria-label={i === 0 ? `Điểm môn ${j+1}` : `Điểm bảng ${i+1} môn ${j+1}`}
+              className={inputClass}
+              placeholder="Điểm 0–10"
+              type="number"
+              min={0}
+              max={10}
+              step={0.01}
+              value={g.diem_so}
+              onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,diem_so:e.target.value} : v) })}
+            />
+            <button type="button" onClick={() => transcripts(i, { diem_mon: t.diem_mon.filter((_,k) => k!==j) })}>Bỏ môn</button>
+          </div>
+        );
+      })}
       <button type="button" className={`${styles.secondary} mr-3`} onClick={() => transcripts(i, { diem_mon: [...t.diem_mon,{ma_mon:"",diem_so:""}] })}>Thêm môn</button>
       <button type="button" className={styles.secondary} onClick={() => onChange({...value,bang_diem:value.bang_diem.filter((_,k)=>k!==i)})}>Bỏ bảng điểm</button>
     </fieldset>)}

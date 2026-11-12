@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { saveArticle, deleteArticle } from "@/actions/content.action";
 import { toast } from "@/libs/admin-toast";
 import { TiptapEditor, ContentRenderer, extractCmsSummary, clearLocalDraft } from "@/components/cms";
+import { useAdminPermissions } from "@/contexts/AdminPermissionContext";
 
 export interface ArticleData {
   id: string;
@@ -25,6 +26,8 @@ export interface ArticleData {
 }
 
 export default function TinTucDeAnClient({ initialData }: { initialData: ArticleData[] }) {
+  const { canManage } = useAdminPermissions();
+  const canEdit = canManage("ARTICLE_MANAGE");
   const [data, setData] = useState<ArticleData[]>(initialData);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
@@ -224,13 +227,15 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
             Đăng tải quy chế, đề án tuyển sinh K66, biểu mẫu hướng dẫn và tài liệu đính kèm chính thức.
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
-        >
-          <AdminIcon name="add_circle" className="text-[20px]" />
-          Đăng Tải Đề Án Mới
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-[#fdb712] hover:bg-[#e2a20a] text-[#192b59] px-5 py-2.5 rounded-xl font-black text-[14px] shadow-sm transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+          >
+            <AdminIcon name="add_circle" className="text-[20px]" />
+            Đăng Tải Đề Án Mới
+          </button>
+        )}
       </div>
 
       {/* Filters & Search */}
@@ -269,8 +274,8 @@ export default function TinTucDeAnClient({ initialData }: { initialData: Article
         <DataTable
           columns={columns}
           data={filteredData}
-          onEdit={openEdit}
-          onDelete={(row) => setDeletingRow(row)}
+          onEdit={canEdit ? openEdit : undefined}
+          onDelete={canEdit ? (row) => setDeletingRow(row) : undefined}
         />
       </div>
 
