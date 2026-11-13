@@ -17,6 +17,7 @@ import AcademicEvidenceFields, {
     AcademicDraft,
     AcademicFileBindings,
     emptyTranscript,
+    validateAcademicDraft,
 } from "./AcademicEvidenceFields";
 import { academicPayload } from "./academic-payload";
 
@@ -285,6 +286,110 @@ export default function NopHoSoClient({
     };
 
     const currentChecklist = getRequiredDocuments(selectedMethod);
+    const [agreeTerms, setAgreeTerms] = useState(false);
+
+    const validateStep1 = (): boolean => {
+        if (!selectedMethod) {
+            toast.error("Vui lòng chọn phương thức xét tuyển.");
+            return false;
+        }
+        if (!selectedProgram) {
+            toast.error("Vui lòng chọn chương trình đào tạo mong muốn.");
+            return false;
+        }
+        if (availableToHops.length > 0 && !selectedToHop) {
+            toast.error("Vui lòng chọn tổ hợp môn xét tuyển cho ngành đã chọn.");
+            return false;
+        }
+        if (rawScore && rawScore.trim() !== "") {
+            const scoreNum = Number(rawScore);
+            if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 30) {
+                toast.error("Điểm thi thô (nếu có) phải là số từ 0 đến 30.");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const validateStep2 = (): boolean => {
+        const trimmedHoTen = hoTen.trim();
+        const trimmedCccd = cccd.trim();
+        const trimmedPhone = soDienThoai.trim();
+        const trimmedEmail = email.trim();
+
+        if (!trimmedHoTen) {
+            toast.error("Vui lòng nhập Họ và tên thí sinh.");
+            return false;
+        }
+        if (trimmedHoTen.split(/\s+/).filter(Boolean).length < 2) {
+            toast.error("Họ và tên thí sinh phải gồm ít nhất 2 từ (Họ và Tên).");
+            return false;
+        }
+
+        if (!trimmedCccd) {
+            toast.error("Vui lòng nhập Số CCCD / Số định danh cá nhân.");
+            return false;
+        }
+        if (!/^[0-9]{9}$|^[0-9]{12}$/.test(trimmedCccd)) {
+            toast.error("Số CCCD / Số định danh cá nhân phải gồm đúng 9 hoặc 12 chữ số.");
+            return false;
+        }
+
+        if (!trimmedPhone) {
+            toast.error("Vui lòng nhập Số điện thoại liên lạc.");
+            return false;
+        }
+        if (!/^0[0-9]{9}$/.test(trimmedPhone)) {
+            toast.error("Số điện thoại liên lạc phải gồm đúng 10 chữ số (bắt đầu bằng số 0).");
+            return false;
+        }
+
+        if (!trimmedEmail) {
+            toast.error("Vui lòng nhập địa chỉ Email để nhận thông báo xét duyệt hồ sơ.");
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            toast.error("Địa chỉ Email không đúng định dạng (ví dụ: thi_sinh@gmail.com).");
+            return false;
+        }
+
+        const academicRes = validateAcademicDraft(academic);
+        if (!academicRes.isValid) {
+            toast.error(academicRes.errors[0]);
+            return false;
+        }
+
+        return true;
+    };
+
+    const validateStep3 = (): boolean => {
+        const missing = currentChecklist.filter(
+            (item) => item.required && !uploadedFiles.some((f) => f.loaiGiayTo === item.title)
+        );
+
+        if (missing.length > 0) {
+            toast.error(`Vui lòng tải lên tài liệu bắt buộc: "${missing[0].title}"`);
+            return false;
+        }
+
+        for (let i = 0; i < academic.chung_chi.length; i++) {
+            const c = academic.chung_chi[i];
+            if (c.loai_chung_chi && !c.file_dinh_kem) {
+                toast.error(`Vui lòng chọn file minh chứng cho Chứng chỉ ${i + 1} (${c.loai_chung_chi})`);
+                return false;
+            }
+        }
+
+        for (let i = 0; i < academic.giai_thuong.length; i++) {
+            const a = academic.giai_thuong[i];
+            if (a.mon_hoc && !a.file_dinh_kem) {
+                toast.error(`Vui lòng chọn file minh chứng cho Giải thưởng ${i + 1}`);
+                return false;
+            }
+        }
+
+        return true;
+    };
 
     const handleSimulateUpload = async (
         docTitle: string,
@@ -376,6 +481,17 @@ export default function NopHoSoClient({
             return;
         }
         setSubmitError("");
+
+        if (!validateStep1() || !validateStep2() || !validateStep3()) {
+            return;
+        }
+        if (!agreeTerms) {
+            setSubmitError(
+                "Vui lòng đánh dấu xác nhận cam đoan tính chính xác của hồ sơ trước khi bấm nộp.",
+            );
+            toast.error("Vui lòng đánh dấu cam đoan tính chính xác của hồ sơ.");
+            return;
+        }
 
         const trimmedCccd = cccd.trim();
         const trimmedHoTen = hoTen.trim();
@@ -902,7 +1018,9 @@ export default function NopHoSoClient({
                                 <div className="flex justify-end pt-4 border-t border-[#e5e7eb]">
                                     <button
                                         type="button"
-                                        onClick={() => showStep(2)}
+                                        onClick={() => {
+                                            if (validateStep1()) showStep(2);
+                                        }}
                                         className="px-6 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2"
                                     >
                                         <span>
@@ -994,7 +1112,7 @@ export default function NopHoSoClient({
 
                                     <div>
                                         <label className="block text-[12.5px] font-black text-[#0d1b4e] uppercase mb-1.5">
-                                            Email nhận kết quả:
+                                            Email nhận thông báo kết quả: <span className="text-red-600">*</span>
                                         </label>
                                         <input
                                             type="email"
@@ -1004,7 +1122,11 @@ export default function NopHoSoClient({
                                                 setEmail(e.target.value)
                                             }
                                             className="w-full px-3.5 py-2.5 bg-[#fffdf7] border-[2px] border-[#111827] rounded-xl font-bold text-[14px] text-[#0d1b4e] outline-none"
+                                            required
                                         />
+                                        <span className="text-[11.5px] text-[#6b7280] italic mt-1 block">
+                                            * Hệ thống sẽ gửi thông báo tình trạng và kết quả duyệt hồ sơ tới email này.
+                                        </span>
                                     </div>
 
                                     <div>
@@ -1080,19 +1202,10 @@ export default function NopHoSoClient({
 
                                     <button
                                         type="button"
-                                        disabled={
-                                            !hoTen.trim() ||
-                                            !cccd.trim() ||
-                                            !soDienThoai.trim()
-                                        }
-                                        onClick={() => showStep(3)}
-                                        className={`px-6 py-2.5 font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2 ${
-                                            hoTen.trim() &&
-                                            cccd.trim() &&
-                                            soDienThoai.trim()
-                                                ? "bg-[#14244e] hover:bg-blue-800 text-white cursor-pointer"
-                                                : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                                        }`}
+                                        onClick={() => {
+                                            if (validateStep2()) showStep(3);
+                                        }}
+                                        className="px-6 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2 cursor-pointer"
                                     >
                                         <span>
                                             Tiếp tục: Checklist hồ sơ & Upload
@@ -1404,7 +1517,9 @@ export default function NopHoSoClient({
 
                                     <button
                                         type="button"
-                                        onClick={() => showStep(4)}
+                                        onClick={() => {
+                                            if (validateStep3()) showStep(4);
+                                        }}
                                         className="px-6 py-2.5 bg-[#14244e] hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2"
                                     >
                                         <span>
@@ -1563,6 +1678,14 @@ export default function NopHoSoClient({
                                                     )
                                                 </span>
                                             </div>
+                                            <div>
+                                                <span className="text-[#64748b] block text-[12px] font-bold">
+                                                    EMAIL NHẬN THÔNG BÁO:
+                                                </span>
+                                                <span className="font-bold text-[#0d1b4e]">
+                                                    {email.trim() || "Chưa cung cấp"}
+                                                </span>
+                                            </div>
                                             <div className="sm:col-span-2 pt-2 border-t border-[#e2e8f0]">
                                                 <span className="text-[#64748b] block text-[12px] font-bold">
                                                     TRẠNG THÁI HIỆN TẠI:
@@ -1573,6 +1696,15 @@ export default function NopHoSoClient({
                                                     soát minh chứng (Dữ liệu đã
                                                     sẵn sàng trên hệ thống)
                                                 </span>
+                                            </div>
+                                            <div className="sm:col-span-2 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-950 text-xs flex items-start gap-2.5">
+                                                <AdmissionIcon name="mail" className="text-blue-700 text-[20px] shrink-0 mt-0.5" />
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-[13px] text-blue-900">Thông báo về Email & Tra cứu kết quả:</p>
+                                                    <p>
+                                                        Hồ sơ đã được lưu thành công trên hệ thống tuyển sinh UTC. Kết quả duyệt hồ sơ và thông báo chính thức sẽ được gửi tới email <strong>{email.trim()}</strong>. Thí sinh cũng có thể tra cứu trực tiếp tiến độ hồ sơ bất cứ lúc nào bằng số CCCD <strong>{submitSuccess.cccd}</strong>.
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1753,6 +1885,18 @@ export default function NopHoSoClient({
                                             )}
                                         </div>
 
+                                        <label className="flex items-start gap-3 p-4 bg-blue-50/70 border-2 border-blue-200 rounded-xl cursor-pointer text-xs sm:text-sm text-slate-800 transition-colors hover:bg-blue-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={agreeTerms}
+                                                onChange={(e) => setAgreeTerms(e.target.checked)}
+                                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-900 focus:ring-blue-500 shrink-0"
+                                            />
+                                            <span>
+                                                Tôi xin cam đoan toàn bộ thông tin đăng ký và tài liệu minh chứng đã cung cấp là hoàn toàn chính xác, trung thực. Tôi xin chịu mọi trách nhiệm trước quy chế tuyển sinh của Trường Đại học Giao thông Vận tải và pháp luật hiện hành.
+                                            </span>
+                                        </label>
+
                                         {submitError && (
                                             <div className="p-3 bg-[#fee2e2] border-[1.5px] border-[#ef4444] rounded-xl text-[#b91c1c] font-bold text-[13px] flex items-center gap-2">
                                                 <AdmissionIcon
@@ -1774,9 +1918,13 @@ export default function NopHoSoClient({
 
                                             <button
                                                 type="button"
-                                                disabled={isSubmitting}
+                                                disabled={isSubmitting || !agreeTerms}
                                                 onClick={handleFinalSubmit}
-                                                className="px-8 py-3.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-display font-black text-[15px] uppercase tracking-wider rounded-xl border-[2.5px] border-[#111827] shadow-[4px_4px_0px_#111827] transition-all flex items-center gap-2 active:translate-x-[1px] active:translate-y-[1px]"
+                                                className={`px-8 py-3.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-display font-black text-[15px] uppercase tracking-wider rounded-xl border-[2.5px] border-[#111827] shadow-[4px_4px_0px_#111827] transition-all flex items-center gap-2 active:translate-x-[1px] active:translate-y-[1px] ${
+                                                    !agreeTerms || isSubmitting
+                                                        ? "opacity-50 cursor-not-allowed shadow-none"
+                                                        : "cursor-pointer"
+                                                }`}
                                             >
                                                 {isSubmitting ? (
                                                     <>

@@ -11,6 +11,47 @@ const ranks = { giai_nhat: "Giải nhất", giai_nhi: "Giải nhì", giai_ba: "G
 const levels = { toan_quoc: "Toàn quốc", tinh: "Tỉnh", mien_bac: "Miền Bắc", mien_nam: "Miền Nam" };
 const awardSubjects = { toan: "Toán", van: "Văn", anh: "Tiếng Anh", vat_ly: "Vật lý", hoa_hoc: "Hóa học", sinh_hoc: "Sinh học", dia_ly: "Địa lý", lich_su: "Lịch sử", gdcd: "GDCD", tin_hoc: "Tin học" };
 
+export function validateAcademicDraft(academic: AcademicDraft): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  academic.bang_diem.forEach((t, i) => {
+    t.diem_mon.forEach((g, j) => {
+      // Đã chọn môn nhưng chưa nhập điểm
+      if (g.ma_mon && (!g.diem_so || g.diem_so.trim() === "")) {
+        errors.push(`Bảng điểm ${i + 1}: Vui lòng nhập điểm cho môn thứ ${j + 1}`);
+      }
+      // Đã nhập điểm nhưng chưa chọn môn
+      if (!g.ma_mon && g.diem_so && g.diem_so.trim() !== "") {
+        errors.push(`Bảng điểm ${i + 1}: Vui lòng chọn môn học cho điểm đã nhập`);
+      }
+      // Điểm số ngoài khoảng 0 - 10
+      if (g.diem_so && g.diem_so.trim() !== "") {
+        const score = Number(g.diem_so);
+        if (isNaN(score) || score < 0 || score > 10) {
+          errors.push(`Bảng điểm ${i + 1}, môn thứ ${j + 1}: Điểm số phải trong khoảng từ 0 đến 10`);
+        }
+      }
+    });
+  });
+
+  academic.chung_chi.forEach((c, i) => {
+    const hasAnyField = Boolean(c.loai_chung_chi || c.diem_hoac_hang || c.ngay_cap || c.file_dinh_kem);
+    if (hasAnyField) {
+      if (!c.loai_chung_chi.trim()) {
+        errors.push(`Chứng chỉ ${i + 1}: Vui lòng nhập loại chứng chỉ`);
+      }
+      if (!c.diem_hoac_hang.trim()) {
+        errors.push(`Chứng chỉ ${i + 1}: Vui lòng nhập điểm hoặc xếp hạng`);
+      }
+    }
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
 export default function AcademicEvidenceFields({ value, onChange, subjects, files, year }: {
   value: AcademicDraft; onChange: (value: AcademicDraft) => void; year: number;
   subjects: Array<{ ma_mon: string; ten_mon: string }>; files: Array<{ storageKey: string; fileName: string }>;
@@ -32,36 +73,56 @@ export default function AcademicEvidenceFields({ value, onChange, subjects, file
         const chosenInOtherRows = new Set(
           t.diem_mon.filter((_, k) => k !== j && Boolean(_.ma_mon)).map(v => v.ma_mon)
         );
+        const scoreNum = g.diem_so !== "" ? Number(g.diem_so) : null;
+        const isScoreInvalid = scoreNum !== null && (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 10);
+        const isMissingScore = Boolean(g.ma_mon && !g.diem_so);
+        const isMissingSubject = Boolean(!g.ma_mon && g.diem_so);
+
         return (
-          <div key={j} className="flex flex-wrap gap-2">
-            <select
-              aria-label={i === 0 ? `Môn ${j+1}` : `Bảng ${i+1} môn ${j+1}`}
-              className={inputClass}
-              value={g.ma_mon}
-              onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,ma_mon:e.target.value} : v) })}
-            >
-              <option value="">Chọn môn</option>
-              {subjects.map(s => {
-                const isSelectedElsewhere = chosenInOtherRows.has(s.ma_mon);
-                return (
-                  <option key={s.ma_mon} value={s.ma_mon} disabled={isSelectedElsewhere}>
-                    {s.ten_mon}{isSelectedElsewhere ? " (Đã chọn)" : ""}
-                  </option>
-                );
-              })}
-            </select>
-            <input
-              aria-label={i === 0 ? `Điểm môn ${j+1}` : `Điểm bảng ${i+1} môn ${j+1}`}
-              className={inputClass}
-              placeholder="Điểm 0–10"
-              type="number"
-              min={0}
-              max={10}
-              step={0.01}
-              value={g.diem_so}
-              onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,diem_so:e.target.value} : v) })}
-            />
-            <button type="button" onClick={() => transcripts(i, { diem_mon: t.diem_mon.filter((_,k) => k!==j) })}>Bỏ môn</button>
+          <div key={j} className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                aria-label={i === 0 ? `Môn ${j+1}` : `Bảng ${i+1} môn ${j+1}`}
+                className={`${inputClass} ${isMissingSubject ? "border-red-500 bg-red-50/50" : ""}`}
+                value={g.ma_mon}
+                onChange={e => transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,ma_mon:e.target.value} : v) })}
+              >
+                <option value="">Chọn môn</option>
+                {subjects.map(s => {
+                  const isSelectedElsewhere = chosenInOtherRows.has(s.ma_mon);
+                  return (
+                    <option key={s.ma_mon} value={s.ma_mon} disabled={isSelectedElsewhere}>
+                      {s.ten_mon}{isSelectedElsewhere ? " (Đã chọn)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+              <input
+                aria-label={i === 0 ? `Điểm môn ${j+1}` : `Điểm bảng ${i+1} môn ${j+1}`}
+                className={`${inputClass} ${isScoreInvalid || isMissingScore ? "border-red-500 bg-red-50/50" : ""}`}
+                placeholder="Điểm 0–10"
+                type="number"
+                min={0}
+                max={10}
+                step={0.01}
+                value={g.diem_so}
+                onChange={e => {
+                  let val = e.target.value;
+                  if (val !== "") {
+                    const num = parseFloat(val);
+                    if (!isNaN(num)) {
+                      if (num > 10) val = "10";
+                      else if (num < 0) val = "0";
+                    }
+                  }
+                  transcripts(i, { diem_mon: t.diem_mon.map((v,k) => k===j ? {...v,diem_so:val} : v) });
+                }}
+              />
+              <button type="button" onClick={() => transcripts(i, { diem_mon: t.diem_mon.filter((_,k) => k!==j) })}>Bỏ môn</button>
+            </div>
+            {isScoreInvalid && <p className="text-xs text-red-600 font-medium">Điểm phải từ 0 đến 10</p>}
+            {isMissingScore && <p className="text-xs text-amber-600 font-medium">Vui lòng nhập điểm cho môn đã chọn</p>}
+            {isMissingSubject && <p className="text-xs text-amber-600 font-medium">Vui lòng chọn môn học cho điểm đã nhập</p>}
           </div>
         );
       })}
