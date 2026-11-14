@@ -674,14 +674,23 @@ export default function NopHoSoClient({
                     pendingSubmission.current = null;
                 const rawMsg = result.message || "";
                 if (
-                    response.status === 409 ||
-                    rawMsg.includes("đối soát") ||
-                    rawMsg.includes("vài phút") ||
-                    rawMsg.includes("already submitted") ||
-                    rawMsg.includes("hoàn tất")
+                    existingDossier ||
+                    rawMsg.toLowerCase().includes("already submitted") ||
+                    rawMsg.toLowerCase().includes("trùng nguyện vọng") ||
+                    rawMsg.toLowerCase().includes("đã có hồ sơ")
                 ) {
                     setSubmitError(
                         "Tài khoản CCCD này đã có hồ sơ xét tuyển trên hệ thống cho năm 2026. Mỗi thí sinh chỉ được nộp 1 hồ sơ chính thức. Vui lòng vào trang 'Nguyện vọng của tôi' để theo dõi kết quả, hoặc đăng ký tài khoản với số CCCD khác nếu muốn kiểm thử nộp hồ sơ mới.",
+                    );
+                } else if (
+                    rawMsg.toLowerCase().includes("số điện thoại") ||
+                    rawMsg.toLowerCase().includes("so_dien_thoai") ||
+                    rawMsg.toLowerCase().includes("phone") ||
+                    rawMsg.toLowerCase().includes("duplicate key") ||
+                    rawMsg.toLowerCase().includes("thi_sinh_so_dien_thoai_key")
+                ) {
+                    setSubmitError(
+                        "Số điện thoại này đã được sử dụng bởi một tài khoản thí sinh khác trên hệ thống. Vui lòng quay lại Bước 2 để kiểm tra và nhập số điện thoại chưa từng đăng ký.",
                     );
                 } else {
                     setSubmitError(
