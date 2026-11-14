@@ -8,7 +8,7 @@ import {
 } from "@/components/admission/CandidatePage";
 import styles from "@/components/admission/candidate.module.css";
 import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
-import { ArrowRight, FileUp } from "lucide-react";
+import { ArrowRight, FileUp, Info } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -113,6 +113,33 @@ export default function NopHoSoClient({
     } | null>(null);
     const [hasCopied, setHasCopied] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [existingDossier, setExistingDossier] = useState<{
+        ma_ho_so: string;
+        nguyen_vong: number;
+        nam_tuyen_sinh: number;
+        ma_chuong_trinh: string;
+        ten_chuong_trinh?: string;
+        trang_thai: string;
+    } | null>(null);
+
+    const getStatusText = (status: string) => {
+        switch (status) {
+            case "cho":
+                return "Chờ duyệt";
+            case "hop_le":
+                return "Đã duyệt hợp lệ";
+            case "tu_choi":
+                return "Bị từ chối";
+            case "dang_xu_ly":
+                return "Đang xử lý điểm";
+            case "do":
+                return "Trúng tuyển";
+            case "truot":
+                return "Không trúng tuyển";
+            default:
+                return status;
+        }
+    };
     // Chuyển bước luôn đưa thí sinh về đầu phần biểu mẫu đang thao tác.
     const formPanel = useRef<HTMLDivElement>(null);
     function showStep(step: number) {
@@ -147,6 +174,7 @@ export default function NopHoSoClient({
         setIsSubmitting(false);
         setSubmitSuccess(null);
         setSubmitError("");
+        setExistingDossier(null);
         setCurrentStep(1);
         setUploadedFiles([]);
         setAcademic({
@@ -486,6 +514,13 @@ export default function NopHoSoClient({
         }
         setSubmitError("");
 
+        if (existingDossier) {
+            setSubmitError(
+                `Tài khoản CCCD ${cccd.trim()} đã có hồ sơ xét tuyển trên hệ thống (Mã: ${existingDossier.ma_ho_so} · Trạng thái: ${getStatusText(existingDossier.trang_thai)}). Theo quy chế tuyển sinh, mỗi thí sinh chỉ được nộp 1 hồ sơ chính thức cho năm ${existingDossier.nam_tuyen_sinh}. Vui lòng vào trang "Nguyện vọng của tôi" để theo dõi kết quả, hoặc đăng ký tài khoản với số CCCD khác nếu muốn kiểm thử nộp hồ sơ mới.`
+            );
+            return;
+        }
+
         if (!validateStep1() || !validateStep2() || !validateStep3()) {
             return;
         }
@@ -637,10 +672,23 @@ export default function NopHoSoClient({
             if (!result.success || !result.maHoSo) {
                 if (["not_started", "completed"].includes(result.rollback))
                     pendingSubmission.current = null;
-                setSubmitError(
-                    result.message ||
-                        "Chưa xác nhận được lần nộp. Vui lòng thử lại để đối soát.",
-                );
+                const rawMsg = result.message || "";
+                if (
+                    response.status === 409 ||
+                    rawMsg.includes("đối soát") ||
+                    rawMsg.includes("vài phút") ||
+                    rawMsg.includes("already submitted") ||
+                    rawMsg.includes("hoàn tất")
+                ) {
+                    setSubmitError(
+                        "Tài khoản CCCD này đã có hồ sơ xét tuyển trên hệ thống cho năm 2026. Mỗi thí sinh chỉ được nộp 1 hồ sơ chính thức. Vui lòng vào trang 'Nguyện vọng của tôi' để theo dõi kết quả, hoặc đăng ký tài khoản với số CCCD khác nếu muốn kiểm thử nộp hồ sơ mới.",
+                    );
+                } else {
+                    setSubmitError(
+                        rawMsg ||
+                            "Chưa xác nhận được lần nộp. Vui lòng thử lại để đối soát.",
+                    );
+                }
                 return;
             }
 
@@ -760,6 +808,35 @@ export default function NopHoSoClient({
                             if (error?.name !== "AbortError")
                                 console.error("[Danh sách minh chứng]", error);
                         });
+
+                    // Kiểm tra xem thí sinh đã có hồ sơ cho năm tuyển sinh hiện tại chưa
+                    fetch("/api/backend/score/ho-so/cua-toi", {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                    })
+                        .then(async (res) => {
+                            if (!res.ok) return [];
+                            return res.json();
+                        })
+                        .then((rows: any[]) => {
+                            if (
+                                generation !== accountGeneration.current ||
+                                activeOwner.current !== user.cccd ||
+                                !Array.isArray(rows)
+                            )
+                                return;
+                            const activeRecord = rows.find(
+                                (r: any) =>
+                                    Number(r.nam_tuyen_sinh) === year &&
+                                    Number(r.nguyen_vong) === 1,
+                            );
+                            if (activeRecord) {
+                                setExistingDossier(activeRecord);
+                            } else {
+                                setExistingDossier(null);
+                            }
+                        })
+                        .catch(() => {});
                 }}
                 onLogout={() => {
                     setSignedIn(false);
@@ -780,6 +857,39 @@ export default function NopHoSoClient({
             {signedIn && (
                 <>
                     <DisclaimerBanner />
+
+                    {existingDossier && (
+                        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 text-amber-700">
+                                        <Info className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-display font-black text-amber-950 text-base">
+                                            Tài khoản CCCD đã có hồ sơ xét tuyển năm {existingDossier.nam_tuyen_sinh}
+                                        </h4>
+                                        <p className="text-amber-900 text-xs sm:text-sm mt-1 leading-relaxed">
+                                            Mã hồ sơ: <strong className="font-mono text-amber-950 font-bold">{existingDossier.ma_ho_so}</strong>
+                                            {" · "}
+                                            Trạng thái: <span className="inline-block px-2 py-0.5 rounded-md font-bold text-xs bg-amber-200 text-amber-900">{getStatusText(existingDossier.trang_thai)}</span>
+                                            {existingDossier.ten_chuong_trinh ? ` · Ngành: ${existingDossier.ten_chuong_trinh}` : ""}
+                                        </p>
+                                        <p className="text-amber-800 text-xs mt-1">
+                                            Theo quy chế tuyển sinh, mỗi thí sinh chỉ được nộp 1 hồ sơ chính thức cho năm {existingDossier.nam_tuyen_sinh}. Bạn có thể theo dõi tiến độ duyệt, đổi nguyện vọng hoặc quản lý hồ sơ tại trang Nguyện vọng.
+                                        </p>
+                                    </div>
+                                </div>
+                                <Link
+                                    href="/nguyen-vong-cua-toi"
+                                    className="shrink-0 px-4 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all flex items-center gap-2 shadow-sm"
+                                >
+                                    Xem hồ sơ của tôi
+                                    <ArrowRight size={15} />
+                                </Link>
+                            </div>
+                        </div>
+                    )}
 
                     {/* 2. Thanh Tiến Trình 4 Bước Neo-Brutalism */}
                     <div className="bg-white p-4 sm:p-5 border border-slate-200/90 shadow-sm rounded-xl">
@@ -1892,6 +2002,18 @@ export default function NopHoSoClient({
                                             </span>
                                         </label>
 
+                                        {existingDossier && (
+                                            <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-amber-900 text-sm flex items-start gap-3">
+                                                <Info className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="font-bold">Hồ sơ xét tuyển đã tồn tại trên hệ thống</p>
+                                                    <p className="text-xs mt-1 text-amber-800">
+                                                        Thí sinh đã có hồ sơ xét tuyển mã <span className="font-mono font-bold">{existingDossier.ma_ho_so}</span> (Trạng thái: <strong>{getStatusText(existingDossier.trang_thai)}</strong>). Mỗi thí sinh chỉ được nộp 1 hồ sơ chính thức cho năm {existingDossier.nam_tuyen_sinh}. Vui lòng truy cập trang <Link href="/nguyen-vong-cua-toi" className="underline font-bold text-amber-950">Nguyện vọng của tôi</Link> để theo dõi kết quả.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {submitError && (
                                             <div className="p-3 bg-[#fee2e2] border-[1.5px] border-[#ef4444] rounded-xl text-[#b91c1c] font-bold text-[13px] flex items-center gap-2">
                                                 <AdmissionIcon
@@ -1913,10 +2035,10 @@ export default function NopHoSoClient({
 
                                             <button
                                                 type="button"
-                                                disabled={isSubmitting || !agreeTerms}
+                                                disabled={isSubmitting || !agreeTerms || !!existingDossier}
                                                 onClick={handleFinalSubmit}
                                                 className={`px-8 py-3.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-display font-black text-[15px] uppercase tracking-wider rounded-xl border-[2.5px] border-[#111827] shadow-[4px_4px_0px_#111827] transition-all flex items-center gap-2 active:translate-x-[1px] active:translate-y-[1px] ${
-                                                    !agreeTerms || isSubmitting
+                                                    !agreeTerms || isSubmitting || !!existingDossier
                                                         ? "opacity-50 cursor-not-allowed shadow-none"
                                                         : "cursor-pointer"
                                                 }`}
@@ -1928,6 +2050,10 @@ export default function NopHoSoClient({
                                                             Đang Lưu Hồ Sơ...
                                                         </span>
                                                     </>
+                                                ) : existingDossier ? (
+                                                    <span>
+                                                        Đã Có Hồ Sơ Trên Hệ Thống
+                                                    </span>
                                                 ) : (
                                                     <>
                                                         <span>
