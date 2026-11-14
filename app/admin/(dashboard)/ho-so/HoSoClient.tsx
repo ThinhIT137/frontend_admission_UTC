@@ -124,7 +124,7 @@ export default function HoSoClient() {
     {error && <p role="alert" className="text-red-700">{error}</p>}{busy && <p role="status">Đang xử lý…</p>}
     <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200"><table className="w-full text-sm"><thead><tr>{["Mã hồ sơ", "CCCD", "Chương trình", "Phương thức", "Trạng thái", "Thao tác"].map(x => <th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
       {rows.map(row => <tr key={row.ma_ho_so} className="border-t"><td className="p-3">{row.ma_ho_so}</td><td>{row.cccd}</td><td>{row.ma_chuong_trinh}</td><td>{row.ma_phuong_thuc}</td><td>{statusLabels[row.trang_thai] || row.trang_thai}{row.diem_trace ? ` (${(row.diem_trace as any).total ?? (row.diem_trace as any).base ?? "Đã có điểm"})` : (row.trang_thai === "dang_xu_ly" ? " (Chưa chốt điểm)" : "")}</td><td className="space-x-3">
-        <button disabled={busy || mutationPending} className="underline" onClick={async () => { const request = requestId.current; try { const data = await api<Detail>("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}`); if (request === requestId.current) setDetail(data); } catch (e) { if (request === requestId.current) setError((e as Error).message || "Không thể tải chi tiết"); } }}>Chi tiết</button>
+        <button disabled={busy || mutationPending} className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-800 font-semibold rounded-lg text-xs border border-slate-200 transition-colors cursor-pointer" onClick={async () => { const request = requestId.current; try { const data = await api<Detail>("score", `/ho-so/${encodeURIComponent(row.ma_ho_so)}`); if (request === requestId.current) setDetail(data); } catch (e) { if (request === requestId.current) setError((e as Error).message || "Không thể tải chi tiết"); } }}>Chi tiết</button>
         <button disabled={busy || mutationPending || row.trang_thai !== "cho"} className="text-green-800 disabled:opacity-40" onClick={() => void runMutation(() => review(row, true))}>Duyệt hợp lệ</button>
         <button disabled={busy || mutationPending || row.trang_thai !== "cho"} className="text-red-700 disabled:opacity-40" onClick={() => void runMutation(() => review(row, false))}>Từ chối</button>
         {row.trang_thai === "hop_le" && <button disabled={busy || mutationPending} onClick={() => void runMutation(() => progress(row,"start"))}>Bắt đầu xét tuyển</button>}
@@ -132,15 +132,29 @@ export default function HoSoClient() {
         </td></tr>)}
       {!busy && !rows.length && <tr><td colSpan={6} className="p-5 text-center">Không có hồ sơ phù hợp.</td></tr>}
     </tbody></table></div>
-    {rowsAreCurrent && detail && <section className="border border-slate-200 rounded-2xl bg-white p-5 space-y-3"><button className="float-right underline" onClick={() => setDetail(null)}>Đóng</button><h2 className="font-bold">{detail.ma_ho_so}</h2>
-      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-900 flex items-center justify-between">
-        <span>📧 <strong>Thông báo email:</strong> Khi duyệt hoặc từ chối, hệ thống tự động gửi thông báo trực tiếp tới hòm thư của thí sinh (CCCD: <strong>{detail.cccd}</strong>).</span>
+    {rowsAreCurrent && detail && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150" onClick={(e) => { if (e.target === e.currentTarget) setDetail(null); }}>
+        <section className="border-2 border-slate-900 rounded-2xl bg-white p-6 space-y-4 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl relative">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h2 className="font-bold text-lg text-slate-900">Chi tiết hồ sơ: {detail.ma_ho_so}</h2>
+            <button className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors cursor-pointer" onClick={() => setDetail(null)}>✕ Đóng</button>
+          </div>
+          <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-900 flex items-center justify-between">
+            <span>📧 <strong>Thông báo email:</strong> Khi duyệt, từ chối hoặc chốt kết quả, hệ thống tự động gửi thông báo tới hòm thư của thí sinh (CCCD: <strong>{detail.cccd}</strong>).</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div><span className="text-slate-500">Số CCCD:</span> <strong>{detail.cccd}</strong></div>
+            <div><span className="text-slate-500">Mã chương trình:</span> <strong>{detail.ma_chuong_trinh}</strong></div>
+            <div><span className="text-slate-500">Mã phương thức:</span> <strong>{detail.ma_phuong_thuc}</strong></div>
+            <div><span className="text-slate-500">Tổng điểm xét tuyển:</span> <strong>{detail.tong_diem_xet_tuyen ?? "Chưa tính"}</strong></div>
+            {detail.ket_qua && <div className="col-span-2"><span className="text-slate-500">Ghi chú kết quả:</span> <strong>{detail.ket_qua}</strong></div>}
+          </div>
+          {detail.bang_diem?.map((b, i) => <div key={i} className="text-sm border-t pt-2"><strong className="text-slate-800">{b.loai_diem} · {b.nam_hoc} · {b.hoc_ky ? `Học kỳ ${b.hoc_ky}` : "Cả năm"}</strong><ul className="list-disc pl-5 mt-1">{b.chi_tiet.map(d => <li key={d.ma_mon}>{d.ma_mon}: <strong>{d.diem_so}</strong></li>)}</ul></div>)}
+          <h3 className="font-bold text-sm border-t pt-2">Chứng chỉ và tài liệu</h3>{detail.chung_chi?.map(d => <div key={d.ma_chung_chi} className="text-sm">{d.loai_chung_chi} · {d.diem_hoac_hang} {d.ngay_cap && <> · Cấp: {d.ngay_cap.slice(0,10)}</>} {d.ngay_het_han && <> · Hết hạn: {d.ngay_het_han.slice(0,10)}</>} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={d.loai_chung_chi} />}</div>)}
+          <h3 className="font-bold text-sm border-t pt-2">Giải thưởng</h3>{detail.giai_thuong?.map(d=><div key={d.ma_giai_thuong} className="text-sm">{d.giai_thuong} · {d.loai_giai_thuong} · {d.mon_hoc} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={`${d.giai_thuong} · ${d.mon_hoc}`} />}</div>)}
+          <p className="text-xs text-gray-500 border-t pt-2">Hồ sơ hợp lệ không đồng nghĩa đã trúng tuyển. Kết quả đỗ/trượt chính thức chỉ hiển thị cho thí sinh sau khi Hội đồng công bố.</p>
+        </section>
       </div>
-      <p>Tổng điểm: {detail.tong_diem_xet_tuyen ?? "Chưa tính"}</p><p>{detail.ket_qua}</p>
-      {detail.bang_diem?.map((b, i) => <div key={i}>{b.loai_diem} · {b.nam_hoc} · {b.hoc_ky ? `Học kỳ ${b.hoc_ky}` : "Cả năm"}<ul>{b.chi_tiet.map(d => <li key={d.ma_mon}>{d.ma_mon}: {d.diem_so}</li>)}</ul></div>)}
-      <h3 className="font-bold">Chứng chỉ và tài liệu</h3>{detail.chung_chi?.map(d => <div key={d.ma_chung_chi}>{d.loai_chung_chi} · {d.diem_hoac_hang} {d.ngay_cap && <> · Cấp: {d.ngay_cap.slice(0,10)}</>} {d.ngay_het_han && <> · Hết hạn: {d.ngay_het_han.slice(0,10)}</>} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={d.loai_chung_chi} />}</div>)}
-      <h3 className="font-bold">Giải thưởng</h3>{detail.giai_thuong?.map(d=><div key={d.ma_giai_thuong}>{d.giai_thuong} · {d.loai_giai_thuong} · {d.mon_hoc} {d.file_dinh_kem && <EvidencePreview fileKey={d.file_dinh_kem} title={`${d.giai_thuong} · ${d.mon_hoc}`} />}</div>)}
-      <p className="text-sm text-gray-600">Hồ sơ hợp lệ không đồng nghĩa đã trúng tuyển. Kết quả chính thức cần căn cứ xét tuyển và công bố.</p>
-    </section>}
+    )}
   </div>;
 }
