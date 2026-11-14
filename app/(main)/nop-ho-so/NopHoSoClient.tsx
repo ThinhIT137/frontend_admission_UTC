@@ -175,6 +175,10 @@ export default function NopHoSoClient({
         (p) => p.ma_chuong_trinh === selectedProgram,
     );
     const availableToHops = currentProgramData?.to_hop ?? [];
+    const effectiveToHop =
+        selectedToHop && availableToHops.includes(selectedToHop)
+            ? selectedToHop
+            : availableToHops[0] || "";
 
     // Checklist giấy tờ yêu cầu tương ứng với từng phương thức xét tuyển
     const getRequiredDocuments = (methodCode: string) => {
@@ -297,7 +301,7 @@ export default function NopHoSoClient({
             toast.error("Vui lòng chọn chương trình đào tạo mong muốn.");
             return false;
         }
-        if (availableToHops.length > 0 && !selectedToHop) {
+        if (availableToHops.length > 0 && !effectiveToHop) {
             toast.error("Vui lòng chọn tổ hợp môn xét tuyển cho ngành đã chọn.");
             return false;
         }
@@ -519,10 +523,7 @@ export default function NopHoSoClient({
             );
             return;
         }
-        if (
-            !availableToHops.length ||
-            (selectedToHop && !availableToHops.includes(selectedToHop))
-        ) {
+        if (!availableToHops.length || !effectiveToHop) {
             setSubmitError(
                 "Chương trình chưa có tổ hợp hợp lệ trong dữ liệu năm hiện tại. Vui lòng tải lại hoặc liên hệ tuyển sinh.",
             );
@@ -585,7 +586,7 @@ export default function NopHoSoClient({
                         doi_tuong_uu_tien: doiTuongUuTien,
                         ...(email.trim() ? { email: email.trim() } : {}),
                     },
-                    ma_to_hop: selectedToHop || availableToHops[0] || undefined,
+                    ma_to_hop: effectiveToHop,
                     nam_tuyen_sinh: year,
                     nguyen_vong: preference,
                     ...evidence,
@@ -952,11 +953,10 @@ export default function NopHoSoClient({
                                         </label>
                                         <select
                                             value={selectedProgram}
-                                            onChange={(e) =>
-                                                setSelectedProgram(
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                setSelectedProgram(e.target.value);
+                                                setSelectedToHop("");
+                                            }}
                                             className="w-full px-3.5 py-3 bg-[#fffdf7] border-[2px] border-[#111827] rounded-xl font-bold text-[13.5px] text-[#0d1b4e] outline-none cursor-pointer"
                                         >
                                             {programs.map((p) => (
@@ -976,10 +976,7 @@ export default function NopHoSoClient({
                                             Tổ hợp môn xét tuyển:
                                         </label>
                                         <select
-                                            value={
-                                                selectedToHop ||
-                                                availableToHops[0]
-                                            }
+                                            value={effectiveToHop}
                                             onChange={(e) =>
                                                 setSelectedToHop(e.target.value)
                                             }
@@ -1672,8 +1669,7 @@ export default function NopHoSoClient({
                                                         )?.ten_phuong_thuc
                                                     }{" "}
                                                     (
-                                                    {selectedToHop ||
-                                                        availableToHops[0] ||
+                                                    {effectiveToHop ||
                                                         "Chưa có tổ hợp"}
                                                     )
                                                 </span>
@@ -1803,8 +1799,7 @@ export default function NopHoSoClient({
                                                 </p>
                                                 <p>
                                                     <strong>Tổ hợp môn:</strong>{" "}
-                                                    {selectedToHop ||
-                                                        availableToHops[0]}
+                                                    {effectiveToHop || "Chưa có tổ hợp"}
                                                 </p>
                                                 <p>
                                                     <strong>
